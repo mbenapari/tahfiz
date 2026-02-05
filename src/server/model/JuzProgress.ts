@@ -1,7 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
-import School from './School';
-import User from './User';
 
 interface JuzProgressAttributes {
   id: number;
@@ -42,7 +40,7 @@ JuzProgress.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: School,
+        model: 'schools',
         key: 'id',
       },
     },
@@ -50,7 +48,7 @@ JuzProgress.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: User,
+        model: 'users',
         key: 'id',
       },
     },
@@ -100,12 +98,5 @@ JuzProgress.init(
     ],
   }
 );
-
-// Define Associations
-School.hasMany(JuzProgress, { foreignKey: 'tenant_id', as: 'juz_progress_records' });
-JuzProgress.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
-
-User.hasMany(JuzProgress, { foreignKey: 'student_id', as: 'juz_progress_records' });
-JuzProgress.belongsTo(User, { foreignKey: 'student_id', as: 'student' });
 
 export default JuzProgress;
