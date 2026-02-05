@@ -5,7 +5,7 @@ import {
   Users, 
   BookOpen, 
   BarChart3, 
-  Calendar, 
+  GraduationCap, 
   Settings 
 } from 'lucide-react';
 import { Logo } from './Logo';
@@ -14,9 +14,8 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'Students', path: '/students' },
-    { icon: BookOpen, label: 'Classes', path: '/classes' },
+    // { icon: BookOpen, label: 'Classes', path: '/classes' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
-    { icon: Calendar, label: 'Schedule', path: '/schedule' },
   ];
 
   return (
