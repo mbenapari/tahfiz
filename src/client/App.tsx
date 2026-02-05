@@ -8,7 +8,14 @@ import Register from "./pages/auth/Register";
 import Login from "./pages/auth/Login";
 import CreateSchool from "./pages/CreateSchool";
 import { DashboardLayout } from "./layouts/DashboardLayout";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Dashboard } from "./pages/Dashboard";
+import { Students } from "./pages/students/Students";
+import { StudentProfile } from "./pages/students/StudentProfile";
+import { EnrollStudent } from "./pages/students/EnrollStudent";
+import { DailySession } from "./pages/sessions/DailySession";
+import { Reports } from "./pages/reports/Reports";
+import { Settings } from "./pages/settings/Settings";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -17,12 +24,22 @@ function App() {
     <Routes>
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/schools/new" element={<CreateSchool />} />
       
-      {/* Dashboard Routes */}
-      <Route path="/" element={<DashboardLayout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="dashboard" element={<Dashboard />} />
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/schools/new" element={<CreateSchool />} />
+        
+        {/* Dashboard Routes */}
+        <Route path="/" element={<DashboardLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="students" element={<Students />} />
+          <Route path="students/:id" element={<StudentProfile />} />
+          <Route path="students/enroll" element={<EnrollStudent />} />
+          <Route path="sessions/daily" element={<DailySession />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
       </Route>
 
       <Route
