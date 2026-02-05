@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   BookOpen, 
@@ -15,6 +15,7 @@ import {
   Clock,
   MoreHorizontal
 } from 'lucide-react';
+import axios from 'axios';
 import { 
   LineChart, 
   Line, 
@@ -26,12 +27,39 @@ import {
 } from 'recharts';
 
 export const Dashboard: React.FC = () => {
+  const [activeStudents, setActiveStudents] = useState({ value: '...', trend: '' });
+  const [totalHifz, setTotalHifz] = useState({ value: '...', trend: '' });
+  const [todaySessions, setTodaySessions] = useState({ value: '...', completed: 0 });
+  const [pendingReviews, setPendingReviews] = useState({ value: '...', status: '' });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [activeRes, hifzRes, sessionsRes, reviewsRes] = await Promise.all([
+          axios.get('/api/stats/active-students'),
+          axios.get('/api/stats/total-hifz'),
+          axios.get('/api/stats/today-sessions'),
+          axios.get('/api/stats/pending-reviews')
+        ]);
+
+        setActiveStudents(activeRes.data);
+        setTotalHifz(hifzRes.data);
+        setTodaySessions(sessionsRes.data);
+        setPendingReviews(reviewsRes.data);
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
   // Stats Data
   const stats = [
     {
       label: 'Active Students',
-      value: '142',
-      trend: '+5% this month',
+      value: activeStudents.value.toString(),
+      trend: activeStudents.trend,
       icon: Users,
       color: 'text-primary',
       bgIcon: 'bg-primary/10',
@@ -39,8 +67,8 @@ export const Dashboard: React.FC = () => {
     },
     {
       label: 'Total Hifz (Juz)',
-      value: '1,205',
-      trend: '+12% vs last term',
+      value: totalHifz.value.toString(),
+      trend: totalHifz.trend,
       icon: BookOpen,
       color: 'text-blue-400',
       bgIcon: 'bg-blue-400/10',
@@ -48,18 +76,18 @@ export const Dashboard: React.FC = () => {
     },
     {
       label: "Today's Sessions",
-      value: '8',
-      subtext: '3 Completed',
+      value: todaySessions.value.toString(),
+      subtext: `${todaySessions.completed} Completed`,
       icon: Video,
       color: 'text-orange-400',
       bgIcon: 'bg-orange-400/10',
     },
     {
       label: 'Pending Reviews',
-      value: '12',
-      subtext: 'Up to date',
-      subtextColor: 'text-primary',
-      subtextIcon: CheckCircle2,
+      value: pendingReviews.value.toString(),
+      subtext: pendingReviews.status,
+      subtextColor: pendingReviews.value === 0 ? 'text-primary' : 'text-orange-400',
+      subtextIcon: pendingReviews.value === 0 ? CheckCircle2 : Clock,
       icon: ClipboardList,
       color: 'text-purple-400',
       bgIcon: 'bg-purple-400/10',
