@@ -1,9 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
-import School from './School';
-import Session from './Session';
-import User from './User';
-import Surah from './Surah';
 
 export enum RecordType {
   MEMORIZED = 'memorized',
@@ -57,7 +53,7 @@ MemorizationRecord.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: School,
+        model: 'schools',
         key: 'id',
       },
     },
@@ -65,7 +61,7 @@ MemorizationRecord.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: Session,
+        model: 'sessions',
         key: 'id',
       },
     },
@@ -73,7 +69,7 @@ MemorizationRecord.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: User,
+        model: 'users',
         key: 'id',
       },
     },
@@ -81,7 +77,7 @@ MemorizationRecord.init(
       type: DataTypes.BIGINT,
       allowNull: true,
       references: {
-        model: User,
+        model: 'users',
         key: 'id',
       },
     },
@@ -93,7 +89,7 @@ MemorizationRecord.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: Surah,
+        model: 'surahs',
         key: 'number',
       },
     },
@@ -146,21 +142,5 @@ MemorizationRecord.init(
     ],
   }
 );
-
-// Define Associations
-School.hasMany(MemorizationRecord, { foreignKey: 'tenant_id', as: 'memorization_records' });
-MemorizationRecord.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
-
-Session.hasMany(MemorizationRecord, { foreignKey: 'session_id', as: 'memorization_records' });
-MemorizationRecord.belongsTo(Session, { foreignKey: 'session_id', as: 'session' });
-
-User.hasMany(MemorizationRecord, { foreignKey: 'student_id', as: 'student_memorization_records' });
-MemorizationRecord.belongsTo(User, { foreignKey: 'student_id', as: 'student' });
-
-User.hasMany(MemorizationRecord, { foreignKey: 'instructor_id', as: 'instructor_memorization_records' });
-MemorizationRecord.belongsTo(User, { foreignKey: 'instructor_id', as: 'instructor' });
-
-Surah.hasMany(MemorizationRecord, { foreignKey: 'surah_number', as: 'memorization_records' });
-MemorizationRecord.belongsTo(Surah, { foreignKey: 'surah_number', as: 'surah' });
 
 export default MemorizationRecord;
