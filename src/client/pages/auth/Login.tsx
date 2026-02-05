@@ -7,15 +7,20 @@ import {
   ArrowRight,
   School
 } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/Logo';
+import { useAuth } from '../../context/AuthContext';
 
 const Login: React.FC = () => {
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    identifier: '',
+    identifier: '', // This maps to email in backend for now
     password: '',
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -25,10 +30,51 @@ const Login: React.FC = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login submitted:', formData);
-    // Add login logic here
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.identifier, // Backend expects 'email'
+          password: formData.password
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      // Update global auth state
+      setUser(data.user);
+
+      // Validation for required fields
+      if (!data.user.id || !data.user.role) {
+        throw new Error('Incomplete user data received from server');
+      }
+
+      // Check if user is admin and doesn't have a tenant_id or is assigned to a default/placeholder tenant
+      // Note: Adjust tenant_id logic as per system requirements (e.g., tenant_id 1 might be a global/admin tenant)
+      if (data.user.role === 'admin' && (!data.user.tenant_id || data.user.tenant_id === 1)) {
+        navigate('/schools/new');
+      } else {
+        navigate('/');
+      }
+      
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -74,6 +120,12 @@ const Login: React.FC = () => {
             <h1 className="text-3xl font-bold text-white tracking-tight">Welcome Back</h1>
             <p className="text-text-muted">Please enter your details to access your hifz progress.</p>
           </div>
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-4 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             
@@ -132,10 +184,17 @@ const Login: React.FC = () => {
 
             <button 
               type="submit" 
-              className="mt-2 flex items-center justify-center gap-2 h-12 bg-primary text-background-dark rounded-lg font-bold hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20 active:scale-[0.99]"
+              disabled={loading}
+              className="mt-2 flex items-center justify-center gap-2 h-12 bg-primary text-background-dark rounded-lg font-bold hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>Sign In</span>
-              <ArrowRight size={18} />
+              {loading ? (
+                <div className="h-5 w-5 border-2 border-background-dark border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <span>Sign In</span>
+                  <ArrowRight size={18} />
+                </>
+              )}
             </button>
 
           </form>

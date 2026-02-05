@@ -11,19 +11,27 @@ import {
   Contact,
   LayoutDashboard,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  Lock
 } from 'lucide-react';
 
 import { Logo } from '../../components/Logo';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const Register: React.FC = () => {
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    role: 'student',
+    role: 'admin',
     email: '',
+    password: '',
     phone: '',
   });
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -40,10 +48,62 @@ const Register: React.FC = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    // Add registration logic here
+    setLoading(true);
+    setStatus(null);
+
+    try {
+      const response = await fetch('/api/users/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Registration failed');
+      }
+
+      setStatus({ type: 'success', message: 'User registered successfully!' });
+      
+      // Update global auth state
+      setUser(data.user);
+
+      // Validation for required fields
+      if (!data.user.id || !data.user.role) {
+        throw new Error('Incomplete user data received from server');
+      }
+
+      // Navigate based on role
+      // If Admin and no tenant assigned, go to Create School
+      if (data.user.role === 'admin' && !data.user.tenant_id) {
+        setTimeout(() => {
+          navigate('/schools/new');
+        }, 1500);
+      } else {
+        setTimeout(() => {
+          navigate('/');
+        }, 1500);
+      }
+
+      // Reset form on success
+      setFormData({
+        firstName: '',
+        lastName: '',
+        role: 'admin',
+        email: '',
+        password: '',
+        phone: '',
+      });
+    } catch (err: any) {
+      setStatus({ type: 'error', message: err.message });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -71,6 +131,16 @@ const Register: React.FC = () => {
             <p className="text-sm font-normal leading-normal">Registering for: <span className="text-primary font-medium">Al-Huda Academy</span></p>
           </div>
         </div>
+
+        {status && (
+          <div className={`p-4 rounded-lg border ${
+            status.type === 'success' 
+              ? 'bg-green-500/10 border-green-500/50 text-green-500' 
+              : 'bg-red-500/10 border-red-500/50 text-red-500'
+          }`}>
+            {status.message}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           
@@ -124,12 +194,12 @@ const Register: React.FC = () => {
                     type="radio" 
                     name="role_selection" 
                     className="peer invisible absolute" 
-                    checked={formData.role === 'student'} 
-                    onChange={() => handleRoleChange('student')}
+                    checked={formData.role === 'admin'} 
+                    onChange={() => handleRoleChange('admin')}
                   />
                   <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-border-green p-6 text-white bg-background-dark peer-checked:border-primary peer-checked:bg-primary/5 transition-all hover:border-primary/50 h-full">
-                    <GraduationCap className="text-text-muted peer-checked:text-primary group-hover:text-white transition-colors" size={32} />
-                    <span className="font-bold">Student</span>
+                    <Shield className="text-text-muted peer-checked:text-primary group-hover:text-white transition-colors" size={32} />
+                    <span className="font-bold">Admin</span>
                     <div className="absolute top-3 right-3 opacity-0 peer-checked:opacity-100 transition-opacity text-primary">
                       <CheckCircle2 size={20} fill="currentColor" className="text-primary" />
                     </div>
@@ -158,12 +228,12 @@ const Register: React.FC = () => {
                     type="radio" 
                     name="role_selection" 
                     className="peer invisible absolute" 
-                    checked={formData.role === 'admin'} 
-                    onChange={() => handleRoleChange('admin')}
+                    checked={formData.role === 'student'} 
+                    onChange={() => handleRoleChange('student')}
                   />
                   <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-border-green p-6 text-white bg-background-dark peer-checked:border-primary peer-checked:bg-primary/5 transition-all hover:border-primary/50 h-full">
-                    <Shield className="text-text-muted peer-checked:text-primary group-hover:text-white transition-colors" size={32} />
-                    <span className="font-bold">Admin</span>
+                    <GraduationCap className="text-text-muted peer-checked:text-primary group-hover:text-white transition-colors" size={32} />
+                    <span className="font-bold">Student</span>
                     <div className="absolute top-3 right-3 opacity-0 peer-checked:opacity-100 transition-opacity text-primary">
                       <CheckCircle2 size={20} fill="currentColor" className="text-primary" />
                     </div>
@@ -199,6 +269,24 @@ const Register: React.FC = () => {
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
                 </div>
               </label>
+
+              <label className="flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-white">Password <span className="text-red-500">*</span></span>
+                </div>
+                <div className="relative">
+                  <input 
+                    name="password"
+                    type="password" 
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="h-12 w-full rounded-lg bg-background-dark border border-border-green px-4 pl-11 text-white placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                    placeholder="••••••••" 
+                    required
+                  />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
+                </div>
+              </label>
               
               <label className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
@@ -230,10 +318,15 @@ const Register: React.FC = () => {
             </button>
             <button 
               type="submit" 
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-background-dark rounded-lg font-bold hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20"
+              disabled={loading}
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-background-dark rounded-lg cursor-pointer font-bold hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <UserPlus size={20} />
-              <span>Create Account</span>
+              {loading ? (
+                <div className="h-5 w-5 border-2 border-background-dark border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <UserPlus size={20} />
+              )}
+              <span>{loading ? 'Creating...' : 'Create Account'}</span>
             </button>
           </div>
 
