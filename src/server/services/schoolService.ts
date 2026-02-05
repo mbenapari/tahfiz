@@ -2,6 +2,7 @@ import { School } from '../model';
 
 export interface CreateSchoolDTO {
   name: string;
+  slug: string;
   timezone?: string;
   study_days: number[];
   address?: string;
@@ -9,6 +10,7 @@ export interface CreateSchoolDTO {
 
 export interface UpdateSchoolDTO {
   name?: string;
+  slug?: string;
   timezone?: string;
   study_days?: number[];
   address?: string;
