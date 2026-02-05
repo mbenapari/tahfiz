@@ -8,9 +8,10 @@ import {
   ChevronRight,
   LayoutDashboard
 } from 'lucide-react';
-import { Link } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 
 const CreateSchool: React.FC = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     schoolName: '',
     slug: '',
@@ -18,6 +19,8 @@ const CreateSchool: React.FC = () => {
     address: '',
     studyDays: ['MON', 'TUE', 'WED'] as string[],
   });
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   const weekDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
   
@@ -57,10 +60,38 @@ const CreateSchool: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    // Add creation logic here
+    setLoading(true);
+    setStatus(null);
+
+    try {
+      const response = await fetch('/api/schools/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create school');
+      }
+
+      setStatus({ type: 'success', message: 'School created successfully!' });
+      
+      // Navigate to dashboard after success
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
+      
+    } catch (err: any) {
+      setStatus({ type: 'error', message: err.message });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -87,6 +118,16 @@ const CreateSchool: React.FC = () => {
             Create a new tenant for the platform. This will set up the initial configuration, study days, and location settings.
           </p>
         </div>
+
+        {status && (
+          <div className={`p-4 rounded-lg border ${
+            status.type === 'success' 
+              ? 'bg-green-500/10 border-green-500/50 text-green-500' 
+              : 'bg-red-500/10 border-red-500/50 text-red-500'
+          }`}>
+            {status.message}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           
@@ -207,10 +248,15 @@ const CreateSchool: React.FC = () => {
             </button>
             <button 
               type="submit" 
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-background-dark rounded-lg font-bold hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20"
+              disabled={loading}
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-background-dark rounded-lg font-bold hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Store size={20} />
-              <span>Create School</span>
+              {loading ? (
+                <div className="h-5 w-5 border-2 border-background-dark border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Store size={20} />
+              )}
+              <span>{loading ? 'Creating...' : 'Create School'}</span>
             </button>
           </div>
 
