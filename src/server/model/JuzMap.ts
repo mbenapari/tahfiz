@@ -1,6 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
-import Surah from './Surah';
 
 interface JuzMapAttributes {
   id: number;
@@ -41,7 +40,7 @@ JuzMap.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: Surah,
+        model: 'surahs',
         key: 'number',
       },
     },
@@ -82,9 +81,5 @@ JuzMap.init(
     ],
   }
 );
-
-// Define Association
-Surah.hasMany(JuzMap, { foreignKey: 'surah_number', as: 'juz_maps' });
-JuzMap.belongsTo(Surah, { foreignKey: 'surah_number', as: 'surah' });
 
 export default JuzMap;
