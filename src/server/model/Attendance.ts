@@ -1,7 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
-import Session from './Session';
-import User from './User';
 
 export enum AttendanceStatus {
   PRESENT = 'present',
@@ -44,7 +42,7 @@ Attendance.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: Session,
+        model: 'sessions',
         key: 'id',
       },
     },
@@ -56,7 +54,7 @@ Attendance.init(
       type: DataTypes.BIGINT,
       allowNull: true,
       references: {
-        model: User,
+        model: 'users',
         key: 'id',
       },
     },
@@ -87,12 +85,5 @@ Attendance.init(
     deletedAt: 'deleted_at',
   }
 );
-
-// Define Associations
-Session.hasOne(Attendance, { foreignKey: 'session_id', as: 'attendance' });
-Attendance.belongsTo(Session, { foreignKey: 'session_id', as: 'session' });
-
-User.hasMany(Attendance, { foreignKey: 'recorded_by', as: 'recorded_attendances' });
-Attendance.belongsTo(User, { foreignKey: 'recorded_by', as: 'recorder' });
 
 export default Attendance;

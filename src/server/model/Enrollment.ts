@@ -1,7 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
-import School from './School';
-import User from './User';
 
 export enum EnrollmentStatus {
   ACTIVE = 'active',
@@ -47,7 +45,7 @@ Enrollment.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: School,
+        model: 'schools',
         key: 'id',
       },
     },
@@ -55,7 +53,7 @@ Enrollment.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: User,
+        model: 'users',
         key: 'id',
       },
     },
@@ -100,12 +98,5 @@ Enrollment.init(
     ],
   }
 );
-
-// Define Associations
-School.hasMany(Enrollment, { foreignKey: 'tenant_id', as: 'enrollments' });
-Enrollment.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
-
-User.hasMany(Enrollment, { foreignKey: 'student_id', as: 'enrollments' });
-Enrollment.belongsTo(User, { foreignKey: 'student_id', as: 'student' });
 
 export default Enrollment;
