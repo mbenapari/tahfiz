@@ -1,6 +1,6 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
-import School from './School';
+import bcrypt from 'bcrypt';
 
 export enum UserRole {
   STUDENT = 'student',
@@ -10,10 +10,12 @@ export enum UserRole {
 
 interface UserAttributes {
   id: number;
-  tenant_id: number;
+  tenant_id?: number;
+  role_id?: number;
   first_name: string;
   last_name?: string;
   email?: string;
+  password?: string;
   phone?: string;
   role: UserRole;
   student_identifier?: string;
@@ -22,20 +24,28 @@ interface UserAttributes {
   deleted_at?: Date;
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'last_name' | 'email' | 'phone' | 'student_identifier' | 'created_at' | 'updated_at' | 'deleted_at'> {}
+interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'tenant_id' | 'role_id' | 'last_name' | 'email' | 'password' | 'phone' | 'student_identifier' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
-  public id!: number;
-  public tenant_id!: number;
-  public first_name!: string;
-  public last_name!: string;
-  public email!: string;
-  public phone!: string;
-  public role!: UserRole;
-  public student_identifier!: string;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
-  public readonly deleted_at!: Date;
+  declare id: number;
+  declare tenant_id: number;
+  declare role_id: number;
+  declare first_name: string;
+  declare last_name: string;
+  declare email: string;
+  declare password: string;
+  declare phone: string;
+  declare role: UserRole;
+  declare student_identifier: string;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
+  declare readonly deleted_at: Date;
+
+  // Instance method to validate password
+  public async validatePassword(password: string): Promise<boolean> {
+    if (!this.password) return false;
+    return bcrypt.compare(password, this.password);
+  }
 }
 
 User.init(
@@ -47,11 +57,15 @@ User.init(
     },
     tenant_id: {
       type: DataTypes.BIGINT,
-      allowNull: false,
+      allowNull: true,
       references: {
-        model: School,
+        model: 'tenants',
         key: 'id',
       },
+    },
+    role_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
     },
     first_name: {
       type: DataTypes.STRING(120),
@@ -62,6 +76,11 @@ User.init(
       allowNull: true,
     },
     email: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      unique: true,
+    },
+    password: {
       type: DataTypes.STRING(255),
       allowNull: true,
     },
@@ -100,15 +119,25 @@ User.init(
     deletedAt: 'deleted_at',
     indexes: [
       {
-        name: 'idx_users_tenant_role',
-        fields: ['tenant_id', 'role'],
+        name: 'idx_users_role',
+        fields: ['role'],
       },
     ],
+    hooks: {
+      beforeCreate: async (user: User) => {
+        if (user.password) {
+          const salt = await bcrypt.genSalt(12);
+          user.password = await bcrypt.hash(user.password, salt);
+        }
+      },
+      beforeUpdate: async (user: User) => {
+        if (user.changed('password') && user.password) {
+          const salt = await bcrypt.genSalt(12);
+          user.password = await bcrypt.hash(user.password, salt);
+        }
+      },
+    },
   }
 );
-
-// Define Association
-School.hasMany(User, { foreignKey: 'tenant_id', as: 'users' });
-User.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
 
 export default User;

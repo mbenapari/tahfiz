@@ -1,7 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
-import School from './School';
-import User from './User';
 
 interface SessionAttributes {
   id: number;
@@ -40,7 +38,7 @@ Session.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: School,
+        model: 'schools',
         key: 'id',
       },
     },
@@ -48,7 +46,7 @@ Session.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: User,
+        model: 'users',
         key: 'id',
       },
     },
@@ -56,7 +54,7 @@ Session.init(
       type: DataTypes.BIGINT,
       allowNull: true,
       references: {
-        model: User,
+        model: 'users',
         key: 'id',
       },
     },
@@ -102,15 +100,5 @@ Session.init(
     ],
   }
 );
-
-// Define Associations
-School.hasMany(Session, { foreignKey: 'tenant_id', as: 'sessions' });
-Session.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
-
-User.hasMany(Session, { foreignKey: 'student_id', as: 'student_sessions' });
-Session.belongsTo(User, { foreignKey: 'student_id', as: 'student' });
-
-User.hasMany(Session, { foreignKey: 'instructor_id', as: 'instructor_sessions' });
-Session.belongsTo(User, { foreignKey: 'instructor_id', as: 'instructor' });
 
 export default Session;

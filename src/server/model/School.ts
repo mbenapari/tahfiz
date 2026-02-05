@@ -4,6 +4,8 @@ import sequelize from '../db';
 interface SchoolAttributes {
   id: number;
   name: string;
+  slug: string; // Add slug
+  owner_id?: number;
   timezone: string;
   study_days: number[]; // Array of numbers representing days
   address?: string;
@@ -12,17 +14,19 @@ interface SchoolAttributes {
   deleted_at?: Date;
 }
 
-interface SchoolCreationAttributes extends Optional<SchoolAttributes, 'id' | 'timezone' | 'address' | 'created_at' | 'updated_at' | 'deleted_at'> {}
+interface SchoolCreationAttributes extends Optional<SchoolAttributes, 'id' | 'owner_id' | 'timezone' | 'address' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class School extends Model<SchoolAttributes, SchoolCreationAttributes> implements SchoolAttributes {
-  public id!: number;
-  public name!: string;
-  public timezone!: string;
-  public study_days!: number[];
-  public address!: string;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
-  public readonly deleted_at!: Date;
+  declare id: number;
+  declare name: string;
+  declare slug: string;
+  declare owner_id: number;
+  declare timezone: string;
+  declare study_days: number[];
+  declare address: string;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
+  declare readonly deleted_at: Date;
 }
 
 School.init(
@@ -35,6 +39,19 @@ School.init(
     name: {
       type: DataTypes.STRING(255),
       allowNull: false,
+    },
+    slug: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      unique: true,
+    },
+    owner_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true, // Optional initially, or mandatory if created by user
+      references: {
+        model: 'users',
+        key: 'id',
+      },
     },
     timezone: {
       type: DataTypes.STRING(64),

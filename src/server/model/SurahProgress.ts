@@ -1,8 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
-import School from './School';
-import User from './User';
-import Surah from './Surah';
 
 interface SurahProgressAttributes {
   id: number;
@@ -43,7 +40,7 @@ SurahProgress.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: School,
+        model: 'schools',
         key: 'id',
       },
     },
@@ -51,7 +48,7 @@ SurahProgress.init(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: User,
+        model: 'users',
         key: 'id',
       },
     },
@@ -59,7 +56,7 @@ SurahProgress.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: Surah,
+        model: 'surahs',
         key: 'number',
       },
     },
@@ -105,15 +102,5 @@ SurahProgress.init(
     ],
   }
 );
-
-// Define Associations
-School.hasMany(SurahProgress, { foreignKey: 'tenant_id', as: 'surah_progress_records' });
-SurahProgress.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
-
-User.hasMany(SurahProgress, { foreignKey: 'student_id', as: 'surah_progress_records' });
-SurahProgress.belongsTo(User, { foreignKey: 'student_id', as: 'student' });
-
-Surah.hasMany(SurahProgress, { foreignKey: 'surah_number', as: 'progress_records' });
-SurahProgress.belongsTo(Surah, { foreignKey: 'surah_number', as: 'surah' });
 
 export default SurahProgress;
