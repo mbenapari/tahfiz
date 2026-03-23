@@ -3,6 +3,16 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    const [existing] = await queryInterface.sequelize.query(
+      'SELECT id FROM juz_map LIMIT 1',
+      { type: Sequelize.QueryTypes.SELECT }
+    );
+
+    if (existing) {
+      console.log('Juz map already seeded, skipping...');
+      return;
+    }
+
     await queryInterface.bulkInsert('juz_map', [
       { juz_number: 1, surah_number: 1, start_ayah: 1, end_ayah: 7 },
       { juz_number: 1, surah_number: 2, start_ayah: 1, end_ayah: 141 },

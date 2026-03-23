@@ -3,6 +3,16 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    const [existing] = await queryInterface.sequelize.query(
+      'SELECT number FROM surahs LIMIT 1',
+      { type: Sequelize.QueryTypes.SELECT }
+    );
+
+    if (existing) {
+      console.log('Surahs already seeded, skipping...');
+      return;
+    }
+
     await queryInterface.bulkInsert('surahs', [
       { number: 1, name: 'Al-Fatihah', ayah_count: 7 },
       { number: 2, name: 'Al-Baqarah', ayah_count: 286 },
