@@ -40,3 +40,19 @@ export const getPendingReviews = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message || 'Error fetching pending reviews count' });
   }
 };
+
+export const getStudentStats = async (req: Request, res: Response) => {
+  try {
+    const tenantId = (req as any).user.tenantId;
+    const studentId = parseInt(req.params.studentId);
+    
+    if (isNaN(studentId)) {
+      return res.status(400).json({ message: 'Invalid student ID' });
+    }
+
+    const stats = await statsService.getStudentIndividualStats(studentId, tenantId);
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Error fetching individual student stats' });
+  }
+};
