@@ -17,16 +17,16 @@ interface SurahProgressAttributes {
 interface SurahProgressCreationAttributes extends Optional<SurahProgressAttributes, 'id' | 'read_full_count' | 'last_read_on' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class SurahProgress extends Model<SurahProgressAttributes, SurahProgressCreationAttributes> implements SurahProgressAttributes {
-  public id!: number;
-  public tenant_id!: number;
-  public student_id!: number;
-  public surah_number!: number;
-  public completed_on!: string;
-  public read_full_count!: number;
-  public last_read_on!: string;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
-  public readonly deleted_at!: Date;
+  declare id: number;
+  declare tenant_id: number;
+  declare student_id: number;
+  declare surah_number: number;
+  declare completed_on: string;
+  declare read_full_count: number;
+  declare last_read_on: string;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
+  declare readonly deleted_at: Date;
 }
 
 SurahProgress.init(

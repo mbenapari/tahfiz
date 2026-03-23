@@ -15,14 +15,14 @@ interface JuzMapAttributes {
 interface JuzMapCreationAttributes extends Optional<JuzMapAttributes, 'id' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class JuzMap extends Model<JuzMapAttributes, JuzMapCreationAttributes> implements JuzMapAttributes {
-  public id!: number;
-  public juz_number!: number;
-  public surah_number!: number;
-  public start_ayah!: number;
-  public end_ayah!: number;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
-  public readonly deleted_at!: Date;
+  declare id: number;
+  declare juz_number: number;
+  declare surah_number: number;
+  declare start_ayah: number;
+  declare end_ayah: number;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
+  declare readonly deleted_at: Date;
 }
 
 JuzMap.init(

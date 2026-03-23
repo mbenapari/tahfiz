@@ -17,16 +17,16 @@ interface JuzProgressAttributes {
 interface JuzProgressCreationAttributes extends Optional<JuzProgressAttributes, 'id' | 'completed_on' | 'full_reads' | 'last_read_on' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class JuzProgress extends Model<JuzProgressAttributes, JuzProgressCreationAttributes> implements JuzProgressAttributes {
-  public id!: number;
-  public tenant_id!: number;
-  public student_id!: number;
-  public juz_number!: number;
-  public completed_on!: string;
-  public full_reads!: number;
-  public last_read_on!: string;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
-  public readonly deleted_at!: Date;
+  declare id: number;
+  declare tenant_id: number;
+  declare student_id: number;
+  declare juz_number: number;
+  declare completed_on: string;
+  declare full_reads: number;
+  declare last_read_on: string;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
+  declare readonly deleted_at: Date;
 }
 
 JuzProgress.init(

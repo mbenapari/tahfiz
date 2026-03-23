@@ -4,6 +4,7 @@ import Enrollment from './Enrollment';
 import Attendance from './Attendance';
 import Session from './Session';
 import MemorizationRecord from './MemorizationRecord';
+import RevisionRecord from './RevisionRecord';
 import Surah from './Surah';
 import JuzMap from './JuzMap';
 import SurahProgress from './SurahProgress';
@@ -72,6 +73,22 @@ MemorizationRecord.belongsTo(User, { foreignKey: 'instructor_id', as: 'instructo
 Surah.hasMany(MemorizationRecord, { foreignKey: 'surah_number', as: 'memorization_records' });
 MemorizationRecord.belongsTo(Surah, { foreignKey: 'surah_number', as: 'surah' });
 
+// RevisionRecord Associations
+School.hasMany(RevisionRecord, { foreignKey: 'tenant_id', as: 'revision_records' });
+RevisionRecord.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
+
+Session.hasMany(RevisionRecord, { foreignKey: 'session_id', as: 'revision_records' });
+RevisionRecord.belongsTo(Session, { foreignKey: 'session_id', as: 'session' });
+
+User.hasMany(RevisionRecord, { foreignKey: 'student_id', as: 'student_revision_records' });
+RevisionRecord.belongsTo(User, { foreignKey: 'student_id', as: 'student' });
+
+User.hasMany(RevisionRecord, { foreignKey: 'instructor_id', as: 'instructor_revision_records' });
+RevisionRecord.belongsTo(User, { foreignKey: 'instructor_id', as: 'instructor' });
+
+Surah.hasMany(RevisionRecord, { foreignKey: 'surah_number', as: 'revision_records' });
+RevisionRecord.belongsTo(Surah, { foreignKey: 'surah_number', as: 'surah' });
+
 // JuzProgress Associations
 School.hasMany(JuzProgress, { foreignKey: 'tenant_id', as: 'juz_progress_records' });
 JuzProgress.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
@@ -136,6 +153,7 @@ export {
   Attendance,
   Session,
   MemorizationRecord,
+  RevisionRecord,
   Surah,
   JuzMap,
   SurahProgress,

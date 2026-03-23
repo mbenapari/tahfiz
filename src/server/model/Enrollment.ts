@@ -23,15 +23,15 @@ interface EnrollmentAttributes {
 interface EnrollmentCreationAttributes extends Optional<EnrollmentAttributes, 'id' | 'enrolled_on' | 'status' | 'notes' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class Enrollment extends Model<EnrollmentAttributes, EnrollmentCreationAttributes> implements EnrollmentAttributes {
-  public id!: number;
-  public tenant_id!: number;
-  public student_id!: number;
-  public enrolled_on!: string;
-  public status!: EnrollmentStatus;
-  public notes!: string;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
-  public readonly deleted_at!: Date;
+  declare id: number;
+  declare tenant_id: number;
+  declare student_id: number;
+  declare enrolled_on: string;
+  declare status: EnrollmentStatus;
+  declare notes: string;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
+  declare readonly deleted_at: Date;
 }
 
 Enrollment.init(

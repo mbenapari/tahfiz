@@ -13,12 +13,12 @@ interface SurahAttributes {
 interface SurahCreationAttributes extends Optional<SurahAttributes, 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class Surah extends Model<SurahAttributes, SurahCreationAttributes> implements SurahAttributes {
-  public number!: number;
-  public name!: string;
-  public ayah_count!: number;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
-  public readonly deleted_at!: Date;
+  declare number: number;
+  declare name: string;
+  declare ayah_count: number;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
+  declare readonly deleted_at: Date;
 }
 
 Surah.init(
