@@ -9,8 +9,10 @@ import {
   Settings 
 } from 'lucide-react';
 import { Logo } from './Logo';
+import { useAuth } from '../context/AuthContext';
 
 export const Sidebar: React.FC = () => {
+  const { user } = useAuth();
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'Students', path: '/students' },
@@ -27,7 +29,9 @@ export const Sidebar: React.FC = () => {
           <Logo className="text-primary w-8 h-8" />
         </div>
         <div className="flex flex-col">
-          <h1 className="text-white font-bold text-lg leading-tight">Al-Furqan<br/>Academy</h1>
+          <h1 className="text-white font-bold text-lg leading-tight">
+            {user?.school_name || 'Tahfiz'}<br/>Academy
+          </h1>
           <span className="text-text-muted text-xs font-medium mt-0.5">Admin Portal</span>
         </div>
       </div>
@@ -80,14 +84,18 @@ export const Sidebar: React.FC = () => {
             <div className="w-10 h-10 rounded-full bg-surface-dark border border-border-green/30 flex items-center justify-center overflow-hidden">
                {/* Placeholder Avatar */}
                <img 
-                 src="https://api.dicebear.com/7.x/avataaars/svg?seed=SheikhAbdullah" 
+                 src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.first_name || 'User'}`} 
                  alt="User Avatar" 
                  className="w-full h-full object-cover"
                />
             </div>
             <div className="flex flex-col">
-              <span className="text-white font-bold text-sm">Sheikh Abdullah</span>
-              <span className="text-primary text-xs font-medium">Instructor</span>
+              <span className="text-white font-bold text-sm">
+                {user?.first_name} {user?.last_name}
+              </span>
+              <span className="text-primary text-xs font-medium capitalize">
+                {user?.role}
+              </span>
             </div>
           </div>
         </div>

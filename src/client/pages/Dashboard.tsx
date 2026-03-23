@@ -25,8 +25,10 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
+import { useAuth } from '../context/AuthContext';
 
 export const Dashboard: React.FC = () => {
+  const { user } = useAuth();
   const [activeStudents, setActiveStudents] = useState({ value: '...', trend: '' });
   const [totalHifz, setTotalHifz] = useState({ value: '...', trend: '' });
   const [todaySessions, setTodaySessions] = useState({ value: '...', completed: 0 });
@@ -86,8 +88,8 @@ export const Dashboard: React.FC = () => {
       label: 'Pending Reviews',
       value: pendingReviews.value.toString(),
       subtext: pendingReviews.status,
-      subtextColor: pendingReviews.value === 0 ? 'text-primary' : 'text-orange-400',
-      subtextIcon: pendingReviews.value === 0 ? CheckCircle2 : Clock,
+      subtextColor: Number(pendingReviews.value) === 0 ? 'text-primary' : 'text-orange-400',
+      subtextIcon: Number(pendingReviews.value) === 0 ? CheckCircle2 : Clock,
       icon: ClipboardList,
       color: 'text-purple-400',
       bgIcon: 'bg-purple-400/10',
@@ -176,7 +178,9 @@ export const Dashboard: React.FC = () => {
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome back, Sheikh Abdullah</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Welcome back, {user?.first_name}
+          </h1>
           <p className="text-text-muted font-medium">Monday, October 23rd • 14 Rabi' al-Thani 1445</p>
         </div>
 
