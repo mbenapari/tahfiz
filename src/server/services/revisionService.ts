@@ -1,50 +1,42 @@
-import { MemorizationRecord, Surah, User, Session } from '../model';
-import { RecordType } from '../model/MemorizationRecord';
+import { RevisionRecord, Surah, User, Session } from '../model';
 
-export interface CreateMemorizationRecordDTO {
+export interface CreateRevisionRecordDTO {
   tenant_id: number;
   session_id: number;
   student_id: number;
   instructor_id?: number;
-  /**
-   * Memorization records are always of type `MEMORIZED`.
-   * Revision records are stored separately in the `revision_records` table.
-   */
-  record_type?: RecordType;
-  surah_number: number;
-  start_ayah: number;
-  end_ayah: number;
-  is_full_surah?: boolean;
-  notes?: string;
-}
-
-export interface UpdateMemorizationRecordDTO {
-  instructor_id?: number;
-  record_type?: RecordType;
   surah_number?: number;
   start_ayah?: number;
   end_ayah?: number;
+  start_page?: number;
+  end_page?: number;
   is_full_surah?: boolean;
   notes?: string;
 }
 
-export const createMemorizationRecord = async (data: CreateMemorizationRecordDTO) => {
-  try {
-    const safeData = {
-      ...data,
-      record_type: RecordType.MEMORIZED,
-    };
+export interface UpdateRevisionRecordDTO {
+  instructor_id?: number;
+  surah_number?: number;
+  start_ayah?: number;
+  end_ayah?: number;
+  start_page?: number;
+  end_page?: number;
+  is_full_surah?: boolean;
+  notes?: string;
+}
 
-    const record = await MemorizationRecord.create(safeData);
+export const createRevisionRecord = async (data: CreateRevisionRecordDTO) => {
+  try {
+    const record = await RevisionRecord.create(data);
     return record;
   } catch (error) {
     throw error;
   }
 };
 
-export const getMemorizationRecordById = async (id: number, tenant_id: number) => {
+export const getRevisionRecordById = async (id: number, tenant_id: number) => {
   try {
-    const record = await MemorizationRecord.findOne({
+    const record = await RevisionRecord.findOne({
       where: { id, tenant_id },
       include: [
         { model: Surah, as: 'surah' },
@@ -54,7 +46,7 @@ export const getMemorizationRecordById = async (id: number, tenant_id: number) =
       ],
     });
     if (!record) {
-      throw new Error('Memorization record not found');
+      throw new Error('Revision record not found');
     }
     return record;
   } catch (error) {
@@ -62,21 +54,17 @@ export const getMemorizationRecordById = async (id: number, tenant_id: number) =
   }
 };
 
-export const getStudentMemorizationRecords = async (
+export const getStudentRevisionRecords = async (
   student_id: number,
   tenant_id: number,
   options?: {
-    record_type?: RecordType;
     surah_number?: number;
     session_id?: number;
   }
 ) => {
   try {
     const whereClause: any = { student_id, tenant_id };
-    
-    if (options?.record_type) {
-      whereClause.record_type = options.record_type;
-    }
+
     if (options?.surah_number) {
       whereClause.surah_number = options.surah_number;
     }
@@ -84,7 +72,7 @@ export const getStudentMemorizationRecords = async (
       whereClause.session_id = options.session_id;
     }
 
-    const records = await MemorizationRecord.findAll({
+    const records = await RevisionRecord.findAll({
       where: whereClause,
       include: [
         { model: Surah, as: 'surah' },
@@ -98,9 +86,9 @@ export const getStudentMemorizationRecords = async (
   }
 };
 
-export const getSessionMemorizationRecords = async (session_id: number, tenant_id: number) => {
+export const getSessionRevisionRecords = async (session_id: number, tenant_id: number) => {
   try {
-    const records = await MemorizationRecord.findAll({
+    const records = await RevisionRecord.findAll({
       where: { session_id, tenant_id },
       include: [
         { model: User, as: 'student' },
@@ -113,13 +101,13 @@ export const getSessionMemorizationRecords = async (session_id: number, tenant_i
   }
 };
 
-export const updateMemorizationRecord = async (
+export const updateRevisionRecord = async (
   id: number,
   tenant_id: number,
-  data: UpdateMemorizationRecordDTO
+  data: UpdateRevisionRecordDTO
 ) => {
   try {
-    const record = await getMemorizationRecordById(id, tenant_id);
+    const record = await getRevisionRecordById(id, tenant_id);
     await record.update(data);
     return record;
   } catch (error) {
@@ -127,9 +115,9 @@ export const updateMemorizationRecord = async (
   }
 };
 
-export const deleteMemorizationRecord = async (id: number, tenant_id: number) => {
+export const deleteRevisionRecord = async (id: number, tenant_id: number) => {
   try {
-    const record = await getMemorizationRecordById(id, tenant_id);
+    const record = await getRevisionRecordById(id, tenant_id);
     await record.destroy();
     return true;
   } catch (error) {

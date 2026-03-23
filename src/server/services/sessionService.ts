@@ -16,7 +16,24 @@ export interface UpdateSessionDTO {
 
 export const createSession = async (data: CreateSessionDTO) => {
   try {
-    const session = await Session.create(data);
+    // A student can only have one session per date according to 'ux_student_date' index
+    // So we try to find it first, if it exists, return it instead of throwing Validation error
+    let session = await Session.findOne({
+      where: {
+        student_id: data.student_id,
+        session_date: data.session_date,
+        tenant_id: data.tenant_id
+      }
+    });
+
+    if (!session) {
+      session = await Session.create(data);
+    } else if (data.notes && data.notes !== session.notes) {
+      // Append notes if updating an existing session for the day
+      const newNotes = session.notes ? `${session.notes}\n${data.notes}` : data.notes;
+      await session.update({ notes: newNotes, instructor_id: data.instructor_id });
+    }
+    
     return session;
   } catch (error) {
     throw error;
