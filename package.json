@@ -9,8 +9,15 @@
     "build": "vite build",
     "db:migrate": "sequelize-cli db:migrate",
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
+    "db:migrate:undo:all": "sequelize-cli db:migrate:undo:all",
+    "db:migrate:status": "sequelize-cli db:migrate:status",
     "db:seed:all": "sequelize-cli db:seed:all",
-    "db:seed:undo": "sequelize-cli db:seed:undo"
+    "db:seed:one": "sequelize-cli db:seed",
+    "db:seed:undo": "sequelize-cli db:seed:undo",
+    "db:seed:undo:all": "sequelize-cli db:seed:undo:all",
+    "db:seed:status": "sequelize-cli db:seed:status",
+    "db:setup": "npm run db:migrate && npm run db:seed:all",
+    "db:reset": "npm run db:migrate:undo:all && npm run db:setup"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
