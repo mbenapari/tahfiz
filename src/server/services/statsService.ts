@@ -4,7 +4,9 @@ import {
   JuzProgress, 
   Session, 
   MemorizationRecord, 
-  Attendance
+  Attendance,
+  User,
+  Surah
 } from '../model';
 import { EnrollmentStatus } from '../model/Enrollment';
 
@@ -90,6 +92,60 @@ export const getPendingReviewsCount = async (tenantId: number) => {
     return { value: count, status: count > 0 ? 'Pending' : 'Up to date' };
   } catch (error) {
     console.error('Error in getPendingReviewsCount:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get individual student statistics: total sessions, attendance rate, and completion percentage
+ */
+export const getStudentIndividualStats = async (studentId: number, tenantId: number) => {
+  try {
+    // 1. Total Sessions - Count sessions where attendance is recorded (even if absent)
+    const sessions = await Session.findAll({
+      where: {
+        student_id: studentId,
+        tenant_id: tenantId
+      },
+      include: [{
+        model: Attendance,
+        as: 'attendance',
+        required: false // We want all sessions, but we'll use attendance to verify
+      }]
+    });
+
+    const totalSessions = sessions.length;
+
+    // 2. Attendance Rate
+    const presentSessions = sessions.filter((s: any) => s.attendance?.status === 'present').length;
+    const attendanceRate = totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 0;
+
+    // 3. Completion Percentage (Quran Memorization)
+    const totalQuranAyahs = 6236;
+    const memorizationRecords = await MemorizationRecord.findAll({
+      where: { student_id: studentId, tenant_id: tenantId },
+      attributes: ['surah_number', 'start_ayah', 'end_ayah']
+    });
+
+    const uniqueAyahs = new Set();
+    memorizationRecords.forEach((record: any) => {
+      for(let i = record.start_ayah; i <= record.end_ayah; i++) {
+        uniqueAyahs.add(`${record.surah_number}-${i}`);
+      }
+    });
+    
+    const totalAyahsMemorized = uniqueAyahs.size;
+    const completionPercentage = Math.round((totalAyahsMemorized / totalQuranAyahs) * 100);
+
+    return {
+      studentId,
+      totalSessions,
+      attendanceRate,
+      totalAyahsMemorized,
+      completionPercentage
+    };
+  } catch (error) {
+    console.error('Error in getStudentIndividualStats:', error);
     throw error;
   }
 };

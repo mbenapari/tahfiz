@@ -6,5 +6,6 @@ export * as MemorizationService from './memorizationService';
 export * as JuzMapService from './juzMapService';
 export * as JuzProgressService from './juzProgressService';
 export * as SessionService from './sessionService';
+export * as RevisionService from './revisionService';
 export * as SurahService from './surahService';
 export * as SurahProgressService from './surahProgressService';
