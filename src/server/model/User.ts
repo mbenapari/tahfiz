@@ -41,6 +41,11 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare readonly updated_at: Date;
   declare readonly deleted_at: Date;
 
+  // Associations
+  declare tenant?: any; // Will be School instance
+  declare ownedSchools?: any[];
+  declare schools?: any[];
+
   // Instance method to validate password
   public async validatePassword(password: string): Promise<boolean> {
     if (!this.password) return false;

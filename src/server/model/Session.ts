@@ -16,15 +16,15 @@ interface SessionAttributes {
 interface SessionCreationAttributes extends Optional<SessionAttributes, 'id' | 'instructor_id' | 'notes' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class Session extends Model<SessionAttributes, SessionCreationAttributes> implements SessionAttributes {
-  public id!: number;
-  public tenant_id!: number;
-  public student_id!: number;
-  public instructor_id!: number;
-  public session_date!: string;
-  public notes!: string;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
-  public readonly deleted_at!: Date;
+  declare id: number;
+  declare tenant_id: number;
+  declare student_id: number;
+  declare instructor_id: number;
+  declare session_date: string;
+  declare notes: string;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
+  declare readonly deleted_at: Date;
 }
 
 Session.init(

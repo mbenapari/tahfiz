@@ -21,14 +21,14 @@ interface AttendanceAttributes {
 interface AttendanceCreationAttributes extends Optional<AttendanceAttributes, 'id' | 'status' | 'recorded_by' | 'recorded_at' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class Attendance extends Model<AttendanceAttributes, AttendanceCreationAttributes> implements AttendanceAttributes {
-  public id!: number;
-  public session_id!: number;
-  public status!: AttendanceStatus;
-  public recorded_by!: number;
-  public readonly recorded_at!: Date;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
-  public readonly deleted_at!: Date;
+  declare id: number;
+  declare session_id: number;
+  declare status: AttendanceStatus;
+  declare recorded_by: number;
+  declare readonly recorded_at: Date;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
+  declare readonly deleted_at: Date;
 }
 
 Attendance.init(

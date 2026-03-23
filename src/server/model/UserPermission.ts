@@ -15,11 +15,11 @@ interface UserPermissionAttributes {
 }
 
 class UserPermission extends Model<UserPermissionAttributes> implements UserPermissionAttributes {
-  public user_id!: number;
-  public permission_id!: number;
-  public access_type!: PermissionAccess;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
+  declare user_id: number;
+  declare permission_id: number;
+  declare access_type: PermissionAccess;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
 }
 
 UserPermission.init(

@@ -1,21 +1,17 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
 
-export enum RecordType {
-  MEMORIZED = 'memorized',
-  REVISED = 'revised',
-}
-
-interface MemorizationRecordAttributes {
+interface RevisionRecordAttributes {
   id: number;
   tenant_id: number;
   session_id: number;
   student_id: number;
   instructor_id?: number;
-  record_type: RecordType;
-  surah_number: number;
-  start_ayah: number;
-  end_ayah: number;
+  surah_number?: number;
+  start_ayah?: number;
+  end_ayah?: number;
+  start_page?: number;
+  end_page?: number;
   is_full_surah?: boolean;
   notes?: string;
   created_at?: Date;
@@ -23,18 +19,20 @@ interface MemorizationRecordAttributes {
   deleted_at?: Date;
 }
 
-interface MemorizationRecordCreationAttributes extends Optional<MemorizationRecordAttributes, 'id' | 'instructor_id' | 'is_full_surah' | 'notes' | 'created_at' | 'updated_at' | 'deleted_at'> {}
+interface RevisionRecordCreationAttributes
+  extends Optional<RevisionRecordAttributes, 'id' | 'instructor_id' | 'surah_number' | 'start_ayah' | 'end_ayah' | 'start_page' | 'end_page' | 'is_full_surah' | 'notes' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
-class MemorizationRecord extends Model<MemorizationRecordAttributes, MemorizationRecordCreationAttributes> implements MemorizationRecordAttributes {
+class RevisionRecord extends Model<RevisionRecordAttributes, RevisionRecordCreationAttributes> implements RevisionRecordAttributes {
   declare id: number;
   declare tenant_id: number;
   declare session_id: number;
   declare student_id: number;
   declare instructor_id: number;
-  declare record_type: RecordType;
   declare surah_number: number;
   declare start_ayah: number;
   declare end_ayah: number;
+  declare start_page: number;
+  declare end_page: number;
   declare is_full_surah: boolean;
   declare notes: string;
   declare readonly created_at: Date;
@@ -42,7 +40,7 @@ class MemorizationRecord extends Model<MemorizationRecordAttributes, Memorizatio
   declare readonly deleted_at: Date;
 }
 
-MemorizationRecord.init(
+RevisionRecord.init(
   {
     id: {
       type: DataTypes.BIGINT,
@@ -81,13 +79,9 @@ MemorizationRecord.init(
         key: 'id',
       },
     },
-    record_type: {
-      type: DataTypes.ENUM(...Object.values(RecordType)),
-      allowNull: false,
-    },
     surah_number: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: {
         model: 'surahs',
         key: 'number',
@@ -95,11 +89,19 @@ MemorizationRecord.init(
     },
     start_ayah: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
     },
     end_ayah: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
+    },
+    start_page: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    end_page: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     is_full_surah: {
       type: DataTypes.BOOLEAN,
@@ -123,8 +125,8 @@ MemorizationRecord.init(
   },
   {
     sequelize,
-    tableName: 'memorization_records',
-    modelName: 'MemorizationRecord',
+    tableName: 'revision_records',
+    modelName: 'RevisionRecord',
     paranoid: true,
     timestamps: true,
     createdAt: 'created_at',
@@ -132,15 +134,15 @@ MemorizationRecord.init(
     deletedAt: 'deleted_at',
     indexes: [
       {
-        name: 'idx_mem_tenant_student',
+        name: 'idx_revision_tenant_student',
         fields: ['tenant_id', 'student_id'],
       },
       {
-        name: 'idx_mem_session_type',
-        fields: ['session_id', 'record_type'],
+        name: 'idx_revision_session',
+        fields: ['session_id'],
       },
     ],
   }
 );
 
-export default MemorizationRecord;
+export default RevisionRecord;
