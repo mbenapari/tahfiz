@@ -4,6 +4,9 @@ import cookieParser from "cookie-parser";
 import userRoutes from "./routes/userRoutes";
 import schoolRoutes from "./routes/schoolRoutes";
 import statsRoutes from "./routes/statsRoutes";
+import surahRoutes from "./routes/surahRoutes";
+import sessionRoutes from "./routes/sessionRoutes";
+import reportRoutes from "./routes/reportRoutes";
 import { requestLogger, globalErrorHandler } from "./middleware/loggingMiddleware";
 import logger from "./utils/logger";
 
@@ -20,6 +23,9 @@ app.use(cookieParser());
 app.use("/api/users", userRoutes);
 app.use("/api/schools", schoolRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/surahs", surahRoutes);
+app.use("/api/sessions", sessionRoutes);
+app.use("/api/reports", reportRoutes);
 
 // Global Error Handler (must be last)
 app.use(globalErrorHandler);

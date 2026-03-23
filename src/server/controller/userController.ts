@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as userService from '../services/userService';
+import * as enrollmentService from '../services/enrollmentService';
 import { UserRole } from '../model/User';
 import * as jwtHelper from '../helper/jwtHelper';
 import * as permissionService from '../services/permissionService';
@@ -67,29 +68,33 @@ export const register = async (req: Request, res: Response) => {
 
     const newUser = await userService.createUser(userData);
     
+    // Fetch full user with tenant info for the response
+    const userWithTenant = await userService.getUserById(newUser.id);
+    
     // Auto-login: Generate Token and Set Cookie
     const token = jwtHelper.signToken({
-      userId: newUser.id,
-      roleId: newUser.role_id,
-      tenantId: newUser.tenant_id,
+      userId: userWithTenant.id,
+      roleId: userWithTenant.role_id,
+      tenantId: userWithTenant.tenant_id,
     });
     
     jwtHelper.setAuthCookie(res, token);
-    logger.debug('userController.register: Auth cookie set', { correlationId, userId: newUser.id });
+    logger.debug('userController.register: Auth cookie set', { correlationId, userId: userWithTenant.id });
 
     // Get effective permissions
-    const permissions = await permissionService.getEffectivePermissions(newUser.id);
+    const permissions = await permissionService.getEffectivePermissions(userWithTenant.id);
 
-    logger.info('userController.register: Success', { correlationId, userId: newUser.id });
+    logger.info('userController.register: Success', { correlationId, userId: userWithTenant.id });
     return res.status(201).json({
       message: 'User registered successfully',
       user: {
-        id: newUser.id,
-        first_name: newUser.first_name,
-        last_name: newUser.last_name,
-        email: newUser.email,
-        role: newUser.role,
-        tenant_id: newUser.tenant_id,
+        id: userWithTenant.id,
+        first_name: userWithTenant.first_name,
+        last_name: userWithTenant.last_name,
+        email: userWithTenant.email,
+        role: userWithTenant.role,
+        tenant_id: userWithTenant.tenant_id,
+        school_name: userWithTenant.tenant?.name,
         permissions
       }
     });
@@ -158,6 +163,7 @@ export const login = async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         tenant_id: user.tenant_id,
+        school_name: user.tenant?.name,
         permissions
       }
     });
@@ -197,11 +203,169 @@ export const getCurrentUser = async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         tenant_id: user.tenant_id,
+        school_name: user.tenant?.name,
         permissions
       }
     });
   } catch (error: any) {
     logger.error('userController.getCurrentUser: Error', { correlationId, error: error.message });
     res.status(500).json({ error: 'Failed to fetch user' });
+  }
+};
+
+// Student CRUD
+export const getStudents = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const tenantId = req.user?.tenantId;
+
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Tenant ID required' });
+  }
+
+  try {
+    const students = await userService.getStudentsWithProgress(tenantId);
+    res.json({ students });
+  } catch (error: any) {
+    logger.error('userController.getStudents: Error', { correlationId, error: error.message });
+    res.status(500).json({ error: 'Failed to fetch students' });
+  }
+};
+
+export const createStudent = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const tenantId = req.user?.tenantId;
+
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Tenant ID required' });
+  }
+
+  try {
+    const { firstName, lastName, email, phone, studentIdentifier, enrolledOn, notes, userId } = req.body;
+
+    let student;
+
+    if (userId) {
+      // Enroll existing user
+      student = await userService.getUserById(userId);
+    } else if (email) {
+      // Check if user exists with this email
+      student = await userService.getUserByEmail(email);
+    }
+
+    if (!student) {
+      // Create new User
+      const userData: userService.CreateUserDTO = {
+        tenant_id: tenantId,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone,
+        role: UserRole.STUDENT,
+        student_identifier: studentIdentifier
+      };
+      student = await userService.createUser(userData);
+    }
+
+    // Check if already enrolled in this tenant
+    const existingEnrollment = await enrollmentService.checkStudentEnrollment(student.id, tenantId);
+    if (existingEnrollment) {
+      return res.status(400).json({ error: 'Student is already enrolled in this school' });
+    }
+
+    // Create Enrollment
+    await enrollmentService.createEnrollment({
+      tenant_id: tenantId,
+      student_id: student.id,
+      enrolled_on: enrolledOn,
+      notes
+    });
+
+    res.status(201).json({
+      message: 'Student enrolled successfully',
+      student
+    });
+  } catch (error: any) {
+    logger.error('userController.createStudent: Error', { correlationId, error: error.message });
+    res.status(500).json({ error: error.message || 'Failed to enroll student' });
+  }
+};
+
+export const getStudentById = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const { id } = req.params;
+  const tenantId = req.user?.tenantId;
+
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Tenant ID required' });
+  }
+
+  try {
+    const student = await userService.getStudentProfile(Number(id), tenantId);
+    res.json({ student });
+  } catch (error: any) {
+    logger.error('userController.getStudentById: Error', { correlationId, error: error.message });
+    res.status(404).json({ error: error.message || 'Student not found' });
+  }
+};
+
+export const updateStudent = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const { id } = req.params;
+  const tenantId = req.user?.tenantId;
+  const { firstName, lastName, email, phone, studentIdentifier } = req.body;
+
+  try {
+    const student = await userService.getUserById(Number(id));
+    
+    // Security check: ensure student belongs to the same tenant
+    if (student.tenant_id !== tenantId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const updatedData = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      student_identifier: studentIdentifier
+    };
+
+    const updatedUser = await userService.updateUser(Number(id), updatedData);
+    res.json({ message: 'Student updated successfully', student: updatedUser });
+  } catch (error: any) {
+    logger.error('userController.updateStudent: Error', { correlationId, error: error.message });
+    res.status(500).json({ error: 'Failed to update student' });
+  }
+};
+
+export const deleteStudent = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const { id } = req.params;
+
+  try {
+    const user = await userService.getUserById(Number(id));
+    await user.destroy();
+    res.json({ message: 'Student deleted successfully' });
+  } catch (error: any) {
+    logger.error('userController.deleteStudent: Error', { correlationId, error: error.message });
+    res.status(500).json({ error: 'Failed to delete student' });
+  }
+};
+
+export const searchStudents = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const { query } = req.query;
+  const tenantId = req.user?.tenantId;
+
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Tenant ID required' });
+  }
+
+  try {
+    const users = await userService.searchStudentsWithProgress(query as string, tenantId);
+    res.json({ users });
+  } catch (error: any) {
+    logger.error('userController.searchStudents: Error', { correlationId, error: error.message });
+    res.status(500).json({ error: 'Failed to search students' });
   }
 };
