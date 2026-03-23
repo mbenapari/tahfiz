@@ -11,5 +11,6 @@ router.get('/active-students', statsController.getActiveStudents);
 router.get('/total-hifz', statsController.getTotalHifz);
 router.get('/today-sessions', statsController.getTodaySessions);
 router.get('/pending-reviews', statsController.getPendingReviews);
+router.get('/student/:studentId', statsController.getStudentStats);
 
 export default router;

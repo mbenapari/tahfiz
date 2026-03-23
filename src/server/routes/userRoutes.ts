@@ -12,4 +12,12 @@ router.post('/login', authLimiter, userController.login);
 router.post('/logout', userController.logout);
 router.get('/me', authenticate, userController.getCurrentUser);
 
+// Student Management
+router.get('/students', authenticate, userController.getStudents);
+router.post('/students', authenticate, userController.createStudent);
+router.get('/students/search', authenticate, userController.searchStudents);
+router.get('/students/:id', authenticate, userController.getStudentById);
+router.put('/students/:id', authenticate, userController.updateStudent);
+router.delete('/students/:id', authenticate, userController.deleteStudent);
+
 export default router;
