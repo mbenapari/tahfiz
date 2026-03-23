@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, 
   Plus, 
@@ -6,106 +6,128 @@ import {
   Eye, 
   PenTool, 
   ChevronDown,
-  Filter
+  Filter,
+  Loader2,
+  Trash2,
+  AlertCircle,
+  Edit2
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { Tooltip } from '../../components/Tooltip';
+import { EditStudentModal } from '../../components/EditStudentModal';
 
 interface Student {
-  id: string;
-  name: string;
-  studentId: string;
-  avatar: string;
-  currentLevel: {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  student_identifier: string;
+  role: string;
+  currentLevel?: {
     juz: number;
     surah: string;
   };
-  progress: {
+  progress?: {
     percentage: number;
     status: string;
     statusColor: string;
     barColor: string;
   };
-  lastSession: {
+  lastSession?: {
     time: string;
     detail: string;
   };
 }
 
-const students: Student[] = [
-  {
-    id: '1',
-    name: 'Ahmed Al-Farsi',
-    studentId: '2024-089',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmed',
-    currentLevel: { juz: 29, surah: 'Tabarak' },
-    progress: { 
-      percentage: 80, 
-      status: 'Great', 
-      statusColor: 'text-primary',
-      barColor: 'bg-primary'
-    },
-    lastSession: { time: 'Today, 10:00 AM', detail: 'Surah Al-Mulk, Ayah 1-15' }
-  },
-  {
-    id: '2',
-    name: 'Fatima Hassan',
-    studentId: '2024-092',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Fatima',
-    currentLevel: { juz: 30, surah: 'Amma' },
-    progress: { 
-      percentage: 45, 
-      status: 'Steady', 
-      statusColor: 'text-blue-400',
-      barColor: 'bg-blue-400'
-    },
-    lastSession: { time: 'Yesterday, 4:00 PM', detail: 'Surah An-Naba' }
-  },
-  {
-    id: '3',
-    name: 'Omar Yaseen',
-    studentId: '2024-105',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Omar',
-    currentLevel: { juz: 1, surah: 'Al-Baqarah' },
-    progress: { 
-      percentage: 15, 
-      status: 'Needs Review', 
-      statusColor: 'text-orange-400',
-      barColor: 'bg-orange-400'
-    },
-    lastSession: { time: 'Oct 24, 2:30 PM', detail: 'Correction Session' }
-  },
-  {
-    id: '4',
-    name: 'Layla Karim',
-    studentId: '2024-112',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Layla',
-    currentLevel: { juz: 28, surah: 'Al-Mujadila' },
-    progress: { 
-      percentage: 95, 
-      status: 'Excellent', 
-      statusColor: 'text-primary',
-      barColor: 'bg-primary'
-    },
-    lastSession: { time: 'Oct 23, 11:00 AM', detail: 'Revision Complete' }
-  },
-  {
-    id: '5',
-    name: 'Khalid Ibn Walid',
-    studentId: '2024-045',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Khalid',
-    currentLevel: { juz: 5, surah: 'An-Nisa' },
-    progress: { 
-      percentage: 60, 
-      status: 'On Track', 
-      statusColor: 'text-text-muted',
-      barColor: 'bg-text-muted'
-    },
-    lastSession: { time: 'Oct 22, 9:15 AM', detail: 'Ayah 24-30' }
-  }
-];
-
 export const Students: React.FC = () => {
   const navigate = useNavigate();
+  const [studentsList, setStudentsList] = useState<Student[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  
+  const fetchStudents = useCallback(async (query: string = '') => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const url = query 
+        ? `/api/users/students/search?query=${encodeURIComponent(query)}`
+        : '/api/users/students';
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch students');
+      }
+      const data = await response.json();
+      
+      // The backend returns { students: [] } for getStudents and { users: [] } for search
+      const results = data.students || data.users || [];
+      
+      // Transform backend data to include UI-specific progress info if missing
+      const transformedStudents = results.map((s: any) => ({
+        ...s,
+        // Default values for fields that might not be in the basic user object yet
+        currentLevel: s.currentLevel || { juz: 30, surah: 'Amma' },
+        progress: s.progress || { 
+          percentage: 0, 
+          status: 'New', 
+          statusColor: 'text-text-muted',
+          barColor: 'bg-text-muted'
+        },
+        lastSession: s.lastSession || { time: 'No sessions yet', detail: '-' }
+      }));
+
+      setStudentsList(transformedStudents);
+    } catch (err: any) {
+      setError(err.message);
+      console.error('Error fetching students:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchStudents(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, fetchStudents]);
+
+  const filteredStudents = studentsList.filter(student => {
+    if (filterStatus === 'All') return true;
+    if (filterStatus === 'Active') return student.progress && student.progress.percentage > 0;
+    if (filterStatus === 'Needs Attention') return student.progress && student.progress.percentage < 20;
+    return true;
+  });
+
+  const activeCount = studentsList.filter(s => s.progress && s.progress.percentage > 0).length;
+  const needsAttentionCount = studentsList.filter(s => s.progress && s.progress.percentage < 20).length;
+
+  const handleDeleteStudent = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/users/students/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setStudentsList(prev => prev.filter(s => s.id !== id));
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to delete student');
+      }
+    } catch (err) {
+      console.error('Error deleting student:', err);
+      alert('An error occurred while deleting the student');
+    }
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -133,23 +155,36 @@ export const Students: React.FC = () => {
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
             <input 
               type="text" 
-              placeholder="Search by name, ID, or phone..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name, ID, or email..." 
               className="w-full bg-surface-dark border border-border-green/30 rounded-xl py-2.5 pl-11 pr-4 text-white placeholder:text-text-muted/50 focus:outline-none focus:border-primary/50 transition-colors"
             />
           </div>
 
           {/* Filter Tabs */}
           <div className="flex items-center bg-surface-dark border border-border-green/30 rounded-xl p-1 w-full md:w-auto overflow-x-auto">
-            <button className="px-4 py-1.5 rounded-lg text-sm font-bold bg-primary text-background-dark whitespace-nowrap">
-              All Students <span className="ml-1 opacity-70">124</span>
+            <button 
+              onClick={() => setFilterStatus('All')}
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${filterStatus === 'All' ? 'bg-primary text-background-dark' : 'text-text-muted hover:text-white'}`}
+            >
+              All Students <span className="ml-1 opacity-70">{studentsList.length}</span>
             </button>
-            <button className="px-4 py-1.5 rounded-lg text-sm font-bold text-text-muted hover:text-white transition-colors whitespace-nowrap">
-              Active
+            <button 
+              onClick={() => setFilterStatus('Active')}
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${filterStatus === 'Active' ? 'bg-primary text-background-dark' : 'text-text-muted hover:text-white'}`}
+            >
+              Active <span className="ml-1 opacity-70">{activeCount}</span>
             </button>
-            <button className="px-4 py-1.5 rounded-lg text-sm font-bold text-text-muted hover:text-white transition-colors flex items-center gap-2 whitespace-nowrap">
-              Needs Attention
-              <div className="w-2 h-2 rounded-full bg-red-500"></div>
-            </button>
+            <Tooltip text="Students with < 20% progress" position="bottom">
+              <button 
+                onClick={() => setFilterStatus('Needs Attention')}
+                className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${filterStatus === 'Needs Attention' ? 'bg-primary text-background-dark' : 'text-text-muted hover:text-white'}`}
+              >
+                Needs Attention <span className="ml-1 opacity-70">{needsAttentionCount}</span>
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+              </button>
+            </Tooltip>
           </div>
         </div>
 
@@ -166,109 +201,183 @@ export const Students: React.FC = () => {
       </div>
 
       {/* Students Table */}
-      <div className="bg-surface-dark border border-border-green/30 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-border-green/20">
-                <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Student Name</th>
-                <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Current Level</th>
-                <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Memorization Progress</th>
-                <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Last Session</th>
-                <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-green/10">
-              {students.map((student) => (
-                <tr key={student.id} className="hover:bg-white/[0.02] transition-colors group">
-                  {/* Student Name */}
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg overflow-hidden border border-border-green/20">
-                        <img src={student.avatar} alt={student.name} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white leading-tight">{student.name}</p>
-                        <p className="text-xs text-text-muted mt-0.5">ID: {student.studentId}</p>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Current Level */}
-                  <td className="px-6 py-5">
-                    <div>
-                      <p className="text-sm font-bold text-primary">Juz {student.currentLevel.juz}</p>
-                      <p className="text-xs text-text-muted mt-0.5">{student.currentLevel.surah}</p>
-                    </div>
-                  </td>
-
-                  {/* Progress */}
-                  <td className="px-6 py-5">
-                    <div className="max-w-[180px]">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-medium text-white">{student.progress.percentage}% Memorized</span>
-                        <span className={`text-xs font-bold ${student.progress.statusColor}`}>{student.progress.status}</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${student.progress.barColor} transition-all duration-500`} 
-                          style={{ width: `${student.progress.percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Last Session */}
-                  <td className="px-6 py-5">
-                    <div>
-                      <p className="text-sm font-bold text-white leading-tight">{student.lastSession.time}</p>
-                      <p className="text-xs text-text-muted mt-0.5">{student.lastSession.detail}</p>
-                    </div>
-                  </td>
-
-                  {/* Actions */}
-                  <td className="px-6 py-5 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button 
-                        onClick={() => navigate('/sessions/daily')}
-                        className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-all" 
-                        title="Log Progress"
-                      >
-                        <PenTool size={18} />
-                      </button>
-                      <button 
-                        onClick={() => navigate(`/students/${student.id}`)}
-                        className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-all" 
-                        title="View Details"
-                      >
-                        <Eye size={18} />
-                      </button>
-                      <button className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-all">
-                        <MoreVertical size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Footer */}
-        <div className="px-6 py-4 bg-white/[0.02] border-t border-border-green/20 flex items-center justify-between">
-          <p className="text-sm text-text-muted">
-            Showing <span className="text-white font-medium">1 to 5</span> of <span className="text-white font-medium">124</span> students
-          </p>
-          <div className="flex items-center gap-2">
-            <button className="px-4 py-2 rounded-lg text-sm font-bold text-text-muted bg-white/5 cursor-not-allowed transition-all">
-              Previous
-            </button>
-            <button className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-white/10 hover:bg-white/15 transition-all border border-border-green/30">
-              Next
+      <div className="bg-surface-dark border border-border-green/30 rounded-2xl overflow-hidden min-h-[400px] flex flex-col">
+        {isLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-text-muted">
+            <Loader2 size={40} className="animate-spin text-primary" />
+            <p className="font-medium">Loading student roster...</p>
+          </div>
+        ) : error ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-red-400 p-8 text-center">
+            <AlertCircle size={40} />
+            <div>
+              <p className="font-bold text-lg">Failed to load students</p>
+              <p className="text-sm opacity-80 mt-1">{error}</p>
+            </div>
+            <button 
+              onClick={() => fetchStudents(searchQuery)}
+              className="mt-2 px-6 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-sm font-bold transition-all"
+            >
+              Try Again
             </button>
           </div>
-        </div>
+        ) : studentsList.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-text-muted p-8 text-center">
+            <div className="p-4 rounded-full bg-white/5">
+              <Search size={32} />
+            </div>
+            <div>
+              <p className="font-bold text-lg text-white">No students found</p>
+              <p className="text-sm mt-1">
+                {searchQuery ? `No results for "${searchQuery}"` : 'Your school doesn\'t have any students enrolled yet.'}
+              </p>
+            </div>
+            {!searchQuery && (
+              <button 
+                onClick={() => navigate('/students/enrollment')}
+                className="mt-2 px-6 py-2 bg-primary text-background-dark rounded-xl text-sm font-bold hover:bg-primary-hover transition-all"
+              >
+                Enroll First Student
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-border-green/20">
+                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Student Name</th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Current Level</th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Memorization Progress</th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Last Session</th>
+                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-green/10">
+                {filteredStudents.map((student) => (
+                  <tr key={student.id} className="hover:bg-white/[0.02] transition-colors group">
+                    {/* Student Name */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-border-green/20 bg-primary/10 flex items-center justify-center text-primary font-bold">
+                          {student.first_name[0]}{student.last_name ? student.last_name[0] : ''}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-white leading-tight">{student.first_name} {student.last_name || ''}</p>
+                          <p className="text-xs text-text-muted mt-0.5">ID: {student.student_identifier || `USR-${student.id}`}</p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Current Level */}
+                    <td className="px-6 py-5">
+                      {student.currentLevel && (
+                        <div>
+                          <p className="text-sm font-bold text-primary">Juz {student.currentLevel.juz}</p>
+                          <p className="text-xs text-text-muted mt-0.5">{student.currentLevel.surah}</p>
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Progress */}
+                    <td className="px-6 py-5">
+                      {student.progress && (
+                        <div className="max-w-[180px]">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-white">{student.progress.percentage}% Memorized</span>
+                            <span className={`text-xs font-bold ${student.progress.statusColor}`}>{student.progress.status}</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full ${student.progress.barColor} transition-all duration-500`} 
+                              style={{ width: `${student.progress.percentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Last Session */}
+                    <td className="px-6 py-5">
+                      {student.lastSession && (
+                        <div>
+                          <p className="text-sm font-bold text-white leading-tight">{student.lastSession.time}</p>
+                          <p className="text-xs text-text-muted mt-0.5">{student.lastSession.detail}</p>
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-6 py-5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Tooltip text="Log Progress">
+                          <button 
+                            onClick={() => navigate(`/sessions/daily/${student.id}`)}
+                            className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-all" 
+                          >
+                            <PenTool size={18} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip text="Edit Student">
+                          <button 
+                            onClick={() => setEditingStudent(student)}
+                            className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all" 
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip text="View Details">
+                          <button 
+                            onClick={() => navigate(`/students/${student.id}`)}
+                            className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-all" 
+                          >
+                            <Eye size={18} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip text="Delete Student">
+                          <button 
+                            onClick={() => handleDeleteStudent(student.id)}
+                            className="p-2 text-text-muted hover:text-red-400 hover:bg-red-400/5 rounded-lg transition-all"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </Tooltip>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination Footer */}
+        {!isLoading && !error && filteredStudents.length > 0 && (
+          <div className="px-6 py-4 bg-white/[0.02] border-t border-border-green/20 flex items-center justify-between mt-auto">
+            <p className="text-sm text-text-muted">
+              Showing <span className="text-white font-medium">1 to {filteredStudents.length}</span> of <span className="text-white font-medium">{filteredStudents.length}</span> students
+            </p>
+            <div className="flex items-center gap-2">
+              <button className="px-4 py-2 rounded-lg text-sm font-bold text-text-muted bg-white/5 cursor-not-allowed transition-all">
+                Previous
+              </button>
+              <button className="px-4 py-2 rounded-lg text-sm font-bold text-text-muted bg-white/5 cursor-not-allowed transition-all">
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {editingStudent && (
+        <EditStudentModal 
+          student={editingStudent}
+          onClose={() => setEditingStudent(null)}
+          onSuccess={(updated) => {
+            setStudentsList(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s));
+          }}
+        />
+      )}
 
     </div>
   );

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -13,107 +13,104 @@ import {
   PlusCircle,
   CheckCircle2,
   AlertCircle,
-  Flag
+  Flag,
+  Loader2
 } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { 
   BarChart, 
   Bar, 
   XAxis, 
   YAxis, 
-  Tooltip, 
+  Tooltip as RechartsTooltip, 
   ResponsiveContainer,
   Cell
 } from 'recharts';
 
+import { Tooltip } from '../../components/Tooltip';
+import { StudentReportModal } from '../../components/StudentReportModal';
+
+const ICON_MAP: Record<string, any> = {
+  'CheckCircle2': CheckCircle2,
+  'Clock': Clock,
+  'Calendar': Calendar,
+  'AlertCircle': AlertCircle,
+  'Flag': Flag
+};
+
 export const StudentProfile: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const [studentData, setStudentData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  // Mock Data
+  useEffect(() => {
+    const fetchStudentProfile = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`/api/users/students/${id}`);
+        if (!response.ok) throw new Error('Failed to fetch student profile');
+        const data = await response.json();
+        setStudentData(data.student);
+      } catch (err: any) {
+        setError(err.message);
+        console.error('Error fetching student profile:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (id) fetchStudentProfile();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] text-text-muted">
+        <Loader2 size={40} className="animate-spin text-primary" />
+        <p className="font-medium mt-4">Loading student profile...</p>
+      </div>
+    );
+  }
+
+  if (error || !studentData) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] text-red-400 p-8 text-center">
+        <AlertCircle size={40} />
+        <p className="font-bold text-lg mt-4">Failed to load student profile</p>
+        <p className="text-sm opacity-80 mt-1">{error || 'Student not found'}</p>
+        <button 
+          onClick={() => navigate('/students')}
+          className="mt-6 px-6 py-2 bg-primary text-background-dark rounded-xl text-sm font-bold hover:bg-primary-hover transition-all"
+        >
+          Back to Students
+        </button>
+      </div>
+    );
+  }
+
+  const { stats, activityLog, masteryData, velocityData } = studentData;
   const student = {
-    name: 'Ahmed Ali',
-    id: '12345',
-    class: 'Hifz A',
-    level: 'Level 3',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmed',
-    stats: {
-      juzs: { current: 15, total: 30 },
-      completion: 50,
-      attendance: { value: 92, trend: '+2%' }
-    }
+    name: `${studentData.first_name} ${studentData.last_name || ''}`,
+    id: studentData.student_identifier || `USR-${studentData.id}`,
+    class: studentData.tenant?.name || 'Unassigned',
+    level: studentData.stats.completion > 80 ? 'Expert' : studentData.stats.completion > 50 ? 'Advanced' : 'Beginner',
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${studentData.first_name}`,
+    stats: studentData.stats
   };
 
-  const activityLog = [
-    {
-      id: 1,
-      type: 'completed',
-      title: 'Completed Surah Al-Mulk',
-      time: 'Today, 10:30 AM',
-      meta: 'Score: Excellent',
-      icon: CheckCircle2,
-      color: 'text-primary',
-      bg: 'bg-primary/10'
-    },
-    {
-      id: 2,
-      type: 'revised',
-      title: 'Revised Juz 29',
-      time: 'Yesterday, 4:00 PM',
-      meta: '"Needs more focus on Tajweed rules in verses 10-20"',
-      icon: Clock,
-      color: 'text-blue-400',
-      bg: 'bg-blue-400/10'
-    },
-    {
-      id: 3,
-      type: 'attendance',
-      title: 'Attendance: Present',
-      time: 'Oct 24, 2023',
-      meta: '',
-      icon: Calendar,
-      color: 'text-text-muted',
-      bg: 'bg-white/5'
-    },
-    {
-      id: 4,
-      type: 'flagged',
-      title: 'Flagged: Missed Homework',
-      time: 'Oct 23, 2023',
-      meta: 'Surah Al-Qalam was not recited.',
-      icon: AlertCircle,
-      color: 'text-orange-400',
-      bg: 'bg-orange-400/10'
-    },
-    {
-      id: 5,
-      type: 'milestone',
-      title: 'Completed Juz 28',
-      time: 'Oct 20, 2023',
-      meta: 'Milestone Reached! 🏆',
-      icon: Flag,
-      color: 'text-primary',
-      bg: 'bg-primary/10'
-    }
+  // Fallback velocity data if empty
+  const displayVelocityData = velocityData && velocityData.length > 0 ? velocityData : [
+    { week: 'W1', pages: 0 },
+    { week: 'W2', pages: 0 },
+    { week: 'W3', pages: 0 },
+    { week: 'W4', pages: 0 },
+    { week: 'W5', pages: 0 },
+    { week: 'W6', pages: 0 },
+    { week: 'W7', pages: 0 },
+    { week: 'W8', pages: 0 },
   ];
-
-  const velocityData = [
-    { week: 'W1', pages: 8 },
-    { week: 'W2', pages: 14 },
-    { week: 'W3', pages: 20 },
-    { week: 'W4', pages: 12 },
-    { week: 'W5', pages: 6 },
-    { week: 'W6', pages: 16 },
-    { week: 'W7', pages: 18 },
-    { week: 'W8', pages: 22 },
-  ];
-
-  // Mock Surah Mastery Data (114 Surahs)
-  // 1=Memorized, 2=Revision, 0=Not Started
-  const masteryData = Array.from({ length: 114 }, (_, i) => {
-    if (i < 40) return 1; // First 40 memorized
-    if (i < 55) return 2; // Next 15 needs revision
-    return 0; // Rest not started
-  });
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto">
@@ -153,7 +150,7 @@ export const StudentProfile: React.FC = () => {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-border-green"></span>
-                  Class: {student.class}
+                  School: {student.class}
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
                   {student.level}
@@ -189,7 +186,7 @@ export const StudentProfile: React.FC = () => {
 
         <div className="mt-8 pt-8 border-t border-border-green/20 flex flex-wrap gap-3">
           <button 
-            onClick={() => navigate('/sessions/daily')}
+            onClick={() => navigate(`/sessions/daily/${studentData.id}`)}
             className="flex items-center gap-2 bg-primary text-background-dark font-bold px-5 py-2.5 rounded-xl hover:bg-primary/90 transition-colors"
           >
             <PlusCircle size={18} />
@@ -199,7 +196,10 @@ export const StudentProfile: React.FC = () => {
             <FileText size={18} />
             <span>Add Note</span>
           </button>
-          <button className="flex items-center gap-2 bg-surface-dark border border-border-green/30 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-white/5 transition-colors">
+          <button 
+            onClick={() => setIsReportModalOpen(true)}
+            className="flex items-center gap-2 bg-surface-dark border border-border-green/30 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-white/5 transition-colors"
+          >
             <TrendingUp size={18} />
             <span>Report</span>
           </button>
@@ -209,6 +209,14 @@ export const StudentProfile: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {isReportModalOpen && id && (
+        <StudentReportModal 
+          studentId={id} 
+          studentName={`${studentData.first_name} ${studentData.last_name || ''}`}
+          onClose={() => setIsReportModalOpen(false)}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -242,17 +250,21 @@ export const StudentProfile: React.FC = () => {
             </div>
             
             <div className="flex flex-wrap gap-1.5">
-              {masteryData.map((status, idx) => (
-                <div 
-                  key={idx}
-                  title={`Surah ${idx + 1}`}
-                  className={`
-                    w-4 h-8 rounded-sm transition-all duration-300 hover:scale-110 cursor-help
-                    ${status === 1 ? 'bg-primary shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 
-                      status === 2 ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]' : 
-                      'bg-white/10 hover:bg-white/20'}
-                  `}
-                />
+              {masteryData.map((surah: any, idx: number) => (
+                <Tooltip 
+                  key={idx} 
+                  text={`${surah.number}. ${surah.name}: ${surah.details}`}
+                  position="top"
+                >
+                  <div 
+                    className={`
+                      w-4 h-8 rounded-sm transition-all duration-300 hover:scale-110 cursor-pointer
+                      ${surah.status === 1 ? 'bg-primary shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 
+                        surah.status === 2 ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]' : 
+                        'bg-white/10 hover:bg-white/20'}
+                    `}
+                  />
+                </Tooltip>
               ))}
             </div>
             <p className="text-center text-xs text-text-muted mt-4 font-medium">
@@ -277,7 +289,7 @@ export const StudentProfile: React.FC = () => {
 
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={velocityData}>
+                <BarChart data={displayVelocityData}>
                   <XAxis 
                     dataKey="week" 
                     axisLine={false} 
@@ -285,7 +297,7 @@ export const StudentProfile: React.FC = () => {
                     tick={{ fill: '#6B7280', fontSize: 12 }} 
                     dy={10}
                   />
-                  <Tooltip 
+                  <RechartsTooltip 
                     cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                     contentStyle={{ 
                       backgroundColor: '#1E1E1E', 
@@ -295,10 +307,10 @@ export const StudentProfile: React.FC = () => {
                     }}
                   />
                   <Bar dataKey="pages" radius={[4, 4, 0, 0]} maxBarSize={50}>
-                    {velocityData.map((entry, index) => (
+                    {displayVelocityData.map((entry: any, index: number) => (
                       <Cell 
                         key={`cell-${index}`} 
-                        fill={index === velocityData.length - 1 ? '#10B981' : 'rgba(16, 185, 129, 0.4)'} 
+                        fill={index === displayVelocityData.length - 1 ? '#10B981' : 'rgba(16, 185, 129, 0.4)'} 
                       />
                     ))}
                   </Bar>
@@ -320,27 +332,33 @@ export const StudentProfile: React.FC = () => {
             </div>
             
             <div className="relative pl-4 border-l border-border-green/20 space-y-8">
-              {activityLog.map((log) => (
-                <div key={log.id} className="relative group">
-                  {/* Timeline Dot */}
-                  <div className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-surface-dark ${log.type === 'milestone' ? 'bg-yellow-500' : 'bg-primary'}`}></div>
-                  
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-bold text-text-muted">{log.time}</span>
-                    <h4 className="text-white font-bold text-sm group-hover:text-primary transition-colors">{log.title}</h4>
-                    {log.meta && (
-                      <div className={`mt-1 text-xs font-medium px-2 py-1 rounded w-fit ${
-                        log.type === 'completed' ? 'bg-primary/20 text-primary' :
-                        log.type === 'flagged' ? 'bg-orange-400/10 text-orange-400' :
-                        log.type === 'milestone' ? 'bg-yellow-500/10 text-yellow-500' :
-                        'text-text-muted italic'
-                      }`}>
-                        {log.meta}
-                      </div>
-                    )}
+              {activityLog.map((log: any) => {
+                const Icon = ICON_MAP[log.icon] || CheckCircle2;
+                return (
+                  <div key={log.id} className="relative group">
+                    {/* Timeline Dot */}
+                    <div className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-surface-dark ${log.type === 'milestone' ? 'bg-yellow-500' : 'bg-primary'}`}></div>
+                    
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-bold text-text-muted">{log.time}</span>
+                      <h4 className="text-white font-bold text-sm group-hover:text-primary transition-colors">{log.title}</h4>
+                      {log.meta && (
+                        <div className={`mt-1 text-xs font-medium px-2 py-1 rounded w-fit ${
+                          log.type === 'completed' ? 'bg-primary/20 text-primary' :
+                          log.type === 'flagged' ? 'bg-orange-400/10 text-orange-400' :
+                          log.type === 'milestone' ? 'bg-yellow-500/10 text-yellow-500' :
+                          'text-text-muted italic'
+                        }`}>
+                          {log.meta}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+              {activityLog.length === 0 && (
+                <div className="text-text-muted text-sm italic">No recent activity recorded.</div>
+              )}
             </div>
           </div>
 
@@ -357,7 +375,7 @@ export const StudentProfile: React.FC = () => {
                 <div>
                   <h4 className="text-yellow-500 font-bold text-sm mb-1">Focus Area</h4>
                   <p className="text-text-muted text-xs leading-relaxed">
-                    Surah Al-Waqi'ah needs immediate revision. Student is struggling with similar verses (Mutashabihat).
+                    {studentData.notes || 'No specific focus areas noted yet.'}
                   </p>
                 </div>
               </div>
@@ -365,7 +383,7 @@ export const StudentProfile: React.FC = () => {
 
             <div className="flex items-center justify-between text-sm">
               <span className="text-white font-bold">Next Target:</span>
-              <span className="text-primary font-bold">Finish Juz 16 by Friday</span>
+              <span className="text-primary font-bold">Keep progressing!</span>
             </div>
           </div>
 
