@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as permissionService from '../services/permissionService';
 import * as jwtHelper from '../helper/jwtHelper';
+import { BlacklistedToken } from '../model';
 
 // Extend Request type to include user
 declare global {
@@ -14,12 +15,18 @@ declare global {
 /**
  * Middleware to authenticate user via HTTP-only cookie.
  */
-export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.cookies.jwt;
 
     if (!token) {
       return res.status(401).json({ error: 'Unauthorized: No token provided' });
+    }
+
+    // Check if token is blacklisted
+    const isBlacklisted = await BlacklistedToken.findOne({ where: { token } });
+    if (isBlacklisted) {
+      return res.status(401).json({ error: 'Unauthorized: Token has been revoked' });
     }
 
     const decoded = jwtHelper.verifyToken(token);
