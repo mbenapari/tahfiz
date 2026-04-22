@@ -6,16 +6,36 @@ import {
   BookOpen, 
   BarChart3, 
   GraduationCap, 
-  Settings 
+  Settings,
+  LogOut,
+  Loader2
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router';
 
 export const Sidebar: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'Students', path: '/students' },
+    { icon: GraduationCap, label: 'Instructors', path: '/instructors' },
     // { icon: BookOpen, label: 'Classes', path: '/classes' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
   ];
@@ -80,7 +100,16 @@ export const Sidebar: React.FC = () => {
         </NavLink>
 
         <div className="pt-4 border-t border-border-green/20">
-          <div className="flex items-center gap-3 px-2">
+          <NavLink
+            to="/profile"
+            className={({ isActive }) => `
+              flex items-center gap-3 px-2 py-3 rounded-xl transition-all duration-200 group cursor-pointer
+              ${isActive
+                ? 'bg-surface-dark text-primary border border-border-green/30'
+                : 'text-text-muted hover:text-white hover:bg-white/5'
+              }
+            `}
+          >
             <div className="w-10 h-10 rounded-full bg-surface-dark border border-border-green/30 flex items-center justify-center overflow-hidden">
                {/* Placeholder Avatar */}
                <img 
@@ -97,10 +126,22 @@ export const Sidebar: React.FC = () => {
                 {user?.role}
               </span>
             </div>
-          </div>
+          </NavLink>
         </div>
-      </div>
 
+        <button
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 mt-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 group disabled:opacity-50"
+        >
+          {isLoggingOut ? (
+            <Loader2 size={20} className="animate-spin" />
+          ) : (
+            <LogOut size={20} className="group-hover:translate-x-1 transition-transform" />
+          )}
+          <span className="font-medium">Logout</span>
+        </button>
+      </div>
     </aside>
   );
 };

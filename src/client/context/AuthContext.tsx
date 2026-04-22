@@ -44,10 +44,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
-      await fetch('/api/users/logout', { method: 'POST' });
-      setUser(null);
+      await fetch('/api/auth/logout', { method: 'POST' });
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('Logout request failed:', error);
+    } finally {
+      setUser(null);
+      
+      // Clear all client-side storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear cookies that might have auth data (besides JWT handled by backend)
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
     }
   };
 

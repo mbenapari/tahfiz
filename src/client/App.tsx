@@ -7,15 +7,18 @@ import reactLogo from "./assets/react.svg";
 import Register from "./pages/auth/Register";
 import Login from "./pages/auth/Login";
 import CreateSchool from "./pages/CreateSchool";
+import Home from "./pages/Home";
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Dashboard } from "./pages/Dashboard";
 import { Students } from "./pages/students/Students";
 import { StudentProfile } from "./pages/students/StudentProfile";
 import { EnrollStudent } from "./pages/students/EnrollStudent";
+import { Instructors } from "./pages/instructors/Instructors";
 import { DailySession } from "./pages/sessions/DailySession";
 import { Reports } from "./pages/reports/Reports";
 import { Settings } from "./pages/settings/Settings";
+import { Profile } from "./pages/profile/Profile";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -24,6 +27,7 @@ function App() {
     <Routes>
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/landing" element={<Home />} />
       
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
@@ -36,9 +40,11 @@ function App() {
           <Route path="students" element={<Students />} />
           <Route path="students/:id" element={<StudentProfile />} />
           <Route path="students/enrollment" element={<EnrollStudent />} />
+          <Route path="instructors" element={<Instructors />} />
           <Route path="sessions/daily/:studentId" element={<DailySession />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
       </Route>
 

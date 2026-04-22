@@ -157,7 +157,7 @@ export const EnrollStudent: React.FC = () => {
                 }}
                 className="text-sm font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
               >
-                {showCreateForm ? '← Back to Search' : '+ Create New User'}
+                {showCreateForm ? '← Back to Search' : '+ Create New Student User '}
               </button>
             </div>
 

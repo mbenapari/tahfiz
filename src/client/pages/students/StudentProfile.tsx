@@ -29,6 +29,8 @@ import {
 
 import { Tooltip } from '../../components/Tooltip';
 import { StudentReportModal } from '../../components/StudentReportModal';
+import { ContactParentModal } from '../../components/ContactParentModal';
+import { EditStudentModal } from '../../components/EditStudentModal';
 
 const ICON_MAP: Record<string, any> = {
   'CheckCircle2': CheckCircle2,
@@ -45,6 +47,8 @@ export const StudentProfile: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchStudentProfile = async () => {
@@ -192,10 +196,10 @@ export const StudentProfile: React.FC = () => {
             <PlusCircle size={18} />
             <span>Log Progress</span>
           </button>
-          <button className="flex items-center gap-2 bg-surface-dark border border-border-green/30 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-white/5 transition-colors">
+          {/* <button className="flex items-center gap-2 bg-surface-dark border border-border-green/30 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-white/5 transition-colors">
             <FileText size={18} />
             <span>Add Note</span>
-          </button>
+          </button> */}
           <button 
             onClick={() => setIsReportModalOpen(true)}
             className="flex items-center gap-2 bg-surface-dark border border-border-green/30 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-white/5 transition-colors"
@@ -203,7 +207,10 @@ export const StudentProfile: React.FC = () => {
             <TrendingUp size={18} />
             <span>Report</span>
           </button>
-          <button className="ml-auto flex items-center gap-2 text-text-muted hover:text-white transition-colors px-3 py-2">
+          <button 
+            onClick={() => setIsContactModalOpen(true)}
+            className="ml-auto flex items-center gap-2 text-text-muted hover:text-white transition-colors px-3 py-2"
+          >
             <Mail size={18} />
             <span>Contact Parent</span>
           </button>
@@ -215,6 +222,30 @@ export const StudentProfile: React.FC = () => {
           studentId={id} 
           studentName={`${studentData.first_name} ${studentData.last_name || ''}`}
           onClose={() => setIsReportModalOpen(false)}
+        />
+      )}
+
+      {isContactModalOpen && (
+        <ContactParentModal 
+          studentName={`${studentData.first_name} ${studentData.last_name || ''}`}
+          email={studentData.email}
+          phone={studentData.phone}
+          onClose={() => setIsContactModalOpen(false)}
+          onEdit={() => {
+            setIsContactModalOpen(false);
+            setIsEditModalOpen(true);
+          }}
+        />
+      )}
+
+      {isEditModalOpen && (
+        <EditStudentModal 
+          student={studentData}
+          onClose={() => setIsEditModalOpen(false)}
+          onSuccess={(updated) => {
+            setStudentData(updated);
+            setIsEditModalOpen(false);
+          }}
         />
       )}
 
