@@ -17,7 +17,8 @@
     "db:seed:undo:all": "sequelize-cli db:seed:undo:all",
     "db:seed:status": "sequelize-cli db:seed:status",
     "db:setup": "npm run db:migrate && npm run db:seed:all",
-    "db:reset": "npm run db:migrate:undo:all && npm run db:setup"
+    "db:reset": "npm run db:migrate:undo:all && npm run db:setup",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
@@ -51,13 +52,18 @@
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.1",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.15.2",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
+    "@types/supertest": "^7.2.0",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.4.1",
+    "jest": "^30.3.0",
     "nodemon": "^3.1.10",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6",
     "vite": "^6.3.3"
   }
 }

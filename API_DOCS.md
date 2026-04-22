@@ -81,3 +81,48 @@
     "pendingReviews": { "value": 12 }
   }
   ```
+
+---
+
+## 6. Analytics (`/api/analytics`)
+
+### Get Active Students
+- **GET** `/api/analytics/active-students`
+- **Description:** Returns the count of unique students who logged at least one session or logged in during daily, weekly, and monthly windows.
+- **Auth Required:** Yes
+- **Response:** `{ "daily": number, "weekly": number, "monthly": number }`
+
+### Get Attendance Metrics
+- **GET** `/api/analytics/attendance`
+- **Description:** Returns total attendance counts and percentage for a specified date range.
+- **Query Params:** `startDate` (required), `endDate` (required), `class_name` (optional), `grade_level` (optional), `studentId` (optional)
+- **Response:** `{ "total": number, "present": number, "absent": number, "excused": number, "percentage": number }`
+
+### Get Attendance Breakdown
+- **GET** `/api/analytics/attendance/breakdown`
+- **Description:** Returns average attendance percentage breakdown by class, grade, and school-wide.
+- **Query Params:** `startDate` (required), `endDate` (required)
+- **Response:** `{ "classes": [...], "grades": [...], "schoolWide": {...} }`
+
+### Get Memorization Progress
+- **GET** `/api/analytics/memorization/progress`
+- **Description:** Returns pages memorized and performance trends over a specified date range.
+- **Query Params:** `startDate` (required), `endDate` (required), `studentId` (optional), `class_name` (optional)
+- **Response:** `{ "pages_memorized": number, "records_count": number, "trend": [...] }`
+
+---
+
+## 7. Reports (`/api/reports`)
+
+### Get School Performance Report
+- **GET** `/api/reports/school-performance`
+- **Description:** Comprehensive data for the School Performance dashboard, including stats, trends, and top performers.
+- **Query Params:** `startDate` (required), `endDate` (required)
+- **Response:** Aggregate object with `stats`, `trendData`, `topPerformers`, `reportTypes`, and `recentExports`.
+
+### Get Students Performance List
+- **GET** `/api/reports/students-performance`
+- **Description:** Paginated list of students with their individual memorization and attendance performance.
+- **Query Params:** `page` (default 1), `limit` (default 10), `class_name` (optional), `grade_level` (optional)
+- **Response:** Paginated object with `data` and `meta`.
+

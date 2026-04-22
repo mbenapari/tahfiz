@@ -1,0 +1,146 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-4a5b-b6c7-d8e9f0a1b2c3",
+		"name": "Tahfiz Analytics API",
+		"description": "API collection for the new comprehensive analytics service.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Metrics",
+			"item": [
+				{
+					"name": "Active Students",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/metrics/active-students",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"metrics",
+								"active-students"
+							],
+							"query": [
+								{
+									"key": "studentId",
+									"value": "1",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Juz Completed",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/metrics/juz-completed",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"metrics",
+								"juz-completed"
+							],
+							"query": [
+								{
+									"key": "studentId",
+									"value": "1",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sessions Count",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/metrics/sessions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"metrics",
+								"sessions"
+							],
+							"query": [
+								{
+									"key": "studentId",
+									"value": "1",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Juz Revised",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/metrics/juz-revised",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"metrics",
+								"juz-revised"
+							],
+							"query": [
+								{
+									"key": "studentId",
+									"value": "1",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	]
+}
