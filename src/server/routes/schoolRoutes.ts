@@ -8,4 +8,7 @@ const router = Router();
 // For now, we'll just use authenticate. You can add checkPermission('school:create') later.
 router.post('/create', authenticate, schoolController.createSchool);
 
+router.get('/me', authenticate, schoolController.getSchool);
+router.put('/update', authenticate, schoolController.updateSchool);
+
 export default router;

@@ -12,5 +12,6 @@ router.get('/total-hifz', statsController.getTotalHifz);
 router.get('/today-sessions', statsController.getTodaySessions);
 router.get('/pending-reviews', statsController.getPendingReviews);
 router.get('/student/:studentId', statsController.getStudentStats);
+router.get('/attendance-trends', statsController.getAttendanceTrends);
 
 export default router;
