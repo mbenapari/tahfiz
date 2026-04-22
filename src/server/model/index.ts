@@ -1,19 +1,23 @@
 import School from './School';
 import User from './User';
 import Enrollment from './Enrollment';
-import Attendance from './Attendance';
+import Attendance, { AttendanceStatus } from './Attendance';
 import Session from './Session';
-import MemorizationRecord from './MemorizationRecord';
+import MemorizationRecord, { RecordType } from './MemorizationRecord';
 import RevisionRecord from './RevisionRecord';
 import Surah from './Surah';
 import JuzMap from './JuzMap';
 import SurahProgress from './SurahProgress';
 import JuzProgress from './JuzProgress';
+import Notification from './Notification';
 import Role from './Role';
 import Permission from './Permission';
 import RolePermission from './RolePermission';
 import UserPermission from './UserPermission';
 import SchoolMember from './SchoolMember';
+import Class from './Class';
+import ClassStudent from './ClassStudent';
+import BlacklistedToken from './BlacklistedToken';
 
 // Associations
 
@@ -146,6 +150,34 @@ Permission.belongsToMany(User, {
 UserPermission.belongsTo(Permission, { foreignKey: 'permission_id' });
 Permission.hasMany(UserPermission, { foreignKey: 'permission_id' });
 
+// Class Associations
+School.hasMany(Class, { foreignKey: 'tenant_id', as: 'classes' });
+Class.belongsTo(School, { foreignKey: 'tenant_id', as: 'school' });
+
+User.hasMany(Class, { foreignKey: 'instructor_id', as: 'taught_classes' });
+Class.belongsTo(User, { foreignKey: 'instructor_id', as: 'instructor' });
+
+// ClassStudent Associations
+Class.hasMany(ClassStudent, { foreignKey: 'class_id', as: 'class_students' });
+ClassStudent.belongsTo(Class, { foreignKey: 'class_id', as: 'class' });
+
+User.hasMany(ClassStudent, { foreignKey: 'student_id', as: 'class_enrollments' });
+ClassStudent.belongsTo(User, { foreignKey: 'student_id', as: 'student' });
+
+// Many-to-Many: Class <-> User (through ClassStudent)
+Class.belongsToMany(User, { 
+  through: ClassStudent, 
+  foreignKey: 'class_id',
+  otherKey: 'student_id',
+  as: 'students' 
+});
+User.belongsToMany(Class, { 
+  through: ClassStudent, 
+  foreignKey: 'student_id',
+  otherKey: 'class_id',
+  as: 'classes' 
+});
+
 export {
   School,
   User,
@@ -158,9 +190,15 @@ export {
   JuzMap,
   SurahProgress,
   JuzProgress,
+  Notification,
   Role,
   Permission,
   RolePermission,
   UserPermission,
-  SchoolMember
+  SchoolMember,
+  Class,
+  ClassStudent,
+  BlacklistedToken,
+  AttendanceStatus,
+  RecordType
 };

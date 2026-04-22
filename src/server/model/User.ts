@@ -19,12 +19,15 @@ interface UserAttributes {
   phone?: string;
   role: UserRole;
   student_identifier?: string;
+  grade_level?: string;
+  class_name?: string;
+  last_login_at?: Date;
   created_at?: Date;
   updated_at?: Date;
   deleted_at?: Date;
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'tenant_id' | 'role_id' | 'last_name' | 'email' | 'password' | 'phone' | 'student_identifier' | 'created_at' | 'updated_at' | 'deleted_at'> {}
+interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'tenant_id' | 'role_id' | 'last_name' | 'email' | 'password' | 'phone' | 'student_identifier' | 'grade_level' | 'class_name' | 'last_login_at' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: number;
@@ -37,6 +40,9 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare phone: string;
   declare role: UserRole;
   declare student_identifier: string;
+  declare grade_level: string;
+  declare class_name: string;
+  declare last_login_at: Date;
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
   declare readonly deleted_at: Date;
@@ -99,6 +105,18 @@ User.init(
     },
     student_identifier: {
       type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    grade_level: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    class_name: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    last_login_at: {
+      type: DataTypes.DATE,
       allowNull: true,
     },
     created_at: {

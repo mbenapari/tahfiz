@@ -1,4 +1,4 @@
-import { DataTypes, Model } from 'sequelize';
+import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
 import { UserRole } from './User';
 
@@ -11,7 +11,9 @@ interface SchoolMemberAttributes {
   updated_at?: Date;
 }
 
-class SchoolMember extends Model<SchoolMemberAttributes> implements SchoolMemberAttributes {
+interface SchoolMemberCreationAttributes extends Optional<SchoolMemberAttributes, 'id' | 'created_at' | 'updated_at'> {}
+
+class SchoolMember extends Model<SchoolMemberAttributes, SchoolMemberCreationAttributes> implements SchoolMemberAttributes {
   declare id: number;
   declare school_id: number;
   declare user_id: number;
