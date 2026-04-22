@@ -5,6 +5,10 @@ export interface CreateSchoolDTO {
   slug: string;
   timezone?: string;
   study_days: number[];
+  start_time?: string;
+  end_time?: string;
+  email?: string;
+  phone?: string;
   address?: string;
 }
 
@@ -13,6 +17,10 @@ export interface UpdateSchoolDTO {
   slug?: string;
   timezone?: string;
   study_days?: number[];
+  start_time?: string;
+  end_time?: string;
+  email?: string;
+  phone?: string;
   address?: string;
 }
 

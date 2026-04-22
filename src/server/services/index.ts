@@ -9,3 +9,4 @@ export * as SessionService from './sessionService';
 export * as RevisionService from './revisionService';
 export * as SurahService from './surahService';
 export * as SurahProgressService from './surahProgressService';
+export * as ClassService from './classService';

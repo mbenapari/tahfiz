@@ -1,6 +1,7 @@
 import { FindOptions, Op } from 'sequelize';
-import { User, Role, SchoolMember, School, Session, MemorizationRecord, Surah, Attendance, RevisionRecord } from '../model';
+import { User, Role, SchoolMember, School, Session, MemorizationRecord, Surah, Attendance, RevisionRecord, JuzMap } from '../model';
 import { UserRole } from '../model/User';
+import * as progressService from './progressService';
 import logger from '../utils/logger';
 
 export interface CreateUserDTO {
@@ -27,7 +28,7 @@ export interface UpdateUserDTO {
   student_identifier?: string;
 }
 
-export const createUser = async (data: CreateUserDTO) => {
+export const createUser = async (data: CreateUserDTO, transaction?: any) => {
   const startTime = Date.now();
   logger.debug('userService.createUser: Entry', { 
     email: data.email, 
@@ -38,7 +39,7 @@ export const createUser = async (data: CreateUserDTO) => {
   try {
     // If role_id is not provided, try to find it by the role enum slug
     if (!data.role_id) {
-      const role = await Role.findOne({ where: { slug: data.role } });
+      const role = await Role.findOne({ where: { slug: data.role }, transaction });
       if (role) {
         data.role_id = role.id;
         logger.debug(`userService.createUser: Found role_id ${role.id} for slug ${data.role}`);
@@ -48,7 +49,7 @@ export const createUser = async (data: CreateUserDTO) => {
         throw new Error(`${errorMsg} Please contact administrator.`);
       }
     }
-    const user = await User.create(data);
+    const user = await User.create(data, { transaction });
     
     logger.info('userService.createUser: Success', { 
       userId: user.id, 
@@ -92,7 +93,21 @@ export const getUserById = async (id: number) => {
 export const getUserInTenant = async (id: number, tenant_id: number) => {
   logger.debug(`userService.getUserInTenant: Entry`, { userId: id, tenant_id });
   try {
+    // 1. Check direct tenant_id on User table
     const user = await User.findOne({
+      where: { 
+        id,
+        tenant_id
+      }
+    });
+
+    if (user) {
+      logger.debug(`userService.getUserInTenant: Found via tenant_id`, { userId: id, tenant_id });
+      return user;
+    }
+
+    // 2. Check as member via SchoolMember
+    const member = await User.findOne({
       where: { id },
       include: [{
         model: School,
@@ -102,28 +117,32 @@ export const getUserInTenant = async (id: number, tenant_id: number) => {
       }]
     });
     
-    if (!user) {
-      // Check if owner
-      const owner = await User.findOne({
-        where: { id },
-        include: [{
-          model: School,
-          as: 'ownedSchools',
-          where: { id: tenant_id },
-          required: true
-        }]
-      });
-      if (owner) {
-        logger.debug(`userService.getUserInTenant: Found as owner`, { userId: id, tenant_id });
-        return owner;
-      }
-      
-      logger.warn(`userService.getUserInTenant: User not found in institution`, { userId: id, tenant_id });
-      throw new Error('User not found in this institution');
+    if (member) {
+      logger.debug(`userService.getUserInTenant: Found via SchoolMember`, { userId: id, tenant_id });
+      return member;
     }
-    logger.debug(`userService.getUserInTenant: Success`, { userId: id, tenant_id });
-    return user;
+
+    // 3. Check if owner
+    const owner = await User.findOne({
+      where: { id },
+      include: [{
+        model: School,
+        as: 'ownedSchools',
+        where: { id: tenant_id },
+        required: true
+      }]
+    });
+    if (owner) {
+      logger.debug(`userService.getUserInTenant: Found as owner`, { userId: id, tenant_id });
+      return owner;
+    }
+    
+    logger.warn(`userService.getUserInTenant: User not found in institution`, { userId: id, tenant_id });
+    throw new Error('User not found in this institution');
   } catch (error: any) {
+    if (error.message === 'User not found in this institution') {
+      throw error;
+    }
     logger.error(`userService.getUserInTenant: Error`, { userId: id, tenant_id, error: error.message });
     throw error;
   }
@@ -192,6 +211,25 @@ export const getUsersByRole = async (tenant_id: number, role: UserRole) => {
   }
 };
 
+export const getInstructorsByTenant = async (tenant_id: number) => {
+  logger.debug(`userService.getInstructorsByTenant: Entry`, { tenant_id });
+  try {
+    const instructors = await User.findAll({
+      where: {
+        tenant_id,
+        role: UserRole.INSTRUCTOR
+      },
+      attributes: ['id', 'first_name', 'last_name', 'email', 'phone', 'role'],
+      order: [['first_name', 'ASC']]
+    });
+    logger.debug(`userService.getInstructorsByTenant: Success`, { tenant_id, count: instructors.length });
+    return instructors;
+  } catch (error: any) {
+    logger.error(`userService.getInstructorsByTenant: Error`, { tenant_id, error: error.message });
+    throw error;
+  }
+};
+
 export const getStudentsWithProgress = async (tenant_id: number) => {
   try {
     const users = await User.findAll({
@@ -226,7 +264,7 @@ export const getStudentsWithProgress = async (tenant_id: number) => {
 
     const totalQuranAyahs = 6236; // Approx total ayahs in Quran
 
-    return users.map(user => {
+    return Promise.all(users.map(async (user) => {
       const userJSON = user.toJSON() as any;
       
       // Calculate last session
@@ -239,75 +277,21 @@ export const getStudentsWithProgress = async (tenant_id: number) => {
       }
 
       // Calculate progress and current level based on Memorization Records
-      let currentLevel = { juz: 30, surah: 'Amma' };
-      let progress = {
-        percentage: 0,
-        status: 'New',
-        statusColor: 'text-text-muted',
-        barColor: 'bg-text-muted'
-      };
-
-      if (userJSON.student_memorization_records && userJSON.student_memorization_records.length > 0) {
-        const records = userJSON.student_memorization_records;
-        
-        // Calculate total ayahs memorized simply by summing (end_ayah - start_ayah + 1)
-        // This is a naive calculation, ideally we should merge overlapping ranges
-        let totalAyahs = 0;
-        const uniqueAyahs = new Set();
-        
-        records.forEach((record: any) => {
-          for(let i = record.start_ayah; i <= record.end_ayah; i++) {
-            uniqueAyahs.add(`${record.surah_number}-${i}`);
-          }
-        });
-        
-        totalAyahs = uniqueAyahs.size;
-        let percentage = Math.round((totalAyahs / totalQuranAyahs) * 100);
-        if (percentage > 100) percentage = 100;
-
-        let status = 'Beginner';
-        let statusColor = 'text-primary';
-        let barColor = 'bg-primary';
-
-        if (percentage > 20 && percentage <= 50) {
-          status = 'Intermediate';
-          statusColor = 'text-blue-400';
-          barColor = 'bg-blue-400';
-        } else if (percentage > 50 && percentage <= 80) {
-          status = 'Advanced';
-          statusColor = 'text-purple-400';
-          barColor = 'bg-purple-400';
-        } else if (percentage > 80) {
-          status = 'Expert';
-          statusColor = 'text-green-400';
-          barColor = 'bg-green-400';
-        } else if (percentage === 0 && records.length > 0) {
-          status = 'Started';
-        } else if (percentage === 0) {
-           status = 'New';
-           statusColor = 'text-text-muted';
-           barColor = 'bg-text-muted';
-        }
-
-        progress = { percentage, status, statusColor, barColor };
-
-        // Latest record for current level
-        const latestRecord = records[0];
-        if (latestRecord.surah) {
-          currentLevel = {
-            juz: 30, // Simplification, in real app we look up Juz Map
-            surah: latestRecord.surah.name
-          };
-        }
-      }
+      const records = userJSON.student_memorization_records || [];
+      const calculatedProgress = await progressService.calculateStudentProgress(user.id, tenant_id, records);
 
       return {
         ...userJSON,
         lastSession,
-        currentLevel,
-        progress
+        currentLevel: calculatedProgress.currentLevel,
+        progress: {
+          percentage: calculatedProgress.percentage,
+          status: calculatedProgress.status,
+          statusColor: calculatedProgress.statusColor,
+          barColor: calculatedProgress.barColor
+        }
       };
-    });
+    }));
 
   } catch (error) {
     logger.error('userService.getStudentsWithProgress: Error', { error: (error as Error).message });
@@ -361,7 +345,7 @@ export const searchStudentsWithProgress = async (query: string, tenant_id: numbe
 
     const totalQuranAyahs = 6236;
 
-    return users.map(user => {
+    return Promise.all(users.map(async (user) => {
       const userJSON = user.toJSON() as any;
       
       // Calculate last session
@@ -374,72 +358,21 @@ export const searchStudentsWithProgress = async (query: string, tenant_id: numbe
       }
 
       // Calculate progress and current level based on Memorization Records
-      let currentLevel = { juz: 30, surah: 'Amma' };
-      let progress = {
-        percentage: 0,
-        status: 'New',
-        statusColor: 'text-text-muted',
-        barColor: 'bg-text-muted'
-      };
-
-      if (userJSON.student_memorization_records && userJSON.student_memorization_records.length > 0) {
-        const records = userJSON.student_memorization_records;
-        
-        let totalAyahs = 0;
-        const uniqueAyahs = new Set();
-        
-        records.forEach((record: any) => {
-          for(let i = record.start_ayah; i <= record.end_ayah; i++) {
-            uniqueAyahs.add(`${record.surah_number}-${i}`);
-          }
-        });
-        
-        totalAyahs = uniqueAyahs.size;
-        let percentage = Math.round((totalAyahs / totalQuranAyahs) * 100);
-        if (percentage > 100) percentage = 100;
-
-        let status = 'Beginner';
-        let statusColor = 'text-primary';
-        let barColor = 'bg-primary';
-
-        if (percentage > 20 && percentage <= 50) {
-          status = 'Intermediate';
-          statusColor = 'text-blue-400';
-          barColor = 'bg-blue-400';
-        } else if (percentage > 50 && percentage <= 80) {
-          status = 'Advanced';
-          statusColor = 'text-purple-400';
-          barColor = 'bg-purple-400';
-        } else if (percentage > 80) {
-          status = 'Expert';
-          statusColor = 'text-green-400';
-          barColor = 'bg-green-400';
-        } else if (percentage === 0 && records.length > 0) {
-          status = 'Started';
-        } else if (percentage === 0) {
-           status = 'New';
-           statusColor = 'text-text-muted';
-           barColor = 'bg-text-muted';
-        }
-
-        progress = { percentage, status, statusColor, barColor };
-
-        const latestRecord = records[0];
-        if (latestRecord.surah) {
-          currentLevel = {
-            juz: 30,
-            surah: latestRecord.surah.name
-          };
-        }
-      }
+      const records = userJSON.student_memorization_records || [];
+      const calculatedProgress = await progressService.calculateStudentProgress(user.id, tenant_id, records);
 
       return {
         ...userJSON,
         lastSession,
-        currentLevel,
-        progress
+        currentLevel: calculatedProgress.currentLevel,
+        progress: {
+          percentage: calculatedProgress.percentage,
+          status: calculatedProgress.status,
+          statusColor: calculatedProgress.statusColor,
+          barColor: calculatedProgress.barColor
+        }
       };
-    });
+    }));
   } catch (error) {
     throw error;
   }
@@ -524,21 +457,9 @@ export const getStudentProfile = async (id: number, tenant_id: number) => {
     const attendanceRate = totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 0;
 
     // 2. Calculate Progress Metrics
-    const totalQuranAyahs = 6236;
-    const memorizationRecords = await MemorizationRecord.findAll({
-      where: { student_id: id, tenant_id },
-      attributes: ['surah_number', 'start_ayah', 'end_ayah']
-    });
-
-    const uniqueAyahs = new Set();
-    memorizationRecords.forEach((record: any) => {
-      for(let i = record.start_ayah; i <= record.end_ayah; i++) {
-        uniqueAyahs.add(`${record.surah_number}-${i}`);
-      }
-    });
-    
-    const totalAyahsMemorized = uniqueAyahs.size;
-    const completionPercentage = Math.round((totalAyahsMemorized / totalQuranAyahs) * 100);
+    const calculatedProgress = await progressService.calculateStudentProgress(id, tenant_id);
+    const totalAyahsMemorized = calculatedProgress.totalAyahs;
+    const completionPercentage = calculatedProgress.percentage;
 
     // 3. Activity Log
     const activityLog = userJSON.student_sessions.map((session: any) => {

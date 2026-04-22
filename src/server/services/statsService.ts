@@ -9,6 +9,8 @@ import {
   Surah
 } from '../model';
 import { EnrollmentStatus } from '../model/Enrollment';
+import * as progressService from './progressService';
+import * as attendanceService from './attendanceService';
 
 /**
  * Get count of active students for a tenant
@@ -121,31 +123,24 @@ export const getStudentIndividualStats = async (studentId: number, tenantId: num
     const attendanceRate = totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 0;
 
     // 3. Completion Percentage (Quran Memorization)
-    const totalQuranAyahs = 6236;
-    const memorizationRecords = await MemorizationRecord.findAll({
-      where: { student_id: studentId, tenant_id: tenantId },
-      attributes: ['surah_number', 'start_ayah', 'end_ayah']
-    });
-
-    const uniqueAyahs = new Set();
-    memorizationRecords.forEach((record: any) => {
-      for(let i = record.start_ayah; i <= record.end_ayah; i++) {
-        uniqueAyahs.add(`${record.surah_number}-${i}`);
-      }
-    });
-    
-    const totalAyahsMemorized = uniqueAyahs.size;
-    const completionPercentage = Math.round((totalAyahsMemorized / totalQuranAyahs) * 100);
+    const calculatedProgress = await progressService.calculateStudentProgress(studentId, tenantId);
 
     return {
       studentId,
       totalSessions,
       attendanceRate,
-      totalAyahsMemorized,
-      completionPercentage
+      totalAyahsMemorized: calculatedProgress.totalAyahs,
+      completionPercentage: calculatedProgress.percentage
     };
   } catch (error) {
     console.error('Error in getStudentIndividualStats:', error);
     throw error;
   }
+};
+
+/**
+ * Get attendance trends
+ */
+export const getAttendanceTrends = async (tenantId: number, studentId?: number) => {
+  return await attendanceService.getAttendanceTrends(tenantId, studentId);
 };
