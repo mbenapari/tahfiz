@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Building2, 
   Calendar, 
@@ -14,11 +14,93 @@ import {
   Phone,
   Shield,
   MoreVertical,
-  Plus
+  Plus,
+  Loader2
 } from 'lucide-react';
 
 export const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'general' | 'schedule' | 'instructors' | 'billing'>('schedule');
+  const [activeTab, setActiveTab] = useState<'general' | 'schedule' | 'instructors' | 'billing'>('general');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [schoolData, setSchoolData] = useState<any>(null);
+  const [instructors, setInstructors] = useState<any[]>([]);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [schoolRes, instructorsRes] = await Promise.all([
+        fetch('/api/schools/me'),
+        fetch('/api/users/instructors')
+      ]);
+
+      if (!schoolRes.ok || !instructorsRes.ok) {
+        throw new Error('Failed to fetch settings data');
+      }
+
+      const [school, instructorsData] = await Promise.all([
+        schoolRes.json(),
+        instructorsRes.json()
+      ]);
+
+      setSchoolData(school);
+      setInstructors(instructorsData.instructors || []);
+    } catch (err: any) {
+      setError(err.message);
+      console.error('Error fetching settings:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/schools/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schoolName: schoolData.name,
+          slug: schoolData.slug,
+          timezone: schoolData.timezone,
+          studyDays: schoolData.study_days,
+          startTime: schoolData.start_time,
+          endTime: schoolData.end_time,
+          email: schoolData.email,
+          phone: schoolData.phone,
+          address: schoolData.address,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save changes');
+      }
+
+      const result = await response.json();
+      setSchoolData(result.school);
+      alert('Settings updated successfully');
+    } catch (err: any) {
+      setError(err.message);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <Loader2 size={40} className="text-primary animate-spin" />
+        <p className="text-text-muted font-medium">Loading school settings...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -39,12 +121,20 @@ export const Settings: React.FC = () => {
               <p className="text-text-muted">Manage school details, study schedules, and instructor permissions from a central dashboard.</p>
             </div>
             <div className="flex items-center gap-3">
-              <button className="px-6 py-2.5 rounded-xl text-sm font-bold text-text-muted hover:text-white border border-transparent hover:border-border-green/30 transition-all">
+              <button 
+                onClick={() => fetchData()}
+                disabled={isSaving}
+                className="px-6 py-2.5 rounded-xl text-sm font-bold text-text-muted hover:text-white border border-transparent hover:border-border-green/30 transition-all disabled:opacity-50"
+              >
                 Discard
               </button>
-              <button className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-background-dark rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20">
-                <Save size={18} />
-                Save Changes
+              <button 
+                onClick={handleSaveChanges}
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-background-dark rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+              >
+                {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -70,20 +160,24 @@ export const Settings: React.FC = () => {
             icon={Users} 
             label="Instructors" 
           />
-          <TabButton 
-            active={activeTab === 'billing'} 
-            onClick={() => setActiveTab('billing')} 
-            icon={CreditCard} 
-            label="Tenant & Billing" 
-          />
         </div>
       </div>
 
       {/* Content Area */}
       <div className="min-h-[500px]">
-        {activeTab === 'schedule' && <StudyScheduleTab />}
-        {activeTab === 'general' && <GeneralInfoTab />}
-        {activeTab === 'instructors' && <InstructorsTab />}
+        {activeTab === 'schedule' && (
+          <StudyScheduleTab 
+            data={schoolData} 
+            setData={(updated: any) => setSchoolData({ ...schoolData, ...updated })} 
+          />
+        )}
+        {activeTab === 'general' && (
+          <GeneralInfoTab 
+            data={schoolData} 
+            setData={(updated: any) => setSchoolData({ ...schoolData, ...updated })} 
+          />
+        )}
+        {activeTab === 'instructors' && <InstructorsTab instructors={instructors} />}
         {activeTab === 'billing' && <BillingTab />}
       </div>
 
@@ -107,9 +201,16 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; icon: React.El
 
 // Tab Content Components
 
-const StudyScheduleTab: React.FC = () => {
-  const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-  const activeDays = ['MON', 'TUE', 'WED'];
+const StudyScheduleTab: React.FC<{ data: any; setData: (d: any) => void }> = ({ data, setData }) => {
+  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const activeDayNumbers = data.study_days || [];
+
+  const toggleDay = (dayIndex: number) => {
+    const newDays = activeDayNumbers.includes(dayIndex)
+      ? activeDayNumbers.filter((d: number) => d !== dayIndex)
+      : [...activeDayNumbers, dayIndex];
+    setData({ study_days: newDays });
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -128,11 +229,12 @@ const StudyScheduleTab: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap gap-4 mb-6">
-            {days.map((day) => {
-              const isActive = activeDays.includes(day);
+            {days.map((day, index) => {
+              const isActive = activeDayNumbers.includes(index);
               return (
                 <div 
                   key={day}
+                  onClick={() => toggleDay(index)}
                   className={`
                     w-16 h-20 rounded-xl flex flex-col items-center justify-center gap-2 border-2 cursor-pointer transition-all
                     ${isActive 
@@ -147,11 +249,6 @@ const StudyScheduleTab: React.FC = () => {
               );
             })}
           </div>
-
-          <div className="flex items-center gap-2 text-text-muted text-sm bg-white/5 p-3 rounded-lg inline-block">
-            <Info size={16} />
-            <span>Weekend classes are currently disabled.</span>
-          </div>
         </div>
 
         {/* Daily Operations */}
@@ -165,22 +262,24 @@ const StudyScheduleTab: React.FC = () => {
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-text-muted">Start Time</label>
               <div className="relative">
-                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" size={18} />
+                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-primary pointer-events-none" size={18} />
                 <input 
-                  type="text" 
-                  defaultValue="08:00 AM"
-                  className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3 pl-11 pr-4 text-white font-bold focus:outline-none focus:border-primary/50 transition-colors"
+                  type="time" 
+                  value={data.start_time || ''}
+                  onChange={(e) => setData({ start_time: e.target.value })}
+                  className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3 pl-11 pr-4 text-white font-bold focus:outline-none focus:border-primary/50 transition-colors [color-scheme:dark] cursor-pointer"
                 />
               </div>
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-text-muted">End Time</label>
               <div className="relative">
-                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" size={18} />
+                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-primary pointer-events-none" size={18} />
                 <input 
-                  type="text" 
-                  defaultValue="04:30 PM"
-                  className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3 pl-11 pr-4 text-white font-bold focus:outline-none focus:border-primary/50 transition-colors"
+                  type="time" 
+                  value={data.end_time || ''}
+                  onChange={(e) => setData({ end_time: e.target.value })}
+                  className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3 pl-11 pr-4 text-white font-bold focus:outline-none focus:border-primary/50 transition-colors [color-scheme:dark] cursor-pointer"
                 />
               </div>
             </div>
@@ -214,16 +313,16 @@ const StudyScheduleTab: React.FC = () => {
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-center pb-4 border-b border-border-green/10">
               <span className="text-text-muted font-medium">Active Days</span>
-              <span className="text-white font-bold">3 Days / Week</span>
+              <span className="text-white font-bold">{activeDayNumbers.length} Days / Week</span>
             </div>
             <div className="flex justify-between items-center pb-4 border-b border-border-green/10">
-              <span className="text-text-muted font-medium">Total Hours</span>
-              <span className="text-white font-bold">25.5 Hours</span>
+              <span className="text-text-muted font-medium">Daily Window</span>
+              <span className="text-white font-bold">{data.start_time || 'N/A'} - {data.end_time || 'N/A'}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-text-muted font-medium">Timezone</span>
               <span className="text-white font-bold flex items-center gap-1">
-                GMT+3 <Globe size={14} />
+                {data.timezone} <Globe size={14} />
               </span>
             </div>
           </div>
@@ -238,29 +337,7 @@ const StudyScheduleTab: React.FC = () => {
               <h3 className="text-xl font-bold text-white mb-1">Eid al-Fitr</h3>
               <p className="text-xs text-text-muted">Approx. 12 days remaining</p>
             </div>
-            <button className="text-sm font-bold text-primary hover:text-white transition-colors">Manage</button>
           </div>
-        </div>
-
-        {/* Staff Availability */}
-        <div className="bg-surface-dark border border-border-green/30 rounded-2xl p-6">
-          <h3 className="text-lg font-bold text-white mb-2">Staff Availability</h3>
-          <p className="text-sm text-text-muted mb-6">6 Instructors are assigned to the current schedule.</p>
-          
-          <div className="flex items-center -space-x-2 mb-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="w-10 h-10 rounded-full border-2 border-surface-dark overflow-hidden">
-                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Staff${i}`} alt="Staff" />
-              </div>
-            ))}
-            <div className="w-10 h-10 rounded-full border-2 border-surface-dark bg-white/10 flex items-center justify-center text-xs font-bold text-white">
-              +3
-            </div>
-          </div>
-
-          <button className="w-full py-3 rounded-xl border border-border-green/30 text-text-muted text-sm font-bold hover:bg-white/5 hover:text-white transition-all">
-            View Instructor Shifts
-          </button>
         </div>
 
       </div>
@@ -269,7 +346,7 @@ const StudyScheduleTab: React.FC = () => {
   );
 };
 
-const GeneralInfoTab: React.FC = () => (
+const GeneralInfoTab: React.FC<{ data: any; setData: (d: any) => void }> = ({ data, setData }) => (
   <div className="bg-surface-dark border border-border-green/30 rounded-2xl p-8">
     <h2 className="text-xl font-bold text-white mb-6">School Information</h2>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -278,7 +355,8 @@ const GeneralInfoTab: React.FC = () => (
           <label className="text-sm font-bold text-text-muted">School Name</label>
           <input 
             type="text" 
-            defaultValue="Al-Huda Academy"
+            value={data.name || ''}
+            onChange={(e) => setData({ name: e.target.value })}
             className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary/50 transition-colors"
           />
         </div>
@@ -288,7 +366,8 @@ const GeneralInfoTab: React.FC = () => (
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input 
               type="email" 
-              defaultValue="admin@alhuda.edu"
+              value={data.email || ''}
+              onChange={(e) => setData({ email: e.target.value })}
               className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:border-primary/50 transition-colors"
             />
           </div>
@@ -301,18 +380,20 @@ const GeneralInfoTab: React.FC = () => (
             <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input 
               type="text" 
-              defaultValue="+1 (555) 123-4567"
+              value={data.phone || ''}
+              onChange={(e) => setData({ phone: e.target.value })}
               className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:border-primary/50 transition-colors"
             />
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-bold text-text-muted">Website / Portal URL</label>
+          <label className="text-sm font-bold text-text-muted">Address</label>
           <div className="relative">
             <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input 
               type="text" 
-              defaultValue="portal.alhuda.edu"
+              value={data.address || ''}
+              onChange={(e) => setData({ address: e.target.value })}
               className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:border-primary/50 transition-colors"
             />
           </div>
@@ -322,13 +403,7 @@ const GeneralInfoTab: React.FC = () => (
   </div>
 );
 
-const InstructorsTab: React.FC = () => {
-  const instructors = [
-    { name: 'Sheikh Abdullah', role: 'Head Instructor', students: 45, status: 'Active' },
-    { name: 'Ustadha Fatima', role: 'Hifz Teacher', students: 28, status: 'Active' },
-    { name: 'Brother Ahmed', role: 'Assistant', students: 12, status: 'On Leave' },
-  ];
-
+const InstructorsTab: React.FC<{ instructors: any[] }> = ({ instructors }) => {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex justify-between items-center">
@@ -345,7 +420,7 @@ const InstructorsTab: React.FC = () => {
             <tr>
               <th className="px-6 py-4">Instructor</th>
               <th className="px-6 py-4">Role</th>
-              <th className="px-6 py-4">Students</th>
+              <th className="px-6 py-4">Phone</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
@@ -356,16 +431,19 @@ const InstructorsTab: React.FC = () => {
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                      {inst.name[0]}
+                      {inst.first_name[0]}
                     </div>
-                    <span className="font-bold text-white">{inst.name}</span>
+                    <div>
+                      <div className="font-bold text-white">{inst.first_name} {inst.last_name}</div>
+                      <div className="text-xs text-text-muted">{inst.email}</div>
+                    </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-text-muted">{inst.role}</td>
-                <td className="px-6 py-4 text-sm text-white">{inst.students} Students</td>
+                <td className="px-6 py-4 text-sm text-text-muted capitalize">{inst.role}</td>
+                <td className="px-6 py-4 text-sm text-white">{inst.phone || 'N/A'}</td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded text-xs font-bold ${inst.status === 'Active' ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>
-                    {inst.status}
+                  <span className="px-2 py-1 rounded text-xs font-bold bg-green-500/20 text-green-400">
+                    Active
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
@@ -375,6 +453,13 @@ const InstructorsTab: React.FC = () => {
                 </td>
               </tr>
             ))}
+            {instructors.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-6 py-12 text-center text-text-muted">
+                  No instructors found for this school.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
