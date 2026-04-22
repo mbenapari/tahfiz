@@ -8,13 +8,17 @@ interface SchoolAttributes {
   owner_id?: number;
   timezone: string;
   study_days: number[]; // Array of numbers representing days
+  start_time?: string;
+  end_time?: string;
+  email?: string;
+  phone?: string;
   address?: string;
   created_at?: Date;
   updated_at?: Date;
   deleted_at?: Date;
 }
 
-interface SchoolCreationAttributes extends Optional<SchoolAttributes, 'id' | 'owner_id' | 'timezone' | 'address' | 'created_at' | 'updated_at' | 'deleted_at'> {}
+interface SchoolCreationAttributes extends Optional<SchoolAttributes, 'id' | 'owner_id' | 'timezone' | 'start_time' | 'end_time' | 'email' | 'phone' | 'address' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class School extends Model<SchoolAttributes, SchoolCreationAttributes> implements SchoolAttributes {
   declare id: number;
@@ -23,6 +27,10 @@ class School extends Model<SchoolAttributes, SchoolCreationAttributes> implement
   declare owner_id: number;
   declare timezone: string;
   declare study_days: number[];
+  declare start_time: string;
+  declare end_time: string;
+  declare email: string;
+  declare phone: string;
   declare address: string;
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
@@ -60,6 +68,22 @@ School.init(
     study_days: {
       type: DataTypes.JSON,
       allowNull: false,
+    },
+    start_time: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    end_time: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    email: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    phone: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
     },
     address: {
       type: DataTypes.STRING,
