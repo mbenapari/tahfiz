@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   TrendingUp, 
   Users, 
@@ -15,7 +15,8 @@ import {
   ArrowUpRight,
   ClipboardList,
   Presentation,
-  UserCheck
+  UserCheck,
+  Loader2
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -30,84 +31,129 @@ import {
 } from 'recharts';
 
 export const Reports: React.FC = () => {
-  // Mock data for the institutional trends chart
-  const trendData = [
-    { name: 'Oct 01', current: 120, target: 100 },
-    { name: 'Oct 08', current: 150, target: 140 },
-    { name: 'Oct 15', current: 280, target: 200 },
-    { name: 'Oct 22', current: 240, target: 260 },
-    { name: 'Oct 31', current: 350, target: 320 },
-  ];
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reportData, setReportData] = useState<any>(null);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  
+  // Date range state - Default to last 30 days
+  const [dateRange, setDateRange] = useState(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 30);
+    return {
+      startDate: start.toISOString().split('T')[0],
+      endDate: end.toISOString().split('T')[0]
+    };
+  });
 
-  const stats = [
-    {
-      label: 'AVERAGE ATTENDANCE',
-      value: '94.2%',
-      trend: '+1.5% from last month',
-      icon: Calendar,
-      iconColor: 'text-primary',
-      bgIcon: 'bg-primary/10'
-    },
-    {
-      label: 'MEMORIZATION PROGRESS',
-      value: '412 Pages',
-      trend: '+24% velocity increase',
-      icon: BookOpen,
-      iconColor: 'text-blue-400',
-      bgIcon: 'bg-blue-400/10'
-    },
-    {
-      label: 'ACTIVE STUDENTS',
-      value: '184',
-      trend: 'Across 12 different levels',
-      icon: Users,
-      iconColor: 'text-primary',
-      bgIcon: 'bg-primary/10'
+  const fetchReportData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/reports/school-performance?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch school performance report');
+      }
+      const data = await response.json();
+      
+      // Map string icon names to Lucide icons
+      const iconMap: any = {
+        Calendar,
+        BookOpen,
+        Users,
+        UserCheck,
+        TrendingUp,
+        ClipboardList,
+        Presentation
+      };
+
+      const transformedStats = data.stats.map((stat: any) => ({
+        ...stat,
+        icon: iconMap[stat.icon] || Calendar
+      }));
+
+      const transformedReportTypes = data.reportTypes.map((type: any) => ({
+        ...type,
+        icon: iconMap[type.icon] || FileText
+      }));
+
+      setReportData({
+        ...data,
+        stats: transformedStats,
+        reportTypes: transformedReportTypes
+      });
+    } catch (err: any) {
+      setError(err.message);
+      console.error('Error fetching report data:', err);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  }, [dateRange]);
 
-  const reportTypes = [
-    {
-      title: 'Student Performance Report',
-      desc: 'Individual detailed breakdown',
-      icon: UserCheck,
-      color: 'text-primary',
-      bg: 'bg-primary/10'
-    },
-    {
-      title: 'Class Progression Report',
-      desc: 'Curriculum coverage analysis',
-      icon: TrendingUp,
-      color: 'text-blue-400',
-      bg: 'bg-blue-400/10'
-    },
-    {
-      title: 'Daily Attendance Summary',
-      desc: 'Presence & punctuality log',
-      icon: ClipboardList,
-      color: 'text-primary',
-      bg: 'bg-primary/10'
-    },
-    {
-      title: 'Teacher Evaluation',
-      desc: 'Class instruction performance',
-      icon: Presentation,
-      color: 'text-primary',
-      bg: 'bg-primary/10'
+  useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
+
+  if (isLoading && !reportData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <Loader2 size={40} className="text-primary animate-spin" />
+        <p className="text-text-muted font-medium">Loading school performance data...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="p-4 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20">
+          <p className="font-bold">Error loading reports: {error}</p>
+        </div>
+        <button 
+          onClick={() => fetchReportData()}
+          className="px-6 py-2 bg-primary text-background-dark rounded-xl font-bold"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const { stats, trendData, topPerformers, reportTypes } = reportData;
+
+  const handleDownloadReport = async (reportTitle: string) => {
+    let endpoint = '';
+    let filename = '';
+
+    if (reportTitle === 'Student Performance Report') {
+      endpoint = `/api/reports/overall-performance/download?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+      filename = `overall_performance_${dateRange.startDate}_${dateRange.endDate}.csv`;
+    } else if (reportTitle === 'Daily Attendance Summary') {
+      endpoint = `/api/reports/overall-attendance/download?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+      filename = `overall_attendance_${dateRange.startDate}_${dateRange.endDate}.csv`;
     }
-  ];
 
-  const topPerformers = [
-    { rank: '1st', name: 'Ahmed Ali', class: 'Hifz A', memorized: '15 Juz', accuracy: '98%', status: 'Exceptional', statusColor: 'bg-primary/10 text-primary', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmed' },
-    { rank: '2nd', name: 'Zaid Bakr', class: 'Hifz A', memorized: '12 Juz', accuracy: '95%', status: 'Advancing', statusColor: 'bg-white/5 text-text-muted', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Zaid' },
-    { rank: '3rd', name: 'Omar Farooq', class: 'Hifz B', memorized: '8 Juz', accuracy: '94%', status: 'Advancing', statusColor: 'bg-white/5 text-text-muted', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Omar' },
-  ];
+    if (!endpoint) return;
 
-  const recentExports = [
-    { name: 'Q3_Full_School_Report.pdf', info: 'Generated 2h ago • 4.2 MB' },
-    { name: 'Hifz_A_Attendance_Oct.csv', info: 'Generated Yesterday • 120 KB' },
-    { name: 'Yearly_Revenue_Audit.pdf', info: 'Generated Oct 28 • 1.8 MB' },
-  ];
+    try {
+      const response = await fetch(endpoint);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      console.error('Error downloading report:', err);
+      alert('Failed to download report. Please try again.');
+    }
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -124,7 +170,7 @@ export const Reports: React.FC = () => {
             <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Date Range</span>
             <div className="flex items-center gap-2 px-4 py-2.5 bg-surface-dark border border-border-green/30 rounded-xl text-sm font-bold text-white">
               <Calendar size={16} className="text-primary" />
-              <span>Oct 01, 2023 - Oct 31, 2023</span>
+              <span>{dateRange.startDate} - {dateRange.endDate}</span>
             </div>
           </div>
 
@@ -145,14 +191,14 @@ export const Reports: React.FC = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((stat, idx) => (
+        {stats.map((stat: any, idx: number) => (
           <div key={idx} className="bg-surface-dark border border-border-green/30 rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden group">
              <div className="flex justify-between items-start">
                <div className="flex flex-col gap-1">
                  <span className="text-xs font-bold text-text-muted tracking-wider">{stat.label}</span>
                  <h3 className="text-3xl font-bold text-white">{stat.value}</h3>
                </div>
-               <div className={`p-3 rounded-xl ${stat.bg} ${stat.iconColor}`}>
+               <div className={`p-3 rounded-xl ${stat.bgIcon} ${stat.iconColor}`}>
                  <stat.icon size={24} />
                </div>
              </div>
@@ -222,13 +268,14 @@ export const Reports: React.FC = () => {
                     fillOpacity={1} 
                     fill="url(#colorCurrent)" 
                   />
-                  <Line 
+                  <Area 
                     type="monotone" 
                     dataKey="target" 
                     stroke="#94a3b8" 
                     strokeWidth={2} 
                     strokeDasharray="5 5" 
                     dot={false}
+                    fill="transparent"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -260,9 +307,9 @@ export const Reports: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-green/5">
-                  {topPerformers.map((student, idx) => (
+                  {topPerformers.map((student: any, idx: number) => (
                     <tr key={idx} className="group">
-                      <td className="py-4 px-2 text-sm font-bold text-white">{student.rank}</td>
+                      <td className="py-4 px-2 text-sm font-bold text-white">{idx + 1}{idx === 0 ? 'st' : idx === 1 ? 'nd' : idx === 2 ? 'rd' : 'th'}</td>
                       <td className="py-4 px-2">
                         <div className="flex items-center gap-3">
                           <img src={student.avatar} className="w-8 h-8 rounded-full bg-surface-dark border border-border-green/20" alt="" />
@@ -277,7 +324,7 @@ export const Reports: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-4 px-2 text-right">
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${student.statusColor}`}>
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${student.status === 'Exceptional' ? 'bg-primary/10 text-primary' : 'bg-white/5 text-text-muted'}`}>
                           {student.status}
                         </span>
                       </td>
@@ -301,8 +348,12 @@ export const Reports: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-3">
-              {reportTypes.map((report, idx) => (
-                <div key={idx} className="flex items-center justify-between p-4 bg-background-dark/30 border border-border-green/10 rounded-2xl hover:border-primary/30 transition-all cursor-pointer group">
+              {reportTypes.map((report: any, idx: number) => (
+                <div 
+                  key={idx} 
+                  onClick={() => handleDownloadReport(report.title)}
+                  className="flex items-center justify-between p-4 bg-background-dark/30 border border-border-green/10 rounded-2xl hover:border-primary/30 transition-all cursor-pointer group"
+                >
                   <div className="flex items-center gap-4">
                     <div className={`p-2.5 rounded-xl ${report.bg} ${report.color}`}>
                       <report.icon size={20} />
@@ -317,24 +368,6 @@ export const Reports: React.FC = () => {
               ))}
             </div>
           </div>
-
-          {/* Recent Exports */}
-          <div className="bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6">
-            <div className="flex items-center gap-3">
-              <History size={20} className="text-primary" />
-              <h2 className="text-xl font-bold text-white">Recent Exports</h2>
-            </div>
-
-            <div className="flex flex-col gap-6">
-              {recentExports.map((exportItem, idx) => (
-                <div key={idx} className="flex flex-col gap-1 group cursor-pointer">
-                  <p className="text-sm font-bold text-white group-hover:text-primary transition-colors">{exportItem.name}</p>
-                  <p className="text-[10px] font-medium text-text-muted">{exportItem.info}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>
 
       </div>
