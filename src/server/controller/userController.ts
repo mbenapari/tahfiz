@@ -2,9 +2,12 @@ import { Request, Response } from 'express';
 import * as userService from '../services/userService';
 import * as enrollmentService from '../services/enrollmentService';
 import { UserRole } from '../model/User';
+import { User, Role, School, SchoolMember, BlacklistedToken } from '../model';
 import * as jwtHelper from '../helper/jwtHelper';
 import * as permissionService from '../services/permissionService';
 import logger from '../utils/logger';
+import sequelize from '../db';
+import jwt from 'jsonwebtoken';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -177,7 +180,28 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
-export const logout = (req: Request, res: Response) => {
+export const logout = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const token = req.cookies.jwt;
+
+  if (token) {
+    try {
+      // Decode token to get expiration
+      const decoded = jwt.decode(token) as any;
+      const expiresAt = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      // Add to blacklist
+      await BlacklistedToken.create({
+        token,
+        expires_at: expiresAt
+      });
+      logger.info('userController.logout: Token blacklisted', { correlationId });
+    } catch (error: any) {
+      logger.error('userController.logout: Error blacklisting token', { correlationId, error: error.message });
+      // Continue with clearing cookie even if blacklisting fails
+    }
+  }
+
   res.clearCookie('jwt');
   res.json({ message: 'Logged out successfully' });
 };
@@ -201,15 +225,96 @@ export const getCurrentUser = async (req: Request, res: Response) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
         tenant_id: user.tenant_id,
         school_name: user.tenant?.name,
+        created_at: user.created_at,
         permissions
       }
     });
   } catch (error: any) {
     logger.error('userController.getCurrentUser: Error', { correlationId, error: error.message });
     res.status(500).json({ error: 'Failed to fetch user' });
+  }
+};
+
+export const updateCurrentUser = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  logger.info('userController.updateCurrentUser: Entry', { correlationId });
+
+  try {
+    if (!req.user) {
+      logger.warn('userController.updateCurrentUser: Not authenticated', { correlationId });
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { firstName, lastName, email, phone, currentPassword, newPassword } = req.body;
+
+    // Validate input
+    if (email && !EMAIL_REGEX.test(email)) {
+      logger.warn('userController.updateCurrentUser: Invalid email', { correlationId });
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    if (newPassword && newPassword.length < MIN_PASSWORD_LENGTH) {
+      logger.warn('userController.updateCurrentUser: Password too short', { correlationId });
+      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long` });
+    }
+
+    // If changing password, verify current password
+    if (newPassword) {
+      if (!currentPassword) {
+        logger.warn('userController.updateCurrentUser: Current password required', { correlationId });
+        return res.status(400).json({ error: 'Current password is required to change password' });
+      }
+
+      const user = await userService.getUserById(req.user.userId);
+      const isCurrentPasswordValid = await user.validatePassword(currentPassword);
+      if (!isCurrentPasswordValid) {
+        logger.warn('userController.updateCurrentUser: Invalid current password', { correlationId, userId: user.id });
+        return res.status(400).json({ error: 'Current password is incorrect' });
+      }
+    }
+
+    // Check if email is already taken by another user
+    if (email) {
+      const existingUser = await userService.getUserByEmail(email);
+      if (existingUser && existingUser.id !== req.user.userId) {
+        logger.warn('userController.updateCurrentUser: Email already taken', { correlationId, email });
+        return res.status(409).json({ error: 'Email already in use' });
+      }
+    }
+
+    const updateData: userService.UpdateUserDTO = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      ...(newPassword && { password: newPassword })
+    };
+
+    const updatedUser = await userService.updateUser(req.user.userId, updateData);
+    const permissions = await permissionService.getEffectivePermissions(updatedUser.id);
+
+    logger.info('userController.updateCurrentUser: Success', { correlationId, userId: updatedUser.id });
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser.id,
+        first_name: updatedUser.first_name,
+        last_name: updatedUser.last_name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        role: updatedUser.role,
+        tenant_id: updatedUser.tenant_id,
+        school_name: updatedUser.tenant?.name,
+        permissions
+      }
+    });
+  } catch (error: any) {
+    logger.error('userController.updateCurrentUser: Error', { correlationId, error: error.message });
+    res.status(500).json({ error: 'Failed to update profile' });
   }
 };
 
@@ -366,6 +471,237 @@ export const searchStudents = async (req: Request, res: Response) => {
     res.json({ users });
   } catch (error: any) {
     logger.error('userController.searchStudents: Error', { correlationId, error: error.message });
-    res.status(500).json({ error: 'Failed to search students' });
+   return res.status(500).json({ error: 'Failed to search students' });
+  }
+};
+
+export const getInstructors = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const tenantId = req.user?.tenantId;
+
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Unauthorized: No school associated with this user' });
+  }
+
+  try {
+    const instructors = await userService.getInstructorsByTenant(tenantId);
+    return res.json({ instructors });
+  } catch (error: any) {
+    logger.error('userController.getInstructors: Error', { correlationId, error: error.message });
+    return res.status(500).json({ error: 'Failed to fetch instructors' });
+  }
+};
+
+export const createInstructor = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const tenantId = req.user?.tenantId;
+
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Tenant ID required' });
+  }
+
+  // Check if user has permission to manage users
+  const hasPermission = await permissionService.hasPermission(req.user!.userId, 'users:manage');
+  if (!hasPermission) {
+    return res.status(403).json({ error: 'Forbidden: You do not have permission to manage users' });
+  }
+
+  const t = await sequelize.transaction();
+
+  try {
+    const { firstName, lastName, email, phone, password } = req.body;
+
+    // Validation
+    if (!firstName || !email || !password) {
+      logger.warn('userController.createInstructor: Validation Failure - Missing fields', { correlationId });
+      await t.rollback();
+      return res.status(400).json({ error: 'First name, email, and password are required' });
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      logger.warn('userController.createInstructor: Validation Failure - Invalid email', { correlationId });
+      await t.rollback();
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Check if user already exists
+    const existingUser = await userService.getUserByEmail(email);
+    if (existingUser) {
+      logger.warn('userController.createInstructor: Duplicate Email', { correlationId, email });
+      await t.rollback();
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+
+    const userData: userService.CreateUserDTO = {
+      tenant_id: tenantId,
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      password,
+      role: UserRole.INSTRUCTOR,
+    };
+
+    const instructor = await userService.createUser(userData, t);
+
+    // Add to SchoolMember table for consistency
+     await SchoolMember.create({
+       school_id: tenantId,
+       user_id: instructor.id,
+       role: UserRole.INSTRUCTOR
+     }, { transaction: t });
+
+    await t.commit();
+
+    logger.info('userController.createInstructor: Success', { correlationId, instructorId: instructor.id });
+    res.status(201).json({
+      message: 'Instructor created successfully',
+      instructor: {
+        id: instructor.id,
+        first_name: instructor.first_name,
+        last_name: instructor.last_name,
+        email: instructor.email,
+        phone: instructor.phone,
+        role: instructor.role,
+        tenant_id: instructor.tenant_id,
+      }
+    });
+  } catch (error: any) {
+    await t.rollback();
+    logger.error('userController.createInstructor: Error', { correlationId, error: error.message });
+    res.status(500).json({ error: error.message || 'Failed to create instructor' });
+  }
+};
+
+export const getInstructorById = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const { id } = req.params;
+  const tenantId = req.user?.tenantId;
+
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Tenant ID required' });
+  }
+
+  try {
+    const instructor = await userService.getUserInTenant(Number(id), tenantId);
+    
+    if (instructor.role !== UserRole.INSTRUCTOR) {
+      return res.status(404).json({ error: 'Instructor not found' });
+    }
+
+    logger.debug('userController.getInstructorById: Success', { correlationId, instructorId: id });
+    res.json({
+      instructor: {
+        id: instructor.id,
+        first_name: instructor.first_name,
+        last_name: instructor.last_name,
+        email: instructor.email,
+        phone: instructor.phone,
+        role: instructor.role,
+        tenant_id: instructor.tenant_id,
+      }
+    });
+  } catch (error: any) {
+    logger.error('userController.getInstructorById: Error', { correlationId, error: error.message });
+    res.status(404).json({ error: error.message || 'Instructor not found' });
+  }
+};
+
+export const updateInstructor = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const { id } = req.params;
+  const tenantId = req.user?.tenantId;
+  const { firstName, lastName, email, phone, password } = req.body;
+
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Tenant ID required' });
+  }
+
+  // Check if user has permission to manage users
+  const hasPermission = await permissionService.hasPermission(req.user!.userId, 'users:manage');
+  if (!hasPermission) {
+    return res.status(403).json({ error: 'Forbidden: You do not have permission to manage users' });
+  }
+
+  try {
+    const instructor = await userService.getUserInTenant(Number(id), tenantId);
+    
+    if (instructor.role !== UserRole.INSTRUCTOR) {
+      return res.status(404).json({ error: 'Instructor not found' });
+    }
+
+    // Validate email if provided
+    if (email && !EMAIL_REGEX.test(email)) {
+      logger.warn('userController.updateInstructor: Invalid email', { correlationId });
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Check if email is already taken by another user
+    if (email && email !== instructor.email) {
+      const existingUser = await userService.getUserByEmail(email);
+      if (existingUser && existingUser.id !== Number(id)) {
+        logger.warn('userController.updateInstructor: Email already taken', { correlationId, email });
+        return res.status(409).json({ error: 'Email already in use' });
+      }
+    }
+
+    const updateData: userService.UpdateUserDTO = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      password,
+    };
+
+    const updatedInstructor = await userService.updateUser(Number(id), updateData);
+
+    logger.info('userController.updateInstructor: Success', { correlationId, instructorId: id });
+    res.json({
+      message: 'Instructor updated successfully',
+      instructor: {
+        id: updatedInstructor.id,
+        first_name: updatedInstructor.first_name,
+        last_name: updatedInstructor.last_name,
+        email: updatedInstructor.email,
+        phone: updatedInstructor.phone,
+        role: updatedInstructor.role,
+        tenant_id: updatedInstructor.tenant_id,
+      }
+    });
+  } catch (error: any) {
+    logger.error('userController.updateInstructor: Error', { correlationId, error: error.message });
+    res.status(500).json({ error: error.message || 'Failed to update instructor' });
+  }
+};
+
+export const deleteInstructor = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  const { id } = req.params;
+  const tenantId = req.user?.tenantId;
+
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Tenant ID required' });
+  }
+
+  // Check if user has permission to manage users
+  const hasPermission = await permissionService.hasPermission(req.user!.userId, 'users:manage');
+  if (!hasPermission) {
+    return res.status(403).json({ error: 'Forbidden: You do not have permission to manage users' });
+  }
+
+  try {
+    const instructor = await userService.getUserInTenant(Number(id), tenantId);
+    
+    if (instructor.role !== UserRole.INSTRUCTOR) {
+      return res.status(404).json({ error: 'Instructor not found' });
+    }
+
+    await instructor.destroy();
+
+    logger.info('userController.deleteInstructor: Success', { correlationId, instructorId: id });
+    res.json({ message: 'Instructor deleted successfully' });
+  } catch (error: any) {
+    logger.error('userController.deleteInstructor: Error', { correlationId, error: error.message });
+    res.status(500).json({ error: error.message || 'Failed to delete instructor' });
   }
 };

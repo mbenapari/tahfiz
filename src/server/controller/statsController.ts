@@ -56,3 +56,15 @@ export const getStudentStats = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message || 'Error fetching individual student stats' });
   }
 };
+
+export const getAttendanceTrends = async (req: Request, res: Response) => {
+  try {
+    const tenantId = (req as any).user.tenantId;
+    const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
+    
+    const trends = await statsService.getAttendanceTrends(tenantId, studentId);
+    res.json(trends);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Error fetching attendance trends' });
+  }
+};

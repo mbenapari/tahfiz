@@ -4,6 +4,7 @@ import * as memorizationService from '../services/memorizationService';
 import * as revisionService from '../services/revisionService';
 import * as surahService from '../services/surahService';
 import * as attendanceService from '../services/attendanceService';
+import * as progressService from '../services/progressService';
 import { RecordType } from '../model/MemorizationRecord';
 import logger from '../utils/logger';
 
@@ -120,6 +121,10 @@ export const saveDailySession = async (req: Request, res: Response) => {
         is_full_surah: hifzRecord.isFullSurah || false,
         notes: hifzRecord.notes || ''
       });
+
+      // Update aggregated progress asynchronously
+      progressService.updateAggregatedProgress(Number(studentId), tenantId, Number(hifzRecord.surahNumber))
+        .catch(err => logger.error('Error updating aggregated progress:', err));
     }
 
     // 3. Create Revision record if provided
