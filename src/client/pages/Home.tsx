@@ -6,12 +6,12 @@ const Home: React.FC = () => {
     <div className="min-h-screen bg-[#f8fffd] text-slate-900">
       <header className="border-b border-[#e9f3ef] bg-[#f8fffd]/95">
         <div className="mx-auto flex h-20 w-full max-w-[1220px] items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="text-[17px] font-bold tracking-[-0.01em] text-[#0e5147]">The Sacred Precision</div>
-          <nav className="hidden items-center gap-8 text-[14px] font-semibold text-[#2d5f56] md:flex">
-            <a href="#features" className="transition-colors hover:text-[#0f766e]">Features</a>
-            <a href="#pricing" className="transition-colors hover:text-[#0f766e]">Pricing</a>
-            <a href="#about" className="transition-colors hover:text-[#0f766e]">About</a>
-          </nav>
+          <div className="text-[17px] font-bold tracking-[-0.01em] text-[#0e5147]">Tahfiz</div>
+          {/* <nav className="hidden items-center gap-8 text-[14px] font-semibold text-[#2d5f56] md:flex"> */}
+            {/* <Link to="/landing#features" className="transition-colors hover:text-[#0f766e]">Features</Link> */}
+            {/* <a href="#pricing" className="transition-colors hover:text-[#0f766e]">Pricing</a> */}
+            {/* <a href="#about" className="transition-colors hover:text-[#0f766e]">About</a> */}
+          {/* </nav> */}
           <div className="flex items-center gap-3">
             <Link to="/login" className="rounded-md px-3 py-2 text-[14px] font-semibold text-[#24574f] transition-colors hover:text-[#0f766e]">
               Login
@@ -46,13 +46,13 @@ const Home: React.FC = () => {
             >
               Get Started Today
             </Link>
-            <Link
+            {/* <Link
               to="/demo"
               className="inline-flex items-center gap-2 rounded-md border border-[#e6ecea] bg-white px-6 py-3 text-[16px] font-semibold text-[#1b3f3b] transition-colors hover:bg-[#f6fbf9]"
             >
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#dce5e1] text-[11px]">▶</span>
               Watch Demo
-            </Link>
+            </Link> */}
           </div>
         </div>
 
@@ -81,7 +81,6 @@ const Home: React.FC = () => {
                     <div className="rounded bg-white/[0.03] px-2 py-1">Hifz Progress</div>
                     <div className="rounded bg-white/[0.03] px-2 py-1">Attendance Trends</div>
                     <div className="rounded bg-white/[0.03] px-2 py-1">Memorization Queue</div>
-                    <div className="rounded bg-white/[0.03] px-2 py-1">Revision Planner</div>
                     <div className="rounded bg-white/[0.03] px-2 py-1">Teacher Notes</div>
                   </div>
                   <div className="mt-6 text-center text-[8px] uppercase tracking-[0.2em] text-slate-500">Sacred Precision</div>
@@ -92,7 +91,7 @@ const Home: React.FC = () => {
         </div>
       </main>
 
-      <section className="border-t border-[#e9f3ef] bg-white/80">
+      {/* <section className="border-t border-[#e9f3ef] bg-white/80">
         <div className="mx-auto flex w-full max-w-[1220px] flex-col gap-6 px-4 py-7 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
           <p className="text-[19px] font-bold text-[#0f7a65]">Trusted by over 100+ Schools Worldwide</p>
           <div className="flex flex-wrap items-center gap-x-10 gap-y-3 text-[28px] font-extrabold tracking-[-0.01em] text-[#889693]">
@@ -102,7 +101,7 @@ const Home: React.FC = () => {
             <span>ZAYTUNA</span>
           </div>
         </div>
-      </section>
+      </section> */}
 
       <section className="bg-[#f8fffd] py-20">
         <div className="mx-auto w-full max-w-[1220px] px-4 sm:px-6 lg:px-8">
@@ -227,19 +226,29 @@ const Home: React.FC = () => {
             <p className="mx-auto mt-4 max-w-[700px] text-[16px] text-[#b7d9d2]">
               Join hundreds of institutions already leveraging digital precision to preserve their sacred tradition.
             </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
                 to="/register"
                 className="inline-flex items-center rounded-md bg-white px-6 py-3 text-[15px] font-semibold text-[#063730] transition-colors hover:bg-[#ecf6f3]"
               >
                 Get Started Now
               </Link>
-              <Link
-                to="/login"
-                className="inline-flex items-center rounded-md border border-[#2a5a53] bg-[#0b4a42] px-6 py-3 text-[15px] font-semibold text-[#d7eee9] transition-colors hover:bg-[#0e564d]"
-              >
-                Talk to Sales
-              </Link>
+              <div className="inline-flex items-center gap-2">
+                <a
+                  href="mailto:hamdu@sinapari.com"
+                  className="inline-flex items-center rounded-md border border-[#2a5a53] bg-[#0b4a42] px-5 py-3 text-[15px] font-semibold text-[#d7eee9] transition-colors hover:bg-[#0e564d]"
+                >
+                  Email
+                </a>
+                <a
+                  href="https://wa.me/233540182786"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded-md border border-[#2a5a53] bg-[#0b4a42] px-4 py-3 text-[15px] font-semibold text-[#d7eee9] transition-colors hover:bg-[#0e564d]"
+                >
+                  WhatsApp
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -248,37 +257,38 @@ const Home: React.FC = () => {
       <footer className="border-t border-[#e7f0ed] bg-[#f7fffc]">
         <div className="mx-auto grid w-full max-w-[1220px] grid-cols-1 gap-10 px-4 py-10 sm:px-6 md:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] lg:px-8">
           <div>
-            <div className="text-[18px] font-bold tracking-[-0.01em] text-[#0d4c44]">The Sacred Precision</div>
+            <div className="text-[18px] font-bold tracking-[-0.01em] text-[#0d4c44]">Tahfiz</div>
             <p className="mt-3 max-w-[420px] text-[13px] leading-[1.55] text-[#6d8781]">
-              The AI-powered digital platform for Quran schools and memorization institutions. Built for teachers, students, and administrators.
+              A digital platform for Quran schools and memorization institutions, designed for teachers, students, and administrators.
             </p>
           </div>
           <div>
-            <div className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#4e746d]">Platform</div>
-            <div className="mt-3 space-y-2 text-[13px] text-[#5f7e78]">
-              <a href="#features" className="block hover:text-[#0f766e]">Features</a>
-              <a href="#pricing" className="block hover:text-[#0f766e]">Pricing</a>
-              <a href="#about" className="block hover:text-[#0f766e]">About</a>
-            </div>
+            {/* <div className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#4e746d]">Platform</div> */}
+            {/* <div className="mt-3 space-y-2 text-[13px] text-[#5f7e78]"> */}
+              {/* <Link to="/landing#features" className="block hover:text-[#0f766e]">Features</Link> */}
+              {/* <a href="#pricing" className="block hover:text-[#0f766e]">Pricing</a> */}
+              {/* <a href="#about" className="block hover:text-[#0f766e]">About</a> */}
+            {/* </div> */}
           </div>
           <div>
             <div className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#4e746d]">Legal</div>
             <div className="mt-3 space-y-2 text-[13px] text-[#5f7e78]">
-              <a href="#" className="block hover:text-[#0f766e]">Privacy Policy</a>
-              <a href="#" className="block hover:text-[#0f766e]">Terms of Service</a>
+                <Link to="/privacy" className="block hover:text-[#0f766e]">Privacy Policy</Link>
+              <Link to="/terms" className="block hover:text-[#0f766e]">Terms of Service</Link>
             </div>
           </div>
           <div>
             <div className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#4e746d]">Support</div>
             <div className="mt-3 space-y-2 text-[13px] text-[#5f7e78]">
               <a href="#" className="block hover:text-[#0f766e]">Help Center</a>
-              <a href="#" className="block hover:text-[#0f766e]">Contact Us</a>
+                <a href="mailto:hamdu@sinapari.com" className="block hover:text-[#0f766e]">Email</a>
+                <a href="https://wa.me/233540182786" target="_blank" rel="noopener noreferrer" className="block hover:text-[#0f766e]">WhatsApp</a>
             </div>
           </div>
         </div>
         <div className="border-t border-[#e7f0ed]">
           <div className="mx-auto flex w-full max-w-[1220px] flex-col gap-2 px-4 py-4 text-[12px] text-[#7a938e] sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-            <span>© {new Date().getFullYear()} The Sacred Precision. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} Tahfiz. All rights reserved.</span>
             <span>Built with care for Quran schools</span>
           </div>
         </div>
