@@ -8,6 +8,8 @@ import Register from "./pages/auth/Register";
 import Login from "./pages/auth/Login";
 import CreateSchool from "./pages/CreateSchool";
 import Home from "./pages/Home";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Dashboard } from "./pages/Dashboard";
@@ -28,6 +30,8 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
       <Route path="/landing" element={<Home />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<Terms />} />
       
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>

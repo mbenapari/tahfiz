@@ -218,8 +218,8 @@ const Login: React.FC = () => {
 
           {/* Footer Links */}
           <div className="flex items-center justify-center gap-6 mt-8 text-xs text-text-muted">
-            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+            <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
             <a href="#" className="hover:text-white transition-colors">Help Center</a>
           </div>
 
