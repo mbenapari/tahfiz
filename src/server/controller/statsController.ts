@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as statsService from '../services/statsService';
+import * as platformMetricsService from '../services/platformMetricsService';
 
 export const getActiveStudents = async (req: Request, res: Response) => {
   try {
@@ -66,5 +67,15 @@ export const getAttendanceTrends = async (req: Request, res: Response) => {
     res.json(trends);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error fetching attendance trends' });
+  }
+};
+
+export const getPlatformMetrics = async (req: Request, res: Response) => {
+  try {
+    // Optional: restrict to admin roles via middleware
+    const metrics = await platformMetricsService.getPlatformMetrics();
+    res.json(metrics);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Error fetching platform metrics' });
   }
 };
