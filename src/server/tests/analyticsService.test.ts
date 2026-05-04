@@ -15,21 +15,45 @@ const mockJuzProgress = {
 const mockRevisionRecord = {
   findAll: jest.fn()
 };
+const mockUser = {
+  findAll: jest.fn()
+};
 
 // Mock the models
 jest.unstable_mockModule('../model', () => ({
   Session: mockSession,
   JuzProgress: mockJuzProgress,
   RevisionRecord: mockRevisionRecord,
+  MemorizationRecord: {
+    findAll: jest.fn()
+  },
+  User: mockUser,
+  Attendance: {},
+  AttendanceStatus: {
+    PRESENT: 'present',
+    ABSENT: 'absent',
+    EXCUSED: 'excused'
+  },
   Op: {
+    between: Symbol('between'),
     gte: Symbol('gte'),
     ne: Symbol('ne')
   }
 }));
 
-// Now import the service and models
-const { analyticsService } = await import('../services/analyticsService');
-const { Session, JuzProgress, RevisionRecord } = await import('../model') as any;
+let analyticsService: any;
+let Session: any;
+let JuzProgress: any;
+let RevisionRecord: any;
+
+beforeAll(async () => {
+  const analyticsModule = await import('../services/analyticsService');
+  analyticsService = analyticsModule.analyticsService;
+  const modelModule = await import('../model') as any;
+  Session = modelModule.Session;
+  JuzProgress = modelModule.JuzProgress;
+  RevisionRecord = modelModule.RevisionRecord;
+});
 
 describe('analyticsService', () => {
   const tenantId = 1;
@@ -51,6 +75,7 @@ describe('analyticsService', () => {
         .mockResolvedValueOnce([{ student_id: 1 }, { student_id: 2 }]) // daily
         .mockResolvedValueOnce([{ student_id: 1 }, { student_id: 2 }, { student_id: 3 }]) // weekly
         .mockResolvedValueOnce([{ student_id: 1 }, { student_id: 2 }, { student_id: 3 }, { student_id: 4 }]); // monthly
+      (mockUser.findAll as jest.Mock).mockReset().mockResolvedValue([]);
 
       const result = await analyticsService.getActiveStudents(tenantId);
 
@@ -63,6 +88,7 @@ describe('analyticsService', () => {
 
     it('should handle empty results gracefully', async () => {
       (Session.findAll as jest.Mock).mockReset().mockResolvedValue([]);
+      (mockUser.findAll as jest.Mock).mockReset().mockResolvedValue([]);
 
       const result = await analyticsService.getActiveStudents(tenantId);
 

@@ -19,8 +19,15 @@ jest.unstable_mockModule('../model', () => ({
   }
 }));
 
-const { getAttendanceTrends } = await import('./attendanceService');
-const { Session } = await import('../model') as any;
+let getAttendanceTrends: any;
+let Session: any;
+
+beforeAll(async () => {
+  const attendanceModule = await import('./attendanceService');
+  getAttendanceTrends = attendanceModule.getAttendanceTrends;
+  const modelModule = await import('../model') as any;
+  Session = modelModule.Session;
+});
 
 describe('attendanceService.getAttendanceTrends', () => {
   const tenantId = 1;
