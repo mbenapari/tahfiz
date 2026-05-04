@@ -36,3 +36,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - JSX tag mismatch in Home.tsx (closing tag corrected)
+
+## [0.2.0] - 2026-05-04
+
+### Added
+- **feat**: Add `system_owners` db table, Sequelize model and default seeder for platform owners.
+- **feat**: Add owner authentication (login/logout) and token blacklisting support.
+- **feat**: Add owner-only middleware and owner management REST API to manage schools, users and system owners.
+- **feat**: Add platform metrics service and `/api/stats/platform` endpoint (total users, system owners, schools).
+- **feat**: Add owner UI: `OwnerLayout`, `OwnerSidebar`, `OwnerLogin`, `OwnerDashboard`, `ManageSchools`, `ManageUsers`, `ManageOwners` and corresponding routes.
+
+### Changed
+- **chore**: Mount owner routes at `/api/owner` in server main startup.
+
+### Notes
+- After upgrading, run migrations and seeders to create the `system_owners` table and default owner:
+
+	```bash
+	npx sequelize-cli db:migrate
+	npx sequelize-cli db:seed:all
+	```
+
+	Default owner credentials are set via `DEFAULT_SYSTEM_OWNER_EMAIL` and `DEFAULT_SYSTEM_OWNER_PASSWORD` environment variables; if not provided, defaults are used.
