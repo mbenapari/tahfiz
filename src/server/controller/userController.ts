@@ -8,6 +8,7 @@ import * as permissionService from '../services/permissionService';
 import logger from '../utils/logger';
 import sequelize from '../db';
 import jwt from 'jsonwebtoken';
+import { DEFAULT_PAGE_SIZE } from '../constants';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -96,7 +97,7 @@ export const register = async (req: Request, res: Response) => {
         last_name: userWithTenant.last_name,
         email: userWithTenant.email,
         role: userWithTenant.role,
-        tenant_id: userWithTenant.tenant_id,
+        tenantId: userWithTenant.tenant_id,
         school_name: userWithTenant.tenant?.name,
         permissions
       }
@@ -165,7 +166,7 @@ export const login = async (req: Request, res: Response) => {
         last_name: user.last_name,
         email: user.email,
         role: user.role,
-        tenant_id: user.tenant_id,
+        tenantId: user.tenant_id,
         school_name: user.tenant?.name,
         permissions
       }
@@ -322,14 +323,16 @@ export const updateCurrentUser = async (req: Request, res: Response) => {
 export const getStudents = async (req: Request, res: Response) => {
   const correlationId = req.correlationId;
   const tenantId = req.user?.tenantId;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || DEFAULT_PAGE_SIZE;
 
   if (!tenantId) {
     return res.status(403).json({ error: 'Tenant ID required' });
   }
 
   try {
-    const students = await userService.getStudentsWithProgress(tenantId);
-    res.json({ students });
+    const result = await userService.getStudentsWithProgress(tenantId, page, limit);
+    res.json(result);
   } catch (error: any) {
     logger.error('userController.getStudents: Error', { correlationId, error: error.message });
     res.status(500).json({ error: 'Failed to fetch students' });
@@ -459,7 +462,7 @@ export const deleteStudent = async (req: Request, res: Response) => {
 
 export const searchStudents = async (req: Request, res: Response) => {
   const correlationId = req.correlationId;
-  const { query } = req.query;
+  const { query, page, limit } = req.query;
   const tenantId = req.user?.tenantId;
 
   if (!tenantId) {
@@ -467,8 +470,11 @@ export const searchStudents = async (req: Request, res: Response) => {
   }
 
   try {
-    const users = await userService.searchStudentsWithProgress(query as string, tenantId);
-    res.json({ users });
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || DEFAULT_PAGE_SIZE;
+
+    const result = await userService.searchStudentsWithProgress(query as string, tenantId, pageNum, limitNum);
+    res.json(result);
   } catch (error: any) {
     logger.error('userController.searchStudents: Error', { correlationId, error: error.message });
    return res.status(500).json({ error: 'Failed to search students' });
@@ -563,7 +569,7 @@ export const createInstructor = async (req: Request, res: Response) => {
         email: instructor.email,
         phone: instructor.phone,
         role: instructor.role,
-        tenant_id: instructor.tenant_id,
+        tenantId: instructor.tenant_id,
       }
     });
   } catch (error: any) {

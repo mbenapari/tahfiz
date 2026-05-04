@@ -1,7 +1,6 @@
 import { MemorizationRecord, Surah, JuzMap, SurahProgress, JuzProgress } from '../model';
 import logger from '../utils/logger';
-
-const TOTAL_QURAN_AYAHS = 6236;
+import { TOTAL_QURAN_AYAHS } from '../constants';
 
 export interface ProgressResult {
   percentage: number;

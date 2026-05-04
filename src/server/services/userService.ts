@@ -2,7 +2,10 @@ import { FindOptions, Op } from 'sequelize';
 import { User, Role, SchoolMember, School, Session, MemorizationRecord, Surah, Attendance, RevisionRecord, JuzMap } from '../model';
 import { UserRole } from '../model/User';
 import * as progressService from './progressService';
+import * as statsService from './statsService';
+import * as queryHelper from '../helper/queryHelper';
 import logger from '../utils/logger';
+import { DEFAULT_PAGE_SIZE, TOTAL_QURAN_AYAHS } from '../constants';
 
 export interface CreateUserDTO {
   tenant_id?: number;
@@ -195,10 +198,10 @@ export const getAllUsers = async (tenant_id: number, options?: FindOptions) => {
   }
 };
 
-export const getUsersByRole = async (tenant_id: number, role: UserRole) => {
+export const getUsersByRole = async (tenantId: number, role: UserRole) => {
   try {
     const users = await User.findAll({
-      where: { role, tenant_id },
+      where: { role, tenant_id: tenantId },
       include: [{
         model: School,
         as: 'tenant',
@@ -211,29 +214,62 @@ export const getUsersByRole = async (tenant_id: number, role: UserRole) => {
   }
 };
 
-export const getInstructorsByTenant = async (tenant_id: number) => {
-  logger.debug(`userService.getInstructorsByTenant: Entry`, { tenant_id });
+export const getInstructorsByTenant = async (tenantId: number) => {
+  logger.debug(`userService.getInstructorsByTenant: Entry`, { tenantId });
   try {
     const instructors = await User.findAll({
       where: {
-        tenant_id,
+        tenant_id: tenantId,
         role: UserRole.INSTRUCTOR
       },
       attributes: ['id', 'first_name', 'last_name', 'email', 'phone', 'role'],
       order: [['first_name', 'ASC']]
     });
-    logger.debug(`userService.getInstructorsByTenant: Success`, { tenant_id, count: instructors.length });
+    logger.debug(`userService.getInstructorsByTenant: Success`, { tenantId, count: instructors.length });
     return instructors;
   } catch (error: any) {
-    logger.error(`userService.getInstructorsByTenant: Error`, { tenant_id, error: error.message });
+    logger.error(`userService.getInstructorsByTenant: Error`, { tenantId, error: error.message });
     throw error;
   }
 };
 
-export const getStudentsWithProgress = async (tenant_id: number) => {
+const mapStudentWithProgress = async (user: any, tenantId: number) => {
+  const userJSON = user.toJSON() as any;
+  
+  // Calculate last session
+  let lastSession = { time: 'No sessions yet', detail: '-' };
+  if (userJSON.student_sessions && userJSON.student_sessions.length > 0) {
+    lastSession = {
+      time: userJSON.student_sessions[0].session_date,
+      detail: userJSON.student_sessions[0].notes || 'Completed session'
+    };
+  }
+
+  // Calculate progress and current level based on Memorization Records
+  const records = userJSON.student_memorization_records || [];
+  const calculatedProgress = await progressService.calculateStudentProgress(user.id, tenantId, records);
+
+  return {
+    ...userJSON,
+    lastSession,
+    currentLevel: calculatedProgress.currentLevel,
+    progress: {
+      percentage: calculatedProgress.percentage,
+      status: calculatedProgress.status,
+      statusColor: calculatedProgress.statusColor,
+      barColor: calculatedProgress.barColor
+    }
+  };
+};
+
+export const getStudentsWithProgress = async (tenantId: number, page: number = 1, limit: number = DEFAULT_PAGE_SIZE) => {
   try {
-    const users = await User.findAll({
-      where: { role: UserRole.STUDENT, tenant_id },
+    const offset = (page - 1) * limit;
+    
+    const { count, rows: users } = await User.findAndCountAll({
+      where: { role: UserRole.STUDENT, tenant_id: tenantId },
+      limit,
+      offset,
       include: [
         {
           model: School,
@@ -262,36 +298,17 @@ export const getStudentsWithProgress = async (tenant_id: number) => {
       ]
     });
 
-    const totalQuranAyahs = 6236; // Approx total ayahs in Quran
+    const studentData = await Promise.all(users.map(user => mapStudentWithProgress(user, tenantId)));
 
-    return Promise.all(users.map(async (user) => {
-      const userJSON = user.toJSON() as any;
-      
-      // Calculate last session
-      let lastSession = { time: 'No sessions yet', detail: '-' };
-      if (userJSON.student_sessions && userJSON.student_sessions.length > 0) {
-        lastSession = {
-          time: userJSON.student_sessions[0].session_date,
-          detail: userJSON.student_sessions[0].notes || 'Completed session'
-        };
+    return {
+      students: studentData,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
       }
-
-      // Calculate progress and current level based on Memorization Records
-      const records = userJSON.student_memorization_records || [];
-      const calculatedProgress = await progressService.calculateStudentProgress(user.id, tenant_id, records);
-
-      return {
-        ...userJSON,
-        lastSession,
-        currentLevel: calculatedProgress.currentLevel,
-        progress: {
-          percentage: calculatedProgress.percentage,
-          status: calculatedProgress.status,
-          statusColor: calculatedProgress.statusColor,
-          barColor: calculatedProgress.barColor
-        }
-      };
-    }));
+    };
 
   } catch (error) {
     logger.error('userService.getStudentsWithProgress: Error', { error: (error as Error).message });
@@ -299,22 +316,21 @@ export const getStudentsWithProgress = async (tenant_id: number) => {
   }
 };
 
-export const searchStudentsWithProgress = async (query: string, tenant_id: number) => {
+export const searchStudentsWithProgress = async (query: string, tenantId: number, page: number = 1, limit: number = DEFAULT_PAGE_SIZE) => {
   try {
+    const offset = (page - 1) * limit;
+
+    const fields = ['first_name', 'last_name', 'email', 'student_identifier'];
     const where: any = {
       role: UserRole.STUDENT,
-      tenant_id,
-      [Op.or]: [
-        { first_name: { [Op.like]: `%${query}%` } },
-        { last_name: { [Op.like]: `%${query}%` } },
-        { email: { [Op.like]: `%${query}%` } },
-        { student_identifier: { [Op.like]: `%${query}%` } }
-      ]
+      tenant_id: tenantId,
+      ...queryHelper.buildSearchWhereClause(query, fields)
     };
 
-    const users = await User.findAll({
+    const { count, rows: users } = await User.findAndCountAll({
       where,
-      limit: 10,
+      limit,
+      offset,
       include: [
         {
           model: School,
@@ -343,54 +359,32 @@ export const searchStudentsWithProgress = async (query: string, tenant_id: numbe
       ]
     });
 
-    const totalQuranAyahs = 6236;
+    const studentData = await Promise.all(users.map(user => mapStudentWithProgress(user, tenantId)));
 
-    return Promise.all(users.map(async (user) => {
-      const userJSON = user.toJSON() as any;
-      
-      // Calculate last session
-      let lastSession = { time: 'No sessions yet', detail: '-' };
-      if (userJSON.student_sessions && userJSON.student_sessions.length > 0) {
-        lastSession = {
-          time: userJSON.student_sessions[0].session_date,
-          detail: userJSON.student_sessions[0].notes || 'Completed session'
-        };
+    return {
+      students: studentData,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
       }
-
-      // Calculate progress and current level based on Memorization Records
-      const records = userJSON.student_memorization_records || [];
-      const calculatedProgress = await progressService.calculateStudentProgress(user.id, tenant_id, records);
-
-      return {
-        ...userJSON,
-        lastSession,
-        currentLevel: calculatedProgress.currentLevel,
-        progress: {
-          percentage: calculatedProgress.percentage,
-          status: calculatedProgress.status,
-          statusColor: calculatedProgress.statusColor,
-          barColor: calculatedProgress.barColor
-        }
-      };
-    }));
+    };
   } catch (error) {
+    logger.error('userService.searchStudentsWithProgress: Error', { error: (error as Error).message });
     throw error;
   }
 };
 
-export const searchUsers = async (query: string, tenant_id?: number) => {
+export const searchUsers = async (query: string, tenantId?: number) => {
   try {
+    const fields = ['first_name', 'last_name', 'email', 'phone'];
     const where: any = {
-      [Op.or]: [
-        { first_name: { [Op.like]: `%${query}%` } },
-        { last_name: { [Op.like]: `%${query}%` } },
-        { email: { [Op.like]: `%${query}%` } },
-        { phone: { [Op.like]: `%${query}%` } }
-      ]
+      ...queryHelper.buildSearchWhereClause(query, fields)
     };
 
-    if (tenant_id) {
-      where.tenant_id = tenant_id;
+    if (tenantId) {
+      where.tenant_id = tenantId;
     }
 
     const users = await User.findAll({
@@ -403,10 +397,10 @@ export const searchUsers = async (query: string, tenant_id?: number) => {
   }
 };
 
-export const getStudentProfile = async (id: number, tenant_id: number) => {
+export const getStudentProfile = async (id: number, tenantId: number) => {
   try {
     const user = await User.findOne({
-      where: { id, tenant_id, role: UserRole.STUDENT },
+      where: { id, tenant_id: tenantId, role: UserRole.STUDENT },
       include: [
         {
           model: School,
@@ -442,24 +436,11 @@ export const getStudentProfile = async (id: number, tenant_id: number) => {
 
     const userJSON = user.toJSON() as any;
     
-    // 1. Calculate Attendance Rate
-    const attendanceRecords = await Attendance.findAll({
-      include: [{
-        model: Session,
-        as: 'session',
-        where: { student_id: id, tenant_id },
-        required: true
-      }]
-    });
-    
-    const totalSessions = attendanceRecords.length;
-    const presentSessions = attendanceRecords.filter((a: any) => a.status === 'present').length;
-    const attendanceRate = totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 0;
-
-    // 2. Calculate Progress Metrics
-    const calculatedProgress = await progressService.calculateStudentProgress(id, tenant_id);
-    const totalAyahsMemorized = calculatedProgress.totalAyahs;
-    const completionPercentage = calculatedProgress.percentage;
+    // 2. Calculate Progress Metrics using consolidated statsService
+    const studentStats = await statsService.getStudentIndividualStats(id, tenantId);
+    const totalAyahsMemorized = studentStats.totalAyahsMemorized;
+    const completionPercentage = studentStats.completionPercentage;
+    const attendanceRate = studentStats.attendanceRate;
 
     // 3. Activity Log
     const activityLog = userJSON.student_sessions.map((session: any) => {
@@ -507,18 +488,32 @@ export const getStudentProfile = async (id: number, tenant_id: number) => {
     // 4. Mastery Data (Detailed Objects for all 114 Surahs)
     const allSurahs = await Surah.findAll({ order: [['number', 'ASC']] });
     const memorizationRecordsAll = await MemorizationRecord.findAll({
-      where: { student_id: id, tenant_id },
-      attributes: ['surah_number', 'start_ayah', 'end_ayah']
+      where: { student_id: id, tenant_id: tenantId },
+      attributes: ['surah_number', 'start_ayah', 'end_ayah', 'created_at']
     });
     const revisionRecordsAll = await RevisionRecord.findAll({
-      where: { student_id: id, tenant_id },
+      where: { student_id: id, tenant_id: tenantId },
       attributes: ['surah_number', 'start_ayah', 'end_ayah']
     });
 
+    const mBySurah = new Map<number, typeof memorizationRecordsAll>();
+    for (const r of memorizationRecordsAll) {
+      const arr = mBySurah.get(r.surah_number) ?? [];
+      arr.push(r);
+      mBySurah.set(r.surah_number, arr);
+    }
+
+    const rBySurah = new Map<number, typeof revisionRecordsAll>();
+    for (const r of revisionRecordsAll) {
+      const arr = rBySurah.get(r.surah_number) ?? [];
+      arr.push(r);
+      rBySurah.set(r.surah_number, arr);
+    }
+
     const masteryData = allSurahs.map(surah => {
       const sNum = surah.number;
-      const mRecords = memorizationRecordsAll.filter(r => r.surah_number === sNum);
-      const rRecords = revisionRecordsAll.filter(r => r.surah_number === sNum);
+      const mRecords = mBySurah.get(sNum) ?? [];
+      const rRecords = rBySurah.get(sNum) ?? [];
 
       let status = 0; // Not Started
       let details = 'Not started yet';
@@ -554,37 +549,36 @@ export const getStudentProfile = async (id: number, tenant_id: number) => {
       };
     });
 
-    // 5. Velocity Data (Last 8 Weeks)
-    const velocityData = [];
+    // 5. Velocity Data (Last 8 Weeks) - Single pass optimization
     const now = new Date();
-    
-    for (let i = 7; i >= 0; i--) {
+    const velocityBuckets = Array(8).fill(0);
+    const weekRanges = Array.from({ length: 8 }, (_, i) => {
       const weekStart = new Date(now);
       weekStart.setDate(now.getDate() - (i * 7 + now.getDay()));
       weekStart.setHours(0, 0, 0, 0);
-      
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
       weekEnd.setHours(23, 59, 59, 999);
+      return { start: weekStart, end: weekEnd };
+    });
 
-      const weekRecords = memorizationRecordsAll.filter(r => {
-        const recordDate = new Date((r as any).created_at || now); // Fallback to now if created_at is missing in query
-        return recordDate >= weekStart && recordDate <= weekEnd;
-      });
+    memorizationRecordsAll.forEach(r => {
+      const recordDate = new Date((r as any).created_at);
+      for (let i = 0; i < 8; i++) {
+        if (recordDate >= weekRanges[i].start && recordDate <= weekRanges[i].end) {
+          velocityBuckets[i] += (r.end_ayah - r.start_ayah + 1);
+          break;
+        }
+      }
+    });
 
-      let totalAyahs = 0;
-      weekRecords.forEach(r => {
-        totalAyahs += (r.end_ayah - r.start_ayah + 1);
-      });
-
-      // Rough estimation: 10 ayahs per page
-      const pages = Math.round((totalAyahs / 10) * 10) / 10; 
-      
-      velocityData.push({
+    const velocityData = velocityBuckets.map((totalAyahs, i) => {
+      const pages = Math.round((totalAyahs / 10) * 10) / 10;
+      return {
         week: `W${8-i}`,
         pages: pages || 0
-      });
-    }
+      };
+    }).reverse();
 
     return {
        ...userJSON,

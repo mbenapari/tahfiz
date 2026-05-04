@@ -73,3 +73,23 @@ export const canMoveToNextSurah = async (
 
   return !!record && record.read_full_count >= 1;
 };
+
+/**
+ * Builds a search where clause for model queries.
+ * Consolidates duplicate logic for searching by name, email, etc.
+ * Sanitizes query to prevent performance issues with wildcard prefixes and length limits.
+ */
+export const buildSearchWhereClause = (query: string, fields: string[] = [], maxLength: number = 50) => {
+  if (!query) return {};
+
+  // Length limiting to prevent ReDoS or performance issues
+  const limitedQuery = query.substring(0, maxLength);
+
+  // Sanitize query: remove leading wildcards to maintain index performance
+  const sanitizedQuery = limitedQuery.replace(/^[%_]+/, '');
+  if (!sanitizedQuery) return {};
+
+  return {
+    [Op.or]: fields.map(field => ({ [field]: { [Op.like]: `%${sanitizedQuery}%` } }))
+  };
+};
