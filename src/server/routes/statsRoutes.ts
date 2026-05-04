@@ -13,5 +13,6 @@ router.get('/today-sessions', statsController.getTodaySessions);
 router.get('/pending-reviews', statsController.getPendingReviews);
 router.get('/student/:studentId', statsController.getStudentStats);
 router.get('/attendance-trends', statsController.getAttendanceTrends);
+router.get('/platform', statsController.getPlatformMetrics);
 
 export default router;
