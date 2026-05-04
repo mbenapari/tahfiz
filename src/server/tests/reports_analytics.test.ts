@@ -1,5 +1,6 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
 import { Op } from 'sequelize';
+import * as reportService from '../services/reportService';
 
 // Mock models
 const mockUser = {
@@ -40,8 +41,23 @@ jest.unstable_mockModule('../model', () => ({
   RevisionRecord: { findAll: jest.fn() }
 }));
 
-const { analyticsService } = await import('../services/analyticsService');
-import * as reportService from '../services/reportService';
+let analyticsService: any;
+let Session: any;
+let JuzProgress: any;
+let RevisionRecord: any;
+
+beforeAll(async () => {
+  const analyticsModule = await import('../services/analyticsService');
+  analyticsService = analyticsModule.analyticsService;
+  const modelModule = await import('../model') as any;
+  Session = modelModule.Session;
+  JuzProgress = modelModule.JuzProgress;
+  RevisionRecord = modelModule.RevisionRecord;
+});
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
 describe('Analytics and Reports Service', () => {
   const tenantId = 1;
@@ -83,8 +99,8 @@ describe('Analytics and Reports Service', () => {
   describe('analyticsService.getMemorizationProgress', () => {
     it('should calculate pages memorized based on ayahs', async () => {
       const mockRecords: any[] = [
-        { start_ayah: 1, end_ayah: 15, created_at: new Date('2023-10-05') }, // 15 ayahs = 1 page
-        { start_ayah: 1, end_ayah: 30, created_at: new Date('2023-10-10') }  // 30 ayahs = 2 pages
+        { start_ayah: 1, end_ayah: 15, created_at: new Date('2023-10-05'), session: { session_date: '2023-10-05' } }, // 15 ayahs = 1 page
+        { start_ayah: 1, end_ayah: 30, created_at: new Date('2023-10-10'), session: { session_date: '2023-10-10' } }  // 30 ayahs = 2 pages
       ];
 
       (mockMemorizationRecord.findAll as any).mockResolvedValue(mockRecords);
