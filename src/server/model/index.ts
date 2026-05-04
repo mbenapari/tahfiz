@@ -18,6 +18,7 @@ import SchoolMember from './SchoolMember';
 import Class from './Class';
 import ClassStudent from './ClassStudent';
 import BlacklistedToken from './BlacklistedToken';
+import SystemOwner from './SystemOwner';
 
 // Associations
 
@@ -199,6 +200,7 @@ export {
   Class,
   ClassStudent,
   BlacklistedToken,
+  SystemOwner,
   AttendanceStatus,
   RecordType
 };
