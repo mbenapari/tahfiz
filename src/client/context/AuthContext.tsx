@@ -27,13 +27,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('/api/users/me');
+      // Try normal user endpoint first
+      let response = await fetch('/api/users/me');
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
-      } else {
-        setUser(null);
+        return;
       }
+
+      // If not found, try system owner endpoint
+      response = await fetch('/api/owner/me');
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        return;
+      }
+
+      setUser(null);
     } catch (error) {
       console.error('Auth check failed:', error);
       setUser(null);

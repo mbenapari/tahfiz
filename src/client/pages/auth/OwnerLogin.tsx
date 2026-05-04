@@ -52,10 +52,10 @@ const OwnerLogin: React.FC = () => {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Backend returns { owner, token }
-      const owner = data.owner || data.user;
-      if (!owner || !owner.id) throw new Error('Invalid response from server');
-      setUser({ id: owner.id, email: owner.email, role: owner.role });
+      // Backend returns { user, token }
+      const user = data.user;
+      if (!user || !user.id) throw new Error('Invalid response from server');
+      setUser(user);
       navigate('/owner');
 
     } catch (err: any) {

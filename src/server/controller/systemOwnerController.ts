@@ -11,7 +11,16 @@ export const login = async (req: Request, res: Response) => {
 
     const { owner, token } = await authService.loginSystemOwner(email, password, res);
 
-    return res.json({ message: 'Login successful', owner, token });
+    return res.json({ 
+      message: 'Login successful', 
+      user: {
+        id: owner.id,
+        email: owner.email,
+        name: owner.name,
+        role: 'owner'
+      }, 
+      token 
+    });
   } catch (error: any) {
     logger.warn('systemOwnerController.login: Failed', { correlationId, error: error.message });
     return res.status(401).json({ error: error.message || 'Invalid credentials' });
@@ -35,7 +44,7 @@ export const getMe = async (req: Request, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
     // Could fetch owner by id if needed
-    return res.json({ user: { id: req.user.userId } });
+    return res.json({ user: { id: req.user.userId, role: 'owner' } });
   } catch (error: any) {
     return res.status(500).json({ error: 'Failed to fetch owner' });
   }
