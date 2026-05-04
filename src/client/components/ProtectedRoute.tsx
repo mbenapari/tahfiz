@@ -16,13 +16,25 @@ export const ProtectedRoute: React.FC = () => {
   }
 
   if (!user) {
-    // If the unauthenticated user lands on the app root, send them to the public landing page.
-    const { pathname } = location;
-    if (pathname === '/' || pathname === '') {
-      return <Navigate to="/landing" replace />;
-    }
-
     return <Navigate to="/login" replace />;
+  }
+
+  // Handle role-based redirection for the root path (if user is authenticated but hits /)
+  if (location.pathname === '/') {
+    if (user.role === 'owner') {
+      return <Navigate to="/owner" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Prevent non-owners from accessing owner routes
+  if (location.pathname.startsWith('/owner') && user.role !== 'owner') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Prevent owners from accessing normal user dashboard routes
+  if (location.pathname.startsWith('/dashboard') && user.role === 'owner') {
+    return <Navigate to="/owner" replace />;
   }
 
   return <Outlet />;

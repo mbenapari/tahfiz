@@ -64,9 +64,9 @@ const OwnerDashboard: React.FC = () => {
       <div className="mt-8">
         <h2 className="text-lg font-bold mb-4">Quick Links</h2>
         <div className="flex gap-4 flex-wrap">
-          <Link to="/schools" className="px-4 py-2 bg-surface-dark border border-border-green/30 rounded-md hover:bg-primary/5">Manage Schools</Link>
-          <Link to="/users" className="px-4 py-2 bg-surface-dark border border-border-green/30 rounded-md hover:bg-primary/5">Manage Users</Link>
-          <Link to="/settings" className="px-4 py-2 bg-surface-dark border border-border-green/30 rounded-md hover:bg-primary/5">Platform Settings</Link>
+          <Link to="/owner/manage/schools" className="px-4 py-2 bg-surface-dark border border-border-green/30 rounded-md hover:bg-primary/5">Manage Schools</Link>
+          <Link to="/owner/manage/users" className="px-4 py-2 bg-surface-dark border border-border-green/30 rounded-md hover:bg-primary/5">Manage Users</Link>
+          <Link to="/owner/manage/owners" className="px-4 py-2 bg-surface-dark border border-border-green/30 rounded-md hover:bg-primary/5">Platform Owners</Link>
         </div>
       </div>
     </main>
