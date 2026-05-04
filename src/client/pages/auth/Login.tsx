@@ -61,9 +61,9 @@ const Login: React.FC = () => {
         throw new Error('Incomplete user data received from server');
       }
 
-      // Check if user is admin and doesn't have a tenant_id or is assigned to a default/placeholder tenant
-      // Note: Adjust tenant_id logic as per system requirements (e.g., tenant_id 1 might be a global/admin tenant)
-      if (data.user.role === 'admin' && (!data.user.tenant_id || data.user.tenant_id === 1)) {
+      // Check if user is admin and doesn't have a tenantId or is assigned to a default/placeholder tenant
+      // Note: Adjust tenantId logic as per system requirements (e.g., tenantId 1 might be a global/admin tenant)
+      if (data.user.role === 'admin' && (!data.user.tenantId || data.user.tenantId === 1)) {
         navigate('/schools/new');
       } else {
         navigate('/');

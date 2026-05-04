@@ -73,21 +73,10 @@ const Register: React.FC = () => {
       // Update global auth state
       setUser(data.user);
 
-      // Validation for required fields
-      if (!data.user.id || !data.user.role) {
-        throw new Error('Incomplete user data received from server');
-      }
-
-      // Navigate based on role
-      // If Admin and no tenant assigned, go to Create School
-      if (data.user.role === 'admin' && !data.user.tenant_id) {
-        setTimeout(() => {
-          navigate('/schools/new');
-        }, 1500);
+      if (data.user.role === 'admin' && !data.user.tenantId) {
+        navigate('/schools/new');
       } else {
-        setTimeout(() => {
-          navigate('/');
-        }, 1500);
+        navigate('/');
       }
 
       // Reset form on success
