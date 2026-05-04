@@ -5,7 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-04-22
+## [Unreleased]
+
+### Added
+- **feat**: Add performance indexes for sessions and memorization records.
+- **feat**: Implement double-submit cookie CSRF protection with `csrf-csrf`.
+- **feat**: Add security hardening with JWT algorithm enforcement (HS256) and secure cookies.
+- **feat**: Implement pagination for student search endpoints.
+- **feat**: Add input length limiting and prefix sanitization for database search queries.
+
+### Changed
+- **refactor**: Unify student progress mapping logic in `userService`.
+- **style**: Standardize `tenant_id` to `tenantId` in frontend and API responses for camelCase consistency.
+
+### Fixed
+- **fix**: Address potential memory leaks in rate limiter by adding periodic cleanup.
+- **fix**: Resolve N+1 query issue in permission checks with in-memory TTL caching.
+- **fix**: Fix inconsistent error logging in `statsService` using custom logger.
+
+### Chore
+- **chore**: Add `csrf-csrf` dependency for security middleware.
+
+## [0.2.1] - 2026-05-04
 
 ### Added
 - **feat**: Landing page Home rebuilt with Tailwind CSS
