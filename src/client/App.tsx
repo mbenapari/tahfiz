@@ -6,6 +6,12 @@ import { Route, Routes } from "react-router";
 import reactLogo from "./assets/react.svg";
 import Register from "./pages/auth/Register";
 import Login from "./pages/auth/Login";
+import OwnerLogin from "./pages/auth/OwnerLogin";
+import OwnerDashboard from "./pages/owner/OwnerDashboard";
+import OwnerLayout from "./layouts/OwnerLayout";
+import ManageSchools from "./pages/owner/ManageSchools";
+import ManageUsers from "./pages/owner/ManageUsers";
+import ManageOwners from "./pages/owner/ManageOwners";
 import CreateSchool from "./pages/CreateSchool";
 import Home from "./pages/Home";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -29,6 +35,7 @@ function App() {
     <Routes>
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/owner/login" element={<OwnerLogin />} />
       <Route path="/landing" element={<Home />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<Terms />} />
@@ -49,6 +56,13 @@ function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
           <Route path="profile" element={<Profile />} />
+        </Route>
+        {/* Owner-specific layout (replaces normal sidebar) */}
+        <Route path="/owner" element={<OwnerLayout />}>
+          <Route index element={<OwnerDashboard />} />
+          <Route path="manage/schools" element={<ManageSchools />} />
+          <Route path="manage/users" element={<ManageUsers />} />
+          <Route path="manage/owners" element={<ManageOwners />} />
         </Route>
       </Route>
 
