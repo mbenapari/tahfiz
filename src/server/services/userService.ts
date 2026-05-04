@@ -612,3 +612,24 @@ export const getStudentProfile = async (id: number, tenant_id: number) => {
      throw error;
    }
  };
+
+// Platform-level helpers for owner management
+export const getAllPlatformUsers = async () => {
+  try {
+    const users = await User.findAll({ include: [{ model: School, as: 'tenant', attributes: ['name', 'slug'] }] });
+    return users;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteUserById = async (id: number) => {
+  try {
+    const user = await User.findByPk(id);
+    if (!user) throw new Error('User not found');
+    await user.destroy();
+    return true;
+  } catch (error) {
+    throw error;
+  }
+};
