@@ -139,6 +139,22 @@ MemorizationRecord.init(
         name: 'idx_mem_session_type',
         fields: ['session_id', 'record_type'],
       },
+      {
+        name: 'idx_mem_student_id',
+        fields: ['student_id'],
+      },
+      {
+        name: 'idx_mem_tenant_id',
+        fields: ['tenant_id'],
+      },
+      {
+        name: 'idx_mem_surah_number',
+        fields: ['surah_number'],
+      },
+      {
+        name: 'idx_mem_created_at',
+        fields: ['created_at'],
+      },
     ],
   }
 );

@@ -97,6 +97,18 @@ Session.init(
         name: 'idx_sessions_tenant_date',
         fields: ['tenant_id', 'session_date'],
       },
+      {
+        name: 'idx_sessions_student_id',
+        fields: ['student_id'],
+      },
+      {
+        name: 'idx_sessions_tenant_id',
+        fields: ['tenant_id'],
+      },
+      {
+        name: 'idx_sessions_date',
+        fields: ['session_date'],
+      },
     ],
   }
 );
