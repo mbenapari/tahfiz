@@ -37,6 +37,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - JSX tag mismatch in Home.tsx (closing tag corrected)
 
+## [0.2.1] - 2026-05-04
+
+### Added
+- **feat**: Implement role-based redirection on root path (`/`) to send owners to `/owner` and others to `/dashboard`.
+- **feat**: Add strict dashboard protection to prevent cross-role dashboard access (e.g., owner accessing user dashboard).
+- **feat**: Move normal user dashboard routes from `/` to `/dashboard` for better path isolation.
+
+### Changed
+- **refactor**: Updated `OwnerDashboard` quick links to use correct administrative routes.
+- **refactor**: Centralized redirection logic in `Home.tsx` and `ProtectedRoute.tsx`.
+
+### Fixed
+- **fix**: Ensure `SystemOwner` session correctly identifies the `owner` role during login and auth check.
+- **fix**: Fix persistent redirection issue where owners could land on the normal user dashboard.
+- **fix**: Corrected `OwnerLogin` to correctly map backend response to frontend auth state.
+
 ## [0.2.0] - 2026-05-04
 
 ### Added
