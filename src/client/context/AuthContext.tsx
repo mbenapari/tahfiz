@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiFetch, fetchCsrfToken } from '../utils/api';
 
 export interface User {
   id: number;
@@ -6,7 +7,7 @@ export interface User {
   last_name?: string;
   email: string;
   role: string;
-  tenant_id: number | null;
+  tenantId: number | null;
   school_name?: string;
   permissions: string[];
 }
@@ -27,8 +28,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const checkAuth = async () => {
     try {
+      // Ensure we have a CSRF token
+      await fetchCsrfToken();
+
       // Try normal user endpoint first
-      let response = await fetch('/api/users/me');
+      let response = await apiFetch('/api/users/me');
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
@@ -36,7 +40,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       // If not found, try system owner endpoint
-      response = await fetch('/api/owner/me');
+      response = await apiFetch('/api/owner/me');
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
@@ -54,7 +58,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await apiFetch('/api/auth/logout', { method: 'POST' });
     } catch (error) {
       console.error('Logout request failed:', error);
     } finally {

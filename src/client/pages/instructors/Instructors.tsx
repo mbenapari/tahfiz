@@ -20,7 +20,7 @@ interface Instructor {
   email: string;
   phone?: string;
   role: string;
-  tenant_id: number;
+  tenantId: number;
   created_at?: string;
 }
 
