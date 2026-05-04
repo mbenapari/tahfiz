@@ -10,6 +10,7 @@ import sessionRoutes from "./routes/sessionRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import analyticsRoutes from "./routes/analyticsRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
+import ownerRoutes from "./routes/ownerRoutes";
 import { requestLogger, globalErrorHandler } from "./middleware/loggingMiddleware";
 import logger from "./utils/logger";
 
@@ -39,6 +40,7 @@ app.use("/api/sessions", sessionRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/metrics", analyticsRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/owner", ownerRoutes);
 
 // Global Error Handler (must be last)
 app.use(globalErrorHandler);
