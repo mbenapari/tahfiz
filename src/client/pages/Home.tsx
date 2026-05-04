@@ -1,7 +1,29 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Home: React.FC = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && user) {
+      if (user.role === 'owner') {
+        navigate('/owner', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f8fffd]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#073c36] border-t-transparent" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f8fffd] text-slate-900">
       <header className="border-b border-[#e9f3ef] bg-[#f8fffd]/95">

@@ -156,9 +156,16 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+
+  // Redirect system owners away from user dashboard if they somehow land here
+  if (user?.role === 'owner') {
+    return <Navigate to="/owner" replace />;
+  }
+
   const [activeStudents, setActiveStudents] = useState({ value: '...', trend: '' });
   const [totalHifz, setTotalHifz] = useState({ value: '...', trend: '' });
   const [todaySessions, setTodaySessions] = useState({ value: '...', completed: 0 });

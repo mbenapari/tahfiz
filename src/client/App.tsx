@@ -19,6 +19,7 @@ import Terms from "./pages/Terms";
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Dashboard } from "./pages/Dashboard";
+import { Navigate } from "react-router-dom";
 import { Students } from "./pages/students/Students";
 import { StudentProfile } from "./pages/students/StudentProfile";
 import { EnrollStudent } from "./pages/students/EnrollStudent";
@@ -36,7 +37,8 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
       <Route path="/owner/login" element={<OwnerLogin />} />
-      <Route path="/landing" element={<Home />} />
+      <Route path="/" element={<Home />} />
+      <Route path="/landing" element={<Navigate to="/" replace />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<Terms />} />
       
@@ -45,9 +47,8 @@ function App() {
         <Route path="/schools/new" element={<CreateSchool />} />
         
         {/* Dashboard Routes */}
-        <Route path="/" element={<DashboardLayout />}>
+        <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<Dashboard />} />
-          <Route path="dashboard" element={<Dashboard />} />
           <Route path="students" element={<Students />} />
           <Route path="students/:id" element={<StudentProfile />} />
           <Route path="students/enrollment" element={<EnrollStudent />} />
