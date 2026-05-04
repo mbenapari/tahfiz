@@ -11,6 +11,7 @@ import {
 import { EnrollmentStatus } from '../model/Enrollment';
 import * as progressService from './progressService';
 import * as attendanceService from './attendanceService';
+import logger from '../utils/logger';
 
 /**
  * Get count of active students for a tenant
@@ -24,8 +25,8 @@ export const getActiveStudentsCount = async (tenantId: number) => {
       }
     });
     return { value: count, trend: '+0% this month' }; // Trend logic can be added later
-  } catch (error) {
-    console.error('Error in getActiveStudentsCount:', error);
+  } catch (error: any) {
+    logger.error(`[statsService] getActiveStudentsCount Error: ${error.message}`, { tenantId });
     throw error;
   }
 };
@@ -42,8 +43,8 @@ export const getTotalHifzJuz = async (tenantId: number) => {
       }
     });
     return { value: count, trend: '+0% vs last term' };
-  } catch (error) {
-    console.error('Error in getTotalHifzJuz:', error);
+  } catch (error: any) {
+    logger.error(`[statsService] getTotalHifzJuz Error: ${error.message}`, { tenantId });
     throw error;
   }
 };
@@ -74,8 +75,8 @@ export const getTodaySessionsStats = async (tenantId: number) => {
     });
 
     return { value: total, completed };
-  } catch (error) {
-    console.error('Error in getTodaySessionsStats:', error);
+  } catch (error: any) {
+    logger.error(`[statsService] getTodaySessionsStats Error: ${error.message}`, { tenantId });
     throw error;
   }
 };
@@ -92,8 +93,8 @@ export const getPendingReviewsCount = async (tenantId: number) => {
       }
     });
     return { value: count, status: count > 0 ? 'Pending' : 'Up to date' };
-  } catch (error) {
-    console.error('Error in getPendingReviewsCount:', error);
+  } catch (error: any) {
+    logger.error(`[statsService] getPendingReviewsCount Error: ${error.message}`, { tenantId });
     throw error;
   }
 };
@@ -132,8 +133,8 @@ export const getStudentIndividualStats = async (studentId: number, tenantId: num
       totalAyahsMemorized: calculatedProgress.totalAyahs,
       completionPercentage: calculatedProgress.percentage
     };
-  } catch (error) {
-    console.error('Error in getStudentIndividualStats:', error);
+  } catch (error: any) {
+    logger.error(`[statsService] getStudentIndividualStats Error: ${error.message}`, { studentId, tenantId });
     throw error;
   }
 };
