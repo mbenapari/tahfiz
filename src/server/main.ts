@@ -12,6 +12,7 @@ import analyticsRoutes from "./routes/analyticsRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import ownerRoutes from "./routes/ownerRoutes";
 import { requestLogger, globalErrorHandler } from "./middleware/loggingMiddleware";
+import { doubleCsrfProtection, csrfTokenMiddleware } from "./middleware/csrfMiddleware";
 import logger from "./utils/logger";
 
 const app = express();
@@ -21,6 +22,15 @@ app.use(requestLogger);
 
 app.use(express.json());
 app.use(cookieParser());
+
+// CSRF Token endpoint - MUST be before doubleCsrfProtection
+app.get("/api/csrf-token", csrfTokenMiddleware);
+
+// Apply CSRF protection to all /api routes except the token endpoint
+app.use("/api", (req, res, next) => {
+  if (req.path === "/csrf-token") return next();
+  doubleCsrfProtection(req, res, next);
+});
 
 // Security Headers for API
 app.use('/api', (req, res, next) => {
@@ -51,8 +61,13 @@ process.on('uncaughtException', (err) => {
     message: err.message,
     stack: err.stack,
   });
-  // Optional: Graceful shutdown
-  // process.exit(1);
+  
+  // Graceful shutdown: give the server a chance to finish pending requests
+  // before exiting. Running in an undefined state is dangerous.
+  logger.info('Initiating graceful shutdown due to uncaught exception...');
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000).unref();
 });
 
 process.on('unhandledRejection', (reason: any) => {
@@ -60,6 +75,9 @@ process.on('unhandledRejection', (reason: any) => {
     reason: reason instanceof Error ? reason.message : reason,
     stack: reason instanceof Error ? reason.stack : undefined,
   });
+  
+  // Unhandled rejections are often non-fatal but should be fixed.
+  // We log them but don't necessarily crash the process immediately.
 });
 
 ViteExpress.listen(app, 3000, () =>
