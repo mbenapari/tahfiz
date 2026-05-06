@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router';
 import { 
   LayoutDashboard, 
@@ -8,16 +8,22 @@ import {
   GraduationCap, 
   Settings,
   LogOut,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router';
 
-export const Sidebar: React.FC = () => {
-  const { user, logout } = useAuth();
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+  const { user, logout, loading } = useAuth();
   const navigate = useNavigate();
-  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -41,19 +47,32 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-64 min-h-screen bg-background-dark border-r border-border-green/20 flex flex-col font-display fixed left-0 top-0 bottom-0 z-40">
+    <aside className={`
+      w-64 min-h-screen bg-background-dark border-r border-border-green/20 flex flex-col font-display fixed left-0 top-0 bottom-0 z-50 transition-transform duration-300
+      ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+    `}>
       
       {/* Header */}
-      <div className="p-6 flex items-center gap-3">
-        <div className="bg-surface-dark p-2 rounded-xl border border-border-green/30">
-          <Logo className="text-primary w-8 h-8" />
+      <div className="p-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-surface-dark p-2 rounded-xl border border-border-green/30">
+            <Logo className="text-primary w-8 h-8" />
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-white font-bold text-lg leading-tight">
+              {user?.school_name || 'Tahfiz'}<br/>Academy
+            </h1>
+            <span className="text-text-muted text-xs font-medium mt-0.5">Admin Portal</span>
+          </div>
         </div>
-        <div className="flex flex-col">
-          <h1 className="text-white font-bold text-lg leading-tight">
-            {user?.school_name || 'Tahfiz'}<br/>Academy
-          </h1>
-          <span className="text-text-muted text-xs font-medium mt-0.5">Admin Portal</span>
-        </div>
+        
+        {/* Mobile Close Button */}
+        <button 
+          onClick={onClose}
+          className="lg:hidden p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg"
+        >
+          <X size={20} />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -62,6 +81,7 @@ export const Sidebar: React.FC = () => {
           <NavLink
             key={item.path}
             to={item.path}
+            onClick={onClose}
             className={({ isActive }) => `
               flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
               ${isActive 
