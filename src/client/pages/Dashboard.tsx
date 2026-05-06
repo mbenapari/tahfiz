@@ -351,69 +351,69 @@ export const Dashboard: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 p-4 md:p-0 md:gap-8">
       
       {/* Welcome Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">
+          <h1 className="text-3xl md:text-3xl font-bold text-white mb-2 md:mb-2">
             Welcome back, {user?.first_name}
           </h1>
-          <p className="text-text-muted font-medium">
-            {formattedGregorianDate} • {formattedHijriDate}
+          <p className="text-text-muted text-base md:text-base font-medium">
+            {formattedGregorianDate} <span className="mx-1 opacity-50">•</span> {formattedHijriDate}
           </p>
         </div>
 
-        <div className="flex items-center gap-4 bg-surface-dark border border-border-green/30 rounded-xl px-4 py-3 shadow-sm">
-            <div className="flex items-center gap-2 text-sm text-text-muted">
-            <Sun size={16} className="text-orange-300" />
-            <span>Fajr: <span className="text-white font-bold">{prayerTimes.fajr}</span></span>
+        <div className="flex flex-wrap items-center gap-3 md:gap-4 bg-surface-dark border border-border-green/30 rounded-xl px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-2 text-sm md:text-sm text-text-muted">
+            <Sun size={16} className="text-orange-300 md:w-4 md:h-4" />
+            <span className="whitespace-nowrap">Fajr: <span className="text-white font-bold">{prayerTimes.fajr}</span></span>
           </div>
-          <div className="w-px h-4 bg-border-green/50"></div>
-          <div className="flex items-center gap-2 text-sm text-text-muted">
-            <Clock size={16} className="text-yellow-300" />
-            <span>Dhuhr: <span className="text-white font-bold">{prayerTimes.dhuhr}</span></span>
+          <div className="hidden xs:block w-px h-4 bg-border-green/50"></div>
+          <div className="flex items-center gap-2 text-sm md:text-sm text-text-muted">
+            <Clock size={16} className="text-yellow-300 md:w-4 md:h-4" />
+            <span className="whitespace-nowrap">Dhuhr: <span className="text-white font-bold">{prayerTimes.dhuhr}</span></span>
           </div>
-          <div className="w-px h-4 bg-border-green/50"></div>
-          <div className="flex items-center gap-2 text-sm text-text-muted">
-            <Sun size={16} className="text-yellow-300" />
-            <span>Asr: <span className="text-white font-bold">{prayerTimes.asr}</span></span>
+          <div className="hidden xs:block w-px h-4 bg-border-green/50"></div>
+          <div className="flex items-center gap-2 text-sm md:text-sm text-text-muted">
+            <Sun size={16} className="text-yellow-300 md:w-4 md:h-4" />
+            <span className="whitespace-nowrap">Asr: <span className="text-white font-bold">{prayerTimes.asr}</span></span>
           </div>
-          <div className="w-px h-4 bg-border-green/50"></div>
-          <div className="flex items-center gap-2 text-sm text-text-muted">
-            <Moon size={16} className="text-blue-300" />
-            <span>Maghrib: <span className="text-white font-bold">{prayerTimes.maghrib}</span></span>
+          <div className="hidden xs:block w-px h-4 bg-border-green/50"></div>
+          <div className="flex items-center gap-2 text-sm md:text-sm text-text-muted">
+            <Moon size={16} className="text-blue-300 md:w-4 md:h-4" />
+            <span className="whitespace-nowrap">Maghrib: <span className="text-white font-bold">{prayerTimes.maghrib}</span></span>
           </div>
-          <div className="w-px h-4 bg-border-green/50"></div>
-          <div className="flex items-center gap-2 text-sm text-text-muted">
-            <Moon size={16} className="text-slate-300" />
-            <span>Isha: <span className="text-white font-bold">{prayerTimes.isha}</span></span>
+          <div className="hidden xs:block w-px h-4 bg-border-green/50"></div>
+          <div className="flex items-center gap-2 text-sm md:text-sm text-text-muted">
+            <Moon size={16} className="text-slate-300 md:w-4 md:h-4" />
+            <span className="whitespace-nowrap">Isha: <span className="text-white font-bold">{prayerTimes.isha}</span></span>
           </div>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-surface-dark border border-border-green/30 rounded-2xl p-6 relative overflow-hidden group hover:border-primary/30 transition-all">
+          <div key={index} className="bg-surface-dark border border-border-green/30 rounded-2xl p-6 md:p-6 relative overflow-hidden group hover:border-primary/30 transition-all">
             <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full ${stat.bgIcon} opacity-20 blur-xl group-hover:scale-110 transition-transform duration-500`}></div>
-            <div className="flex justify-between items-start mb-4 relative z-10">
-              <span className="text-text-muted font-medium text-sm">{stat.label}</span>
+            <div className="flex justify-between items-start mb-4 md:mb-4 relative z-10">
+              <span className="text-text-muted font-medium text-sm md:text-sm">{stat.label}</span>
               <div className={`p-2 rounded-lg ${stat.bgIcon} ${stat.color}`}>
-                <stat.icon size={24} />
+                <stat.icon size={24} className="md:w-6 md:h-6" />
               </div>
             </div>
             <div className="relative z-10">
-              <h3 className="text-3xl font-bold text-white mb-2">{stat.value}</h3>
+              <h3 className="text-3xl md:text-3xl font-bold text-white mb-2 md:mb-2">{stat.value}</h3>
               {stat.trend && (
-                <div className="flex items-center gap-1.5 text-primary text-sm font-bold">
-                  <stat.trendIcon size={16} />
+                <div className="flex items-center gap-1.5 text-primary text-sm md:text-sm font-bold">
+                  <stat.trendIcon size={16} className="md:w-4 md:h-4" />
                   <span>{stat.trend}</span>
                 </div>
               )}
               {stat.subtext && (
-                <div className={`flex items-center gap-1.5 text-sm font-medium ${stat.subtextColor || 'text-text-muted'}`}>
-                  {stat.subtextIcon && <stat.subtextIcon size={16} className="text-primary" />}
+                <div className={`flex items-center gap-1.5 text-sm md:text-sm font-medium ${stat.subtextColor || 'text-text-muted'}`}>
+                  {stat.subtextIcon && <stat.subtextIcon size={16} className="text-primary md:w-4 md:h-4" />}
                   <span>{stat.subtext}</span>
                 </div>
               )}
@@ -429,16 +429,16 @@ export const Dashboard: React.FC = () => {
         <div className="lg:col-span-2 flex flex-col gap-6">
           
           {/* Attendance Chart */}
-          <div className="bg-surface-dark border border-border-green/30 rounded-2xl p-6 min-h-[400px] flex flex-col">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-surface-dark border border-border-green/30 rounded-2xl p-6 md:p-6 min-h-[300px] md:min-h-[400px] flex flex-col">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-lg font-bold text-white">Weekly Attendance Trends</h2>
-                <p className="text-sm text-text-muted">Student presence over the last 8 weeks</p>
+                <h2 className="text-lg md:text-lg font-bold text-white">Weekly Attendance Trends</h2>
+                <p className="text-sm md:text-sm text-text-muted">Student presence over the last 8 weeks</p>
               </div>
               {!attendanceTrends.isLoading && !attendanceTrends.error && (
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold text-white">{attendanceTrends.currentAverage}%</span>
-                  <span className={`text-xs font-bold px-2 py-1 rounded ${attendanceTrends.trendPercentage >= 0 ? 'text-primary bg-primary/10' : 'text-red-400 bg-red-400/10'}`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl md:text-2xl font-bold text-white">{attendanceTrends.currentAverage}%</span>
+                  <span className={`text-xs md:text-xs font-bold px-2 py-1 rounded ${attendanceTrends.trendPercentage >= 0 ? 'text-primary bg-primary/10' : 'text-red-400 bg-red-400/10'}`}>
                     {attendanceTrends.trendPercentage >= 0 ? '+' : ''}{attendanceTrends.trendPercentage}%
                   </span>
                 </div>
