@@ -4,25 +4,33 @@ import {
   Search, 
   Bell, 
   MessageSquare, 
-  Plus 
+  Plus,
+  Menu
 } from 'lucide-react';
 
-export const Navbar: React.FC = () => {
+interface NavbarProps {
+  onMenuClick?: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const navigate = useNavigate();
 
   return (
-    <header className="h-20 bg-background-dark border-b border-border-green/20 flex items-center justify-between px-8 sticky top-0 z-30 font-display">
+    <header className="h-20 bg-background-dark border-b border-border-green/20 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 font-display">
       
-      {/* Search Bar */}
-      <div className="flex-1 max-w-xl">
-        {/* <div className="relative group">
-          <input 
-            type="text" 
-            placeholder="Search students, surahs..." 
-            className="w-full h-11 bg-surface-dark border border-border-green/30 rounded-xl pl-11 pr-4 text-white placeholder:text-text-muted focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
-          />
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-primary transition-colors" size={18} />
-        </div> */}
+      <div className="flex items-center gap-4 flex-1">
+        {/* Mobile Menu Button */}
+        <button 
+          onClick={onMenuClick}
+          className="lg:hidden w-11 h-11 flex items-center justify-center rounded-xl hover:bg-surface-dark transition-colors group"
+        >
+          <Menu className="text-white group-hover:text-primary transition-colors" size={24} />
+        </button>
+
+        {/* Search Bar (Placeholder) */}
+        <div className="hidden md:block flex-1 max-w-xl">
+          {/* Search input would go here */}
+        </div>
       </div>
 
       {/* Right Actions */}
