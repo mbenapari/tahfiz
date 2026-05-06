@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **feat**: redesign landing page with new assets and mobile-first approach (f781998)
+- **feat**: implement responsive collapsible sidebar for mobile views (e2c60f8)
+- **feat**: optimize dashboard, students, and instructors pages for mobile (a7c3933)
 - **feat**: Add performance indexes for sessions and memorization records.
 - **feat**: Implement double-submit cookie CSRF protection with `csrf-csrf`.
 - **feat**: Add security hardening with JWT algorithm enforcement (HS256) and secure cookies.
@@ -19,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **style**: Standardize `tenant_id` to `tenantId` in frontend and API responses for camelCase consistency.
 
 ### Fixed
+- **fix**: resolve CSRF token generation error and infinite fetch recursion (d0ad9bd)
+- **fix**: correct routing structure for dashboard sub-pages (3381f98)
 - **fix**: Address potential memory leaks in rate limiter by adding periodic cleanup.
 - **fix**: Resolve N+1 query issue in permission checks with in-memory TTL caching.
 - **fix**: Fix inconsistent error logging in `statsService` using custom logger.
