@@ -1,8 +1,17 @@
 let csrfToken: string | null = null;
+let nativeFetch = window.fetch;
+
+/**
+ * Sets the native fetch function to be used by apiFetch.
+ * This is used to avoid circular dependencies when window.fetch is intercepted.
+ */
+export const setNativeFetch = (fn: typeof fetch) => {
+  nativeFetch = fn;
+};
 
 export const fetchCsrfToken = async () => {
   try {
-    const response = await fetch('/api/csrf-token');
+    const response = await nativeFetch('/api/csrf-token');
     if (response.ok) {
       const data = await response.json();
       csrfToken = data.csrfToken;
@@ -27,7 +36,7 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
     headers.set('x-csrf-token', csrfToken);
   }
 
-  const response = await fetch(url, {
+  const response = await nativeFetch(url, {
     ...options,
     headers,
   });
@@ -37,7 +46,7 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
     await fetchCsrfToken();
     if (csrfToken) {
       headers.set('x-csrf-token', csrfToken);
-      return fetch(url, {
+      return nativeFetch(url, {
         ...options,
         headers,
       });
