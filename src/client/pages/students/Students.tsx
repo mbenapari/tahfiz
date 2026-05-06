@@ -130,17 +130,17 @@ export const Students: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 md:gap-8">
       
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Student Roster</h1>
-          <p className="text-text-muted">Manage enrollment and track memorization progress.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 md:mb-2">Student Roster</h1>
+          <p className="text-sm md:text-base text-text-muted">Manage enrollment and track memorization progress.</p>
         </div>
         <button 
           onClick={() => navigate('/students/enrollment')}
-          className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-background-dark px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-primary/20"
+          className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-background-dark px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-primary/20 w-full md:w-auto"
         >
           <Plus size={20} />
           Add New Student
@@ -148,7 +148,7 @@ export const Students: React.FC = () => {
       </div>
 
       {/* Filters & Search Section */}
-      <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+      <div className="flex flex-col lg:flex-row items-center justify-between gap-4 md:gap-6">
         <div className="flex flex-col md:flex-row items-center gap-4 w-full lg:w-auto">
           {/* Search Bar */}
           <div className="relative w-full md:w-80">
@@ -158,49 +158,49 @@ export const Students: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by name, ID, or email..." 
-              className="w-full bg-surface-dark border border-border-green/30 rounded-xl py-2.5 pl-11 pr-4 text-white placeholder:text-text-muted/50 focus:outline-none focus:border-primary/50 transition-colors"
+              className="w-full bg-surface-dark border border-border-green/30 rounded-xl py-2.5 pl-11 pr-4 text-sm md:text-base text-white placeholder:text-text-muted/50 focus:outline-none focus:border-primary/50 transition-colors"
             />
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex items-center bg-surface-dark border border-border-green/30 rounded-xl p-1 w-full md:w-auto overflow-x-auto">
+          <div className="flex items-center bg-surface-dark border border-border-green/30 rounded-xl p-1 w-full md:w-auto overflow-x-auto no-scrollbar">
             <button 
               onClick={() => setFilterStatus('All')}
-              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${filterStatus === 'All' ? 'bg-primary text-background-dark' : 'text-text-muted hover:text-white'}`}
+              className={`px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${filterStatus === 'All' ? 'bg-primary text-background-dark' : 'text-text-muted hover:text-white'}`}
             >
-              All Students <span className="ml-1 opacity-70">{studentsList.length}</span>
+              All <span className="hidden sm:inline">Students</span> <span className="ml-1 opacity-70">{studentsList.length}</span>
             </button>
             <button 
               onClick={() => setFilterStatus('Active')}
-              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${filterStatus === 'Active' ? 'bg-primary text-background-dark' : 'text-text-muted hover:text-white'}`}
+              className={`px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${filterStatus === 'Active' ? 'bg-primary text-background-dark' : 'text-text-muted hover:text-white'}`}
             >
               Active <span className="ml-1 opacity-70">{activeCount}</span>
             </button>
             <Tooltip text="Students with < 20% progress" position="bottom">
               <button 
                 onClick={() => setFilterStatus('Needs Attention')}
-                className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${filterStatus === 'Needs Attention' ? 'bg-primary text-background-dark' : 'text-text-muted hover:text-white'}`}
+                className={`px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${filterStatus === 'Needs Attention' ? 'bg-primary text-background-dark' : 'text-text-muted hover:text-white'}`}
               >
                 Needs Attention <span className="ml-1 opacity-70">{needsAttentionCount}</span>
-                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-red-500"></div>
               </button>
             </Tooltip>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-surface-dark border border-border-green/30 rounded-xl text-sm font-bold text-text-muted cursor-pointer hover:border-primary/30 transition-colors">
+        <div className="flex items-center gap-3 w-full lg:w-auto overflow-x-auto no-scrollbar pb-1 lg:pb-0">
+          <div className="flex items-center gap-2 px-3 md:px-4 py-2 bg-surface-dark border border-border-green/30 rounded-xl text-xs md:text-sm font-bold text-text-muted cursor-pointer hover:border-primary/30 transition-colors whitespace-nowrap">
             <span>Level: All</span>
-            <ChevronDown size={16} />
+            <ChevronDown size={14} className="md:w-4 md:h-4" />
           </div>
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-surface-dark border border-border-green/30 rounded-xl text-sm font-bold text-text-muted cursor-pointer hover:border-primary/30 transition-colors">
+          <div className="flex items-center gap-2 px-3 md:px-4 py-2 bg-surface-dark border border-border-green/30 rounded-xl text-xs md:text-sm font-bold text-text-muted cursor-pointer hover:border-primary/30 transition-colors whitespace-nowrap">
             <span>Teacher: All</span>
-            <ChevronDown size={16} />
+            <ChevronDown size={14} className="md:w-4 md:h-4" />
           </div>
         </div>
       </div>
 
-      {/* Students Table */}
+      {/* Students List Container */}
       <div className="bg-surface-dark border border-border-green/30 rounded-2xl overflow-hidden min-h-[400px] flex flex-col">
         {isLoading ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-text-muted">
@@ -242,126 +242,185 @@ export const Students: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-border-green/20">
-                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Student Name</th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Current Level</th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Memorization Progress</th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Last Session</th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-green/10">
-                {filteredStudents.map((student) => (
-                  <tr key={student.id} className="hover:bg-white/[0.02] transition-colors group">
-                    {/* Student Name */}
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-border-green/20 bg-primary/10 flex items-center justify-center text-primary font-bold">
-                          {student.first_name[0]}{student.last_name ? student.last_name[0] : ''}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-white leading-tight">{student.first_name} {student.last_name || ''}</p>
-                          <p className="text-xs text-text-muted mt-0.5">ID: {student.student_identifier || `USR-${student.id}`}</p>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Current Level */}
-                    <td className="px-6 py-5">
-                      {student.currentLevel && (
-                        <div>
-                          <p className="text-sm font-bold text-primary">Juz {student.currentLevel.juz}</p>
-                          <p className="text-xs text-text-muted mt-0.5">{student.currentLevel.surah}</p>
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Progress */}
-                    <td className="px-6 py-5">
-                      {student.progress && (
-                        <div className="max-w-[180px]">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-medium text-white">{student.progress.percentage}% Memorized</span>
-                            <span className={`text-xs font-bold ${student.progress.statusColor}`}>{student.progress.status}</span>
-                          </div>
-                          <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full ${student.progress.barColor} transition-all duration-500`} 
-                              style={{ width: `${student.progress.percentage}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Last Session */}
-                    <td className="px-6 py-5">
-                      {student.lastSession && (
-                        <div>
-                          <p className="text-sm font-bold text-white leading-tight">{student.lastSession.time}</p>
-                          <p className="text-xs text-text-muted mt-0.5">{student.lastSession.detail}</p>
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-6 py-5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Tooltip text="Log Progress">
-                          <button 
-                            onClick={() => navigate(`/sessions/daily/${student.id}`)}
-                            className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-all" 
-                          >
-                            <PenTool size={18} />
-                          </button>
-                        </Tooltip>
-                        <Tooltip text="Edit Student">
-                          <button 
-                            onClick={() => setEditingStudent(student)}
-                            className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all" 
-                          >
-                            <Edit2 size={18} />
-                          </button>
-                        </Tooltip>
-                        <Tooltip text="View Details">
-                          <button 
-                            onClick={() => navigate(`/students/${student.id}`)}
-                            className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-all" 
-                          >
-                            <Eye size={18} />
-                          </button>
-                        </Tooltip>
-                        <Tooltip text="Delete Student">
-                          <button 
-                            onClick={() => handleDeleteStudent(student.id)}
-                            className="p-2 text-text-muted hover:text-red-400 hover:bg-red-400/5 rounded-lg transition-all"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </Tooltip>
-                      </div>
-                    </td>
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-border-green/20">
+                    <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Student Name</th>
+                    <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Current Level</th>
+                    <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Memorization Progress</th>
+                    <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">Last Session</th>
+                    <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border-green/10">
+                  {filteredStudents.map((student) => (
+                    <tr key={student.id} className="hover:bg-white/[0.02] transition-colors group">
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg overflow-hidden border border-border-green/20 bg-primary/10 flex items-center justify-center text-primary font-bold">
+                            {student.first_name[0]}{student.last_name ? student.last_name[0] : ''}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-white leading-tight">{student.first_name} {student.last_name || ''}</p>
+                            <p className="text-xs text-text-muted mt-0.5">ID: {student.student_identifier || `USR-${student.id}`}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        {student.currentLevel && (
+                          <div>
+                            <p className="text-sm font-bold text-primary">Juz {student.currentLevel.juz}</p>
+                            <p className="text-xs text-text-muted mt-0.5">{student.currentLevel.surah}</p>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-5">
+                        {student.progress && (
+                          <div className="max-w-[180px]">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-medium text-white">{student.progress.percentage}% Memorized</span>
+                              <span className={`text-xs font-bold ${student.progress.statusColor}`}>{student.progress.status}</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full ${student.progress.barColor} transition-all duration-500`} 
+                                style={{ width: `${student.progress.percentage}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-5">
+                        {student.lastSession && (
+                          <div>
+                            <p className="text-sm font-bold text-white leading-tight">{student.lastSession.time}</p>
+                            <p className="text-xs text-text-muted mt-0.5">{student.lastSession.detail}</p>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Tooltip text="Log Progress">
+                            <button 
+                              onClick={() => navigate(`/sessions/daily/${student.id}`)}
+                              className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-all" 
+                            >
+                              <PenTool size={18} />
+                            </button>
+                          </Tooltip>
+                          <Tooltip text="Edit Student">
+                            <button 
+                              onClick={() => setEditingStudent(student)}
+                              className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all" 
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                          </Tooltip>
+                          <Tooltip text="View Details">
+                            <button 
+                              onClick={() => navigate(`/students/${student.id}`)}
+                              className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-all" 
+                            >
+                              <Eye size={18} />
+                            </button>
+                          </Tooltip>
+                          <Tooltip text="Delete Student">
+                            <button 
+                              onClick={() => handleDeleteStudent(student.id)}
+                              className="p-2 text-text-muted hover:text-red-400 hover:bg-red-400/5 rounded-lg transition-all"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </Tooltip>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile/Tablet Card View */}
+            <div className="lg:hidden flex flex-col divide-y divide-border-green/10">
+              {filteredStudents.map((student) => (
+                <div key={student.id} className="p-4 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden border border-border-green/20 bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                        {student.first_name[0]}{student.last_name ? student.last_name[0] : ''}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white leading-tight">{student.first_name} {student.last_name || ''}</p>
+                        <p className="text-[10px] text-text-muted mt-0.5 uppercase tracking-wider">ID: {student.student_identifier || `USR-${student.id}`}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => navigate(`/sessions/daily/${student.id}`)}
+                        className="p-2 text-text-muted hover:text-white"
+                      >
+                        <PenTool size={18} />
+                      </button>
+                      <button 
+                        onClick={() => setEditingStudent(student)}
+                        className="p-2 text-text-muted hover:text-primary"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button 
+                        onClick={() => navigate(`/students/${student.id}`)}
+                        className="p-2 text-text-muted hover:text-white"
+                      >
+                        <Eye size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div>
+                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Level</p>
+                      <p className="text-sm font-bold text-primary">Juz {student.currentLevel?.juz}</p>
+                      <p className="text-xs text-text-muted">{student.currentLevel?.surah}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Last Session</p>
+                      <p className="text-sm font-bold text-white leading-tight">{student.lastSession?.time}</p>
+                      <p className="text-xs text-text-muted">{student.lastSession?.detail}</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-white">{student.progress?.percentage}% Memorized</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 ${student.progress?.statusColor}`}>{student.progress?.status}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full ${student.progress?.barColor} transition-all duration-500`} 
+                        style={{ width: `${student.progress?.percentage}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Pagination Footer */}
         {!isLoading && !error && filteredStudents.length > 0 && (
-          <div className="px-6 py-4 bg-white/[0.02] border-t border-border-green/20 flex items-center justify-between mt-auto">
-            <p className="text-sm text-text-muted">
-              Showing <span className="text-white font-medium">1 to {filteredStudents.length}</span> of <span className="text-white font-medium">{filteredStudents.length}</span> students
+          <div className="px-4 md:px-6 py-4 bg-white/[0.02] border-t border-border-green/20 flex flex-col sm:flex-row items-center justify-between gap-4 mt-auto">
+            <p className="text-xs md:text-sm text-text-muted">
+              Showing <span className="text-white font-medium">1 to {filteredStudents.length}</span> of <span className="text-white font-medium">{filteredStudents.length}</span>
             </p>
-            <div className="flex items-center gap-2">
-              <button className="px-4 py-2 rounded-lg text-sm font-bold text-text-muted bg-white/5 cursor-not-allowed transition-all">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button className="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs md:text-sm font-bold text-text-muted bg-white/5 cursor-not-allowed transition-all">
                 Previous
               </button>
-              <button className="px-4 py-2 rounded-lg text-sm font-bold text-text-muted bg-white/5 cursor-not-allowed transition-all">
+              <button className="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs md:text-sm font-bold text-text-muted bg-white/5 cursor-not-allowed transition-all">
                 Next
               </button>
             </div>
