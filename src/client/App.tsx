@@ -19,7 +19,7 @@ import Terms from "./pages/Terms";
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Dashboard } from "./pages/Dashboard";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 import { Students } from "./pages/students/Students";
 import { StudentProfile } from "./pages/students/StudentProfile";
 import { EnrollStudent } from "./pages/students/EnrollStudent";
@@ -47,16 +47,16 @@ function App() {
         <Route path="/schools/new" element={<CreateSchool />} />
         
         {/* Dashboard Routes */}
-        <Route path="/dashboard" element={<DashboardLayout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="students" element={<Students />} />
-          <Route path="students/:id" element={<StudentProfile />} />
-          <Route path="students/enrollment" element={<EnrollStudent />} />
-          <Route path="instructors" element={<Instructors />} />
-          <Route path="sessions/daily/:studentId" element={<DailySession />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="profile" element={<Profile />} />
+        <Route element={<DashboardLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/students" element={<Students />} />
+          <Route path="/students/:id" element={<StudentProfile />} />
+          <Route path="/students/enrollment" element={<EnrollStudent />} />
+          <Route path="/instructors" element={<Instructors />} />
+          <Route path="/sessions/daily/:studentId" element={<DailySession />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/profile" element={<Profile />} />
         </Route>
         {/* Owner-specific layout (replaces normal sidebar) */}
         <Route path="/owner" element={<OwnerLayout />}>
