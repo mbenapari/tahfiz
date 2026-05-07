@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **feat: implement user onboarding flow and tracking**: Add is_onboarded field to User model, create WelcomeOnboarding component, and enhance EnrollStudent for specialized onboarding mode.
+- **feat: implement user feedback system**: Create Feedback model, submission interface for users, and management dashboard for platform owners.
+
+### Changed
+- **refactor: migrate react-router-dom imports**: Standardized all routing imports to use `react-router` across the client codebase.
+- **feat: enhance feedback management**: Include user phone number and contact details in the feedback review interface for system owners.
+
+### Fixed
+- **fix: resolve TypeError in student search**: Correctly handle backend response format (students vs users array) and add defensive checks for search results.
+- **fix: address 403 Forbidden on search**: Improve feedback and state handling when student search fails due to missing tenant context.
+
+### Added
 - **feat**: redesign landing page with new assets and mobile-first approach (f781998)
 - **feat**: implement responsive collapsible sidebar for mobile views (e2c60f8)
 - **feat**: optimize dashboard, students, and instructors pages for mobile (a7c3933)
