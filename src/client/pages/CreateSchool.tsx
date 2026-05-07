@@ -8,7 +8,7 @@ import {
   ChevronRight,
   LayoutDashboard
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 const CreateSchool: React.FC = () => {
   const navigate = useNavigate();
