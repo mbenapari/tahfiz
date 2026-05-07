@@ -17,6 +17,7 @@ export interface CreateUserDTO {
   phone?: string;
   role: UserRole;
   student_identifier?: string;
+  is_onboarded?: boolean;
 }
 
 export interface UpdateUserDTO {
@@ -29,6 +30,7 @@ export interface UpdateUserDTO {
   role?: UserRole;
   role_id?: number;
   student_identifier?: string;
+  is_onboarded?: boolean;
 }
 
 export const createUser = async (data: CreateUserDTO, transaction?: any) => {

@@ -21,13 +21,14 @@ interface UserAttributes {
   student_identifier?: string;
   grade_level?: string;
   class_name?: string;
+  is_onboarded: boolean;
   last_login_at?: Date;
   created_at?: Date;
   updated_at?: Date;
   deleted_at?: Date;
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'tenant_id' | 'role_id' | 'last_name' | 'email' | 'password' | 'phone' | 'student_identifier' | 'grade_level' | 'class_name' | 'last_login_at' | 'created_at' | 'updated_at' | 'deleted_at'> {}
+interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'tenant_id' | 'role_id' | 'last_name' | 'email' | 'password' | 'phone' | 'student_identifier' | 'grade_level' | 'class_name' | 'is_onboarded' | 'last_login_at' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: number;
@@ -42,6 +43,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare student_identifier: string;
   declare grade_level: string;
   declare class_name: string;
+  declare is_onboarded: boolean;
   declare last_login_at: Date;
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
@@ -98,6 +100,10 @@ User.init(
     phone: {
       type: DataTypes.STRING(50),
       allowNull: true,
+    },
+    is_onboarded: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
     },
     role: {
       type: DataTypes.ENUM(...Object.values(UserRole)),

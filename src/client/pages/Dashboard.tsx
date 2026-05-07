@@ -156,7 +156,8 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router';
+import { WelcomeOnboarding } from '../components/WelcomeOnboarding';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -352,6 +353,7 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-0 md:gap-8">
+      {user && user.role === 'admin' && user.is_onboarded !== true && <WelcomeOnboarding userName={user.first_name} />}
       
       {/* Welcome Header */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">

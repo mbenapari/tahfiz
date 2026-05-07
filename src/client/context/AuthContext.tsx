@@ -8,6 +8,7 @@ export interface User {
   email: string;
   role: string;
   tenantId: number | null;
+  is_onboarded?: boolean;
   school_name?: string;
   permissions: string[];
 }
@@ -35,6 +36,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       let response = await apiFetch('/api/users/me');
       if (response.ok) {
         const data = await response.json();
+        // Ensure is_onboarded is a boolean
+        if (data.user) {
+          data.user.is_onboarded = !!data.user.is_onboarded;
+        }
         setUser(data.user);
         return;
       }
@@ -43,6 +48,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       response = await apiFetch('/api/owner/me');
       if (response.ok) {
         const data = await response.json();
+        // Ensure is_onboarded is a boolean (system owners are always onboarded)
+        if (data.user) {
+          data.user.is_onboarded = true;
+        }
         setUser(data.user);
         return;
       }
