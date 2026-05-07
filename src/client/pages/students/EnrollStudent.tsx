@@ -10,7 +10,8 @@ import {
   MessageSquare,
   Loader2
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useLocation } from 'react-router';
+import { useAuth } from '../../context/AuthContext';
 
 interface UserSearchResult {
   id: number;
@@ -21,6 +22,12 @@ interface UserSearchResult {
 
 export const EnrollStudent: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { checkAuth } = useAuth();
+  
+  const searchParams = new URLSearchParams(location.search);
+  const isOnboarding = searchParams.get('mode') === 'onboarding';
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
@@ -32,7 +39,7 @@ export const EnrollStudent: React.FC = () => {
     notes: ''
   });
 
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(isOnboarding);
   const [newUserData, setNewUserData] = useState({
     firstName: '',
     lastName: '',
@@ -52,7 +59,13 @@ export const EnrollStudent: React.FC = () => {
       const response = await fetch(`/api/users/students/search?query=${encodeURIComponent(query)}`);
       if (response.ok) {
         const data = await response.json();
-        setSearchResults(data.users);
+        // The backend returns { students: [...] } for this endpoint
+        setSearchResults(data.students || data.users || []);
+      } else if (response.status === 403) {
+        console.error('Search error: Forbidden (403). Possible missing tenant ID.');
+        setSearchResults([]);
+      } else {
+        setSearchResults([]);
       }
     } catch (error) {
       console.error('Search error:', error);
@@ -105,6 +118,14 @@ export const EnrollStudent: React.FC = () => {
       });
 
       if (response.ok) {
+        if (isOnboarding) {
+          try {
+            await fetch('/api/users/onboarding/complete', { method: 'POST' });
+            await checkAuth(); // Refresh user state to reflect onboarding completion
+          } catch (err) {
+            console.error('Failed to complete onboarding:', err);
+          }
+        }
         navigate('/students');
       } else {
         const data = await response.json();
@@ -150,15 +171,17 @@ export const EnrollStudent: React.FC = () => {
                 </div>
                 <h2 className="text-lg font-bold text-white">Student Identity</h2>
               </div>
-              <button 
-                onClick={() => {
-                  setShowCreateForm(!showCreateForm);
-                  setSelectedUser(null);
-                }}
-                className="text-sm font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-              >
-                {showCreateForm ? '← Back to Search' : '+ Create New Student User '}
-              </button>
+              {!isOnboarding && (
+                <button 
+                  onClick={() => {
+                    setShowCreateForm(!showCreateForm);
+                    setSelectedUser(null);
+                  }}
+                  className="text-sm font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                >
+                  {showCreateForm ? '← Back to Search' : '+ Create New Student User '}
+                </button>
+              )}
             </div>
 
             {!showCreateForm ? (

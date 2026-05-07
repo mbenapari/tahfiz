@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as userController from '../controller/userController';
+import * as feedbackController from '../controller/feedbackController';
 import { authenticate } from '../middleware/authMiddleware';
 import { rateLimit } from '../middleware/rateLimitMiddleware';
 
@@ -11,6 +12,10 @@ router.post('/register', authLimiter, userController.register);
 router.post('/login', authLimiter, userController.login);
 router.get('/me', authenticate, userController.getCurrentUser);
 router.put('/me', authenticate, userController.updateCurrentUser);
+router.post('/onboarding/complete', authenticate, userController.completeOnboarding);
+
+// Feedback
+router.post('/feedback', authenticate, feedbackController.submitFeedback);
 
 // Student Management
 router.get('/students', authenticate, userController.getStudents);

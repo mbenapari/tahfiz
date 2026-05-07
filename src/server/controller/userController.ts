@@ -98,6 +98,7 @@ export const register = async (req: Request, res: Response) => {
         email: userWithTenant.email,
         role: userWithTenant.role,
         tenantId: userWithTenant.tenant_id,
+        is_onboarded: Boolean(userWithTenant.is_onboarded),
         school_name: userWithTenant.tenant?.name,
         permissions
       }
@@ -167,6 +168,7 @@ export const login = async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         tenantId: user.tenant_id,
+        is_onboarded: Boolean(user.is_onboarded),
         school_name: user.tenant?.name,
         permissions
       }
@@ -228,7 +230,8 @@ export const getCurrentUser = async (req: Request, res: Response) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        tenant_id: user.tenant_id,
+        tenantId: user.tenant_id,
+        is_onboarded: Boolean(user.is_onboarded),
         school_name: user.tenant?.name,
         created_at: user.created_at,
         permissions
@@ -308,7 +311,8 @@ export const updateCurrentUser = async (req: Request, res: Response) => {
         email: updatedUser.email,
         phone: updatedUser.phone,
         role: updatedUser.role,
-        tenant_id: updatedUser.tenant_id,
+        tenantId: updatedUser.tenant_id,
+        is_onboarded: Boolean(updatedUser.is_onboarded),
         school_name: updatedUser.tenant?.name,
         permissions
       }
@@ -316,6 +320,25 @@ export const updateCurrentUser = async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('userController.updateCurrentUser: Error', { correlationId, error: error.message });
     res.status(500).json({ error: 'Failed to update profile' });
+  }
+};
+
+export const completeOnboarding = async (req: Request, res: Response) => {
+  const correlationId = req.correlationId;
+  logger.info('userController.completeOnboarding: Entry', { correlationId });
+
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    await userService.updateUser(req.user.userId, { is_onboarded: true });
+
+    logger.info('userController.completeOnboarding: Success', { correlationId, userId: req.user.userId });
+    res.json({ message: 'Onboarding marked as complete' });
+  } catch (error: any) {
+    logger.error('userController.completeOnboarding: Error', { correlationId, error: error.message });
+    res.status(500).json({ error: 'Failed to complete onboarding' });
   }
 };
 
