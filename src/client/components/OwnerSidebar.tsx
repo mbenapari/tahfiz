@@ -1,7 +1,7 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router';
 import { Logo } from './Logo';
-import { X } from 'lucide-react';
+import { X, LayoutDashboard, School, Users, Shield, MessageSquare } from 'lucide-react';
 
 interface OwnerSidebarProps {
   isOpen?: boolean;
@@ -38,30 +38,42 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({ isOpen, onClose }) =
         <Link
           to="/owner"
           onClick={onClose}
-          className={`px-4 py-3 rounded-lg font-medium ${isActive('/owner') ? 'bg-primary/5 border border-primary' : 'text-text-muted hover:text-white'}`}
+          className={`px-4 py-3 rounded-lg font-medium flex items-center gap-3 transition-all ${isActive('/owner') && !location.pathname.includes('manage') ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
         >
+          <LayoutDashboard size={18} />
           Dashboard
         </Link>
         <Link
           to="/owner/manage/schools"
           onClick={onClose}
-          className={`px-4 py-3 rounded-lg font-medium ${isActive('/owner/manage/schools') ? 'bg-primary/5 border border-primary' : 'text-text-muted hover:text-white'}`}
+          className={`px-4 py-3 rounded-lg font-medium flex items-center gap-3 transition-all ${isActive('/owner/manage/schools') ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
         >
+          <School size={18} />
           Manage Schools
         </Link>
         <Link
           to="/owner/manage/users"
           onClick={onClose}
-          className={`px-4 py-3 rounded-lg font-medium ${isActive('/owner/manage/users') ? 'bg-primary/5 border border-primary' : 'text-text-muted hover:text-white'}`}
+          className={`px-4 py-3 rounded-lg font-medium flex items-center gap-3 transition-all ${isActive('/owner/manage/users') ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
         >
+          <Users size={18} />
           Manage Users
         </Link>
         <Link
           to="/owner/manage/owners"
           onClick={onClose}
-          className={`px-4 py-3 rounded-lg font-medium ${isActive('/owner/manage/owners') ? 'bg-primary/5 border border-primary' : 'text-text-muted hover:text-white'}`}
+          className={`px-4 py-3 rounded-lg font-medium flex items-center gap-3 transition-all ${isActive('/owner/manage/owners') ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
         >
+          <Shield size={18} />
           Manage Owners
+        </Link>
+        <Link
+          to="/owner/manage/feedbacks"
+          onClick={onClose}
+          className={`px-4 py-3 rounded-lg font-medium flex items-center gap-3 transition-all ${isActive('/owner/manage/feedbacks') ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
+        >
+          <MessageSquare size={18} />
+          User Feedback
         </Link>
       </nav>
     </aside>

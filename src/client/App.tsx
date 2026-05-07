@@ -12,6 +12,7 @@ import OwnerLayout from "./layouts/OwnerLayout";
 import ManageSchools from "./pages/owner/ManageSchools";
 import ManageUsers from "./pages/owner/ManageUsers";
 import ManageOwners from "./pages/owner/ManageOwners";
+import ManageFeedbacks from "./pages/owner/ManageFeedbacks";
 import CreateSchool from "./pages/CreateSchool";
 import Home from "./pages/Home";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -28,6 +29,7 @@ import { DailySession } from "./pages/sessions/DailySession";
 import { Reports } from "./pages/reports/Reports";
 import { Settings } from "./pages/settings/Settings";
 import { Profile } from "./pages/profile/Profile";
+import { Feedback } from "./pages/Feedback";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -55,6 +57,7 @@ function App() {
           <Route path="/instructors" element={<Instructors />} />
           <Route path="/sessions/daily/:studentId" element={<DailySession />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/feedback" element={<Feedback />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
@@ -64,6 +67,7 @@ function App() {
           <Route path="manage/schools" element={<ManageSchools />} />
           <Route path="manage/users" element={<ManageUsers />} />
           <Route path="manage/owners" element={<ManageOwners />} />
+          <Route path="manage/feedbacks" element={<ManageFeedbacks />} />
         </Route>
       </Route>
 
