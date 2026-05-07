@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Logo } from '../../components/Logo';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 const MetricCard: React.FC<{ title: string; value: number; color?: string }> = ({ title, value, color }) => (
   <div className="bg-surface-dark border border-border-green/30 rounded-xl p-6 shadow-sm">

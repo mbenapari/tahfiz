@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 import { Logo } from '../../components/Logo';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
 
 const Register: React.FC = () => {
@@ -194,42 +194,8 @@ const Register: React.FC = () => {
                     </div>
                   </div>
                 </label>
-
-                <label className="group cursor-pointer relative">
-                  <input 
-                    type="radio" 
-                    name="role_selection" 
-                    className="peer invisible absolute" 
-                    checked={formData.role === 'instructor'} 
-                    onChange={() => handleRoleChange('instructor')}
-                  />
-                  <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-border-green p-6 text-white bg-background-dark peer-checked:border-primary peer-checked:bg-primary/5 transition-all hover:border-primary/50 h-full">
-                    <Presentation className="text-text-muted peer-checked:text-primary group-hover:text-white transition-colors" size={32} />
-                    <span className="font-bold">Instructor</span>
-                    <div className="absolute top-3 right-3 opacity-0 peer-checked:opacity-100 transition-opacity text-primary">
-                      <CheckCircle2 size={20} fill="currentColor" className="text-primary" />
-                    </div>
-                  </div>
-                </label>
-
-                <label className="group cursor-pointer relative">
-                  <input 
-                    type="radio" 
-                    name="role_selection" 
-                    className="peer invisible absolute" 
-                    checked={formData.role === 'student'} 
-                    onChange={() => handleRoleChange('student')}
-                  />
-                  <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-border-green p-6 text-white bg-background-dark peer-checked:border-primary peer-checked:bg-primary/5 transition-all hover:border-primary/50 h-full">
-                    <GraduationCap className="text-text-muted peer-checked:text-primary group-hover:text-white transition-colors" size={32} />
-                    <span className="font-bold">Student</span>
-                    <div className="absolute top-3 right-3 opacity-0 peer-checked:opacity-100 transition-opacity text-primary">
-                      <CheckCircle2 size={20} fill="currentColor" className="text-primary" />
-                    </div>
-                  </div>
-                </label>
               </div>
-              <p className="text-sm text-text-muted">Selected role defines the access level within the institution dashboard.</p>
+              <p className="text-sm text-text-muted">Currently, only the Admin role can be created through this registration portal.</p>
             </div>
           </div>
 

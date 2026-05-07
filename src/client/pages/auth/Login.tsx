@@ -7,7 +7,7 @@ import {
   ArrowRight,
   School
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/Logo';
 import { useAuth } from '../../context/AuthContext';
 
