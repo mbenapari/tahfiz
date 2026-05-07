@@ -19,6 +19,7 @@ import Class from './Class';
 import ClassStudent from './ClassStudent';
 import BlacklistedToken from './BlacklistedToken';
 import SystemOwner from './SystemOwner';
+import Feedback from './Feedback';
 
 // Associations
 
@@ -94,12 +95,18 @@ RevisionRecord.belongsTo(User, { foreignKey: 'instructor_id', as: 'instructor' }
 Surah.hasMany(RevisionRecord, { foreignKey: 'surah_number', as: 'revision_records' });
 RevisionRecord.belongsTo(Surah, { foreignKey: 'surah_number', as: 'surah' });
 
-// JuzProgress Associations
 School.hasMany(JuzProgress, { foreignKey: 'tenant_id', as: 'juz_progress_records' });
 JuzProgress.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
 
 User.hasMany(JuzProgress, { foreignKey: 'student_id', as: 'juz_progress_records' });
 JuzProgress.belongsTo(User, { foreignKey: 'student_id', as: 'student' });
+
+// Feedback Associations
+User.hasMany(Feedback, { foreignKey: 'user_id', as: 'feedbacks' });
+Feedback.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+School.hasMany(Feedback, { foreignKey: 'tenant_id', as: 'feedbacks' });
+Feedback.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
 
 // SurahProgress Associations
 School.hasMany(SurahProgress, { foreignKey: 'tenant_id', as: 'surah_progress_records' });
@@ -201,6 +208,7 @@ export {
   ClassStudent,
   BlacklistedToken,
   SystemOwner,
+  Feedback,
   AttendanceStatus,
   RecordType
 };

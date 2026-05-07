@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as ownerMgmt from '../controller/ownerManagementController';
+import * as feedbackController from '../controller/feedbackController';
 import { authenticate } from '../middleware/authMiddleware';
 import ownerOnly from '../middleware/ownerAuthMiddleware';
 
@@ -25,5 +26,10 @@ router.get('/owners', ownerMgmt.listOwners);
 router.post('/owners', ownerMgmt.createOwner);
 router.put('/owners/:id', ownerMgmt.updateOwner);
 router.delete('/owners/:id', ownerMgmt.deleteOwner);
+
+// Feedbacks
+router.get('/feedbacks', feedbackController.getAllFeedbacks);
+router.put('/feedbacks/:id', feedbackController.updateFeedback);
+router.delete('/feedbacks/:id', feedbackController.deleteFeedback);
 
 export default router;

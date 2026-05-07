@@ -6,6 +6,7 @@ import {
   BookOpen, 
   BarChart3, 
   GraduationCap, 
+  MessageSquare,
   Settings,
   LogOut,
   Loader2,
@@ -44,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { icon: GraduationCap, label: 'Instructors', path: '/instructors' },
     // { icon: BookOpen, label: 'Classes', path: '/classes' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
+    { icon: MessageSquare, label: 'Feedback', path: '/feedback' },
   ];
 
   return (
