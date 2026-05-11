@@ -1,0 +1,12 @@
+export * as UserService from './userService';
+export * as SchoolService from './schoolService';
+export * as AttendanceService from './attendanceService';
+export * as EnrollmentService from './enrollmentService';
+export * as MemorizationService from './memorizationService';
+export * as JuzMapService from './juzMapService';
+export * as JuzProgressService from './juzProgressService';
+export * as SessionService from './sessionService';
+export * as RevisionService from './revisionService';
+export * as SurahService from './surahService';
+export * as SurahProgressService from './surahProgressService';
+export * as ClassService from './classService';

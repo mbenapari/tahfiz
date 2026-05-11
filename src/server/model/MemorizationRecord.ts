@@ -1,0 +1,162 @@
+import { DataTypes, Model, Optional } from 'sequelize';
+import sequelize from '../db';
+
+export enum RecordType {
+  MEMORIZED = 'memorized',
+  REVISED = 'revised',
+}
+
+interface MemorizationRecordAttributes {
+  id: number;
+  tenant_id: number;
+  session_id: number;
+  student_id: number;
+  instructor_id?: number;
+  record_type: RecordType;
+  surah_number: number;
+  start_ayah: number;
+  end_ayah: number;
+  is_full_surah?: boolean;
+  notes?: string;
+  created_at?: Date;
+  updated_at?: Date;
+  deleted_at?: Date;
+}
+
+interface MemorizationRecordCreationAttributes extends Optional<MemorizationRecordAttributes, 'id' | 'instructor_id' | 'is_full_surah' | 'notes' | 'created_at' | 'updated_at' | 'deleted_at'> {}
+
+class MemorizationRecord extends Model<MemorizationRecordAttributes, MemorizationRecordCreationAttributes> implements MemorizationRecordAttributes {
+  declare id: number;
+  declare tenant_id: number;
+  declare session_id: number;
+  declare student_id: number;
+  declare instructor_id: number;
+  declare record_type: RecordType;
+  declare surah_number: number;
+  declare start_ayah: number;
+  declare end_ayah: number;
+  declare is_full_surah: boolean;
+  declare notes: string;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
+  declare readonly deleted_at: Date;
+}
+
+MemorizationRecord.init(
+  {
+    id: {
+      type: DataTypes.BIGINT,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    tenant_id: {
+      type: DataTypes.BIGINT,
+      allowNull: false,
+      references: {
+        model: 'schools',
+        key: 'id',
+      },
+    },
+    session_id: {
+      type: DataTypes.BIGINT,
+      allowNull: false,
+      references: {
+        model: 'sessions',
+        key: 'id',
+      },
+    },
+    student_id: {
+      type: DataTypes.BIGINT,
+      allowNull: false,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    instructor_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    record_type: {
+      type: DataTypes.ENUM(...Object.values(RecordType)),
+      allowNull: false,
+    },
+    surah_number: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'surahs',
+        key: 'number',
+      },
+    },
+    start_ayah: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    end_ayah: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    is_full_surah: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    notes: {
+      type: DataTypes.STRING(1024),
+      allowNull: true,
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+    },
+    deleted_at: {
+      type: DataTypes.DATE,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'memorization_records',
+    modelName: 'MemorizationRecord',
+    paranoid: true,
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    deletedAt: 'deleted_at',
+    indexes: [
+      {
+        name: 'idx_mem_tenant_student',
+        fields: ['tenant_id', 'student_id'],
+      },
+      {
+        name: 'idx_mem_session_type',
+        fields: ['session_id', 'record_type'],
+      },
+      {
+        name: 'idx_mem_student_id',
+        fields: ['student_id'],
+      },
+      {
+        name: 'idx_mem_tenant_id',
+        fields: ['tenant_id'],
+      },
+      {
+        name: 'idx_mem_surah_number',
+        fields: ['surah_number'],
+      },
+      {
+        name: 'idx_mem_created_at',
+        fields: ['created_at'],
+      },
+    ],
+  }
+);
+
+export default MemorizationRecord;
