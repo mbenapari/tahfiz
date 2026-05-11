@@ -61,11 +61,14 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
-            mkdir -p /opt/tahfiz
+            # Ensure target directory exists and we have permissions
+            sudo mkdir -p /opt/tahfiz
+            sudo chown -R ${{ secrets.SERVER_USER }}:${{ secrets.SERVER_USER }} /opt/tahfiz
             cd /opt/tahfiz
             
-            # Clean old build
-            rm -rf *
+            # Remove only the files we are about to replace, excluding hidden ones like .env
+            # This is safer than rm -rf *
+            find . -maxdepth 1 ! -name '.env' ! -name '.' -exec rm -rf {} +
             
       - name: Copy files to server
         uses: appleboy/scp-action@v0.1.7
@@ -102,8 +105,9 @@ jobs:
             EOF
 
             # Build and restart containers
-            docker compose down --remove-orphans
-            docker compose up --build -d
+            # Use sudo if the user isn't in the docker group
+            sudo docker compose down --remove-orphans || true
+            sudo docker compose up --build -d
             
             # Cleanup old images
-            docker image prune -f
+            sudo docker image prune -f
