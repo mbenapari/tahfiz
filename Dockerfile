@@ -22,6 +22,7 @@ RUN npm ci --only=production
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/.sequelizerc ./.sequelizerc
 # Copy migrations, seeders, and config for DB operations
 COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/seeders ./seeders
