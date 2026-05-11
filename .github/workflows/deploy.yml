@@ -1,0 +1,80 @@
+name: Deploy to Production
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Build
+        run: npm run build
+
+      - name: Set up SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            mkdir -p /opt/tahfiz
+            cd /opt/tahfiz
+            
+            # Clean old build
+            rm -rf *
+            
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: ".,!node_modules"
+          target: "/opt/tahfiz"
+
+      - name: Deploy on Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            cd /opt/tahfiz
+            
+            # Create .env file from secrets
+            cat <<EOF > .env
+            NODE_ENV=production
+            DB_NAME=${{ secrets.DB_NAME }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            CSRF_SECRET=${{ secrets.CSRF_SECRET }}
+            DEFAULT_SYSTEM_OWNER_PHONE=${{ secrets.DEFAULT_SYSTEM_OWNER_PHONE }}
+            DEFAULT_SYSTEM_OWNER_PHONE_PASSWORD=${{ secrets.DEFAULT_SYSTEM_OWNER_PHONE_PASSWORD }}
+            EOF
+
+            # Build and restart containers
+            docker compose down --remove-orphans
+            docker compose up --build -d
+            
+            # Cleanup old images
+            docker image prune -f
