@@ -26,6 +26,8 @@ services:
           memory: 256M
     networks:
       - tahfiz-network
+    volumes:
+      - ./logs:/app/logs
 
 networks:
   tahfiz-network:
