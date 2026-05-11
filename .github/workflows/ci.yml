@@ -50,4 +50,5 @@ jobs:
           CSRF_SECRET: test-csrf-secret
         run: |
           npx sequelize-cli db:migrate --env test
+          npx sequelize-cli db:seed:all --env test
           npm test
