@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Logo } from '../../components/Logo';
 import { Link } from 'react-router';
+import { Users, Shield, School, Activity } from 'lucide-react';
 
-const MetricCard: React.FC<{ title: string; value: number; color?: string }> = ({ title, value, color }) => (
+const MetricCard: React.FC<{ title: string; value: number; icon: React.ElementType }> = ({ title, value, icon: Icon }) => (
   <div className="bg-surface-dark border border-border-green/30 rounded-xl p-6 shadow-sm">
     <div className="flex items-center justify-between">
       <div>
@@ -10,7 +10,7 @@ const MetricCard: React.FC<{ title: string; value: number; color?: string }> = (
         <div className="text-3xl font-bold text-white mt-2">{value}</div>
       </div>
       <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10">
-        <Logo className="w-6 h-6 text-primary" />
+        <Icon className="w-6 h-6 text-primary" />
       </div>
     </div>
   </div>
@@ -55,9 +55,9 @@ const OwnerDashboard: React.FC = () => {
         <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-4 rounded-lg">{error}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <MetricCard title="Total Users" value={metrics?.totalUsers ?? 0} />
-          <MetricCard title="System Owners" value={metrics?.totalSystemOwners ?? 0} />
-          <MetricCard title="Total Schools" value={metrics?.totalSchools ?? 0} />
+          <MetricCard title="Total Users" value={metrics?.totalUsers ?? 0} icon={Users} />
+          <MetricCard title="System Owners" value={metrics?.totalSystemOwners ?? 0} icon={Shield} />
+          <MetricCard title="Total Schools" value={metrics?.totalSchools ?? 0} icon={School} />
         </div>
       )}
 
