@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **feat: implement field-level encryption with blind indexing for PII**: Implemented AES-256-GCM encryption for sensitive user data (email, phone, student identifier) and HMAC-SHA256 blind indexing for secure, efficient lookups. (c6e29e3)
+- **feat: enhance security with distributed rate limiting and hardened secrets**: Upgraded rate limiting to support Redis for distributed environments and implemented strict fail-fast validation for environment variables (JWT_SECRET, DB credentials). Added immediate token revocation on logout. (ce7281c)
+- **feat: optimize database performance and resolve N+1 query issues**: Optimized student profile loading with concurrent queries, implemented batch progress calculation for lists, and refactored analytics to use SQL aggregations. Improved search performance by removing leading wildcards. (6dd4af0)
+
+### Changed
+- **refactor: decompose monolithic userController and standardize API responses**: Split userController into domain-specific controllers (Auth, Student, Instructor, Profile) and standardized API response formats. Hardened authentication flows with brute-force protection and timing attack mitigations. (d2aa9ea)
+
+### Docs
+- **docs: finalize security audit and resolution report**: Updated security_report.md with final status and implementation details for all identified vulnerabilities. (59ce490)
+
+### Added
 - **feat: implement user onboarding flow and tracking**: Add is_onboarded field to User model, create WelcomeOnboarding component, and enhance EnrollStudent for specialized onboarding mode.
 - **feat: implement user feedback system**: Create Feedback model, submission interface for users, and management dashboard for platform owners.
 
