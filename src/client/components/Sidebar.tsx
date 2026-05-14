@@ -57,8 +57,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       {/* Header */}
       <div className="p-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-surface-dark p-2 rounded-xl border border-border-green/30">
-            <Logo className="text-primary w-8 h-8" />
+          <div className="bg-white p-1.5 rounded-xl border border-border-green/30 shadow-sm">
+            <Logo className="w-8 h-8 object-contain" />
           </div>
           <div className="flex flex-col">
             <h1 className="text-white font-bold text-lg leading-tight">

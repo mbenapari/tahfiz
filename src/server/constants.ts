@@ -17,3 +17,13 @@ export const MAX_PAGE_SIZE = 100;
 export const PERMISSION_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export const BLACKLIST_CACHE_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
 export const RATE_LIMIT_CLEANUP_MS = 5 * 60 * 1000; // 5 minutes
+
+// Redis Configuration
+export const REDIS_URL = process.env.REDIS_URL;
+export const USE_REDIS = !!REDIS_URL;
+
+// Business Logic Constants
+export const VELOCITY_BUCKET_SIZE = 10;
+export const RECENT_ACTIVITY_LIMIT = 10;
+export const BRUTE_FORCE_MAX_ATTEMPTS = 5;
+export const BRUTE_FORCE_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes

@@ -1,58 +1,41 @@
-import { Request, Response, NextFunction } from 'express';
+import { rateLimit as expressRateLimit } from 'express-rate-limit';
+import RedisStore from 'rate-limit-redis';
+import Redis from 'ioredis';
+import { USE_REDIS, REDIS_URL } from '../constants';
+import logger from '../utils/logger';
 
-interface RateLimitEntry {
-  count: number;
-  resetTime: number;
+// Initialize Redis client if enabled
+const redisClient = USE_REDIS ? new Redis(REDIS_URL!) : null;
+
+if (redisClient) {
+  redisClient.on('error', (err) => logger.error('Redis Client Error', { error: err.message }));
+  redisClient.on('connect', () => logger.info('Redis Client Connected for Rate Limiting'));
 }
 
-const store = new Map<string, RateLimitEntry>();
-
-const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // sweep every 5 minutes
-let cleanupTimer: ReturnType<typeof setInterval> | null = null;
-
-const sweep = () => {
-  const now = Date.now();
-  for (const [key, entry] of store.entries()) {
-    if (now > entry.resetTime) store.delete(key);
-  }
-};
-
-const startCleanup = () => {
-  if (!cleanupTimer) {
-    cleanupTimer = setInterval(sweep, CLEANUP_INTERVAL_MS);
-    cleanupTimer.unref?.();
-  }
-};
-
-startCleanup();
-
 /**
- * Basic in-memory rate limiter middleware with bounded memory usage.
- * Expired entries are lazily evicted on access and fully swept every 5 minutes.
+ * Robust rate limiter middleware using express-rate-limit.
+ * Automatically switches to Redis store in production/multi-instance environments.
  * @param windowMs Time window in milliseconds
  * @param max Max requests per window
  */
 export const rateLimit = (windowMs: number, max: number) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const now = Date.now();
+  const store = redisClient 
+    ? new RedisStore({
+        // @ts-expect-error - ioredis types mismatch with rate-limit-redis but it works
+        sendCommand: (...args: string[]) => redisClient.call(...args),
+      })
+    : undefined;
 
-    const entry = store.get(ip);
-
-    if (!entry || now > entry.resetTime) {
-      store.set(ip, { count: 1, resetTime: now + windowMs });
-      return next();
-    }
-
-    entry.count++;
-    store.set(ip, entry);
-
-    if (entry.count > max) {
-      return res.status(429).json({
-        error: 'Too many requests, please try again later.',
-      });
-    }
-
-    next();
-  };
+  return expressRateLimit({
+    windowMs,
+    max,
+    store,
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    message: {
+      error: 'Too many requests, please try again later.'
+    },
+    // Use IP address as the key
+    keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
+  });
 };

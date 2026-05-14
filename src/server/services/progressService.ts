@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { MemorizationRecord, Surah, JuzMap, SurahProgress, JuzProgress } from '../model';
 import logger from '../utils/logger';
 import { TOTAL_QURAN_AYAHS } from '../constants';
@@ -108,6 +109,51 @@ export const calculateStudentProgress = async (
     };
   } catch (error) {
     logger.error('progressService.calculateStudentProgress: Error', { error: (error as Error).message });
+    throw error;
+  }
+};
+
+/**
+ * Calculate student progress for a batch of students to avoid N+1 queries.
+ */
+export const calculateBatchStudentProgress = async (
+  studentIds: number[],
+  tenantId: number
+): Promise<Record<number, ProgressResult>> => {
+  try {
+    if (studentIds.length === 0) return {};
+
+    const allRecords = await MemorizationRecord.findAll({
+      where: { 
+        student_id: { [Op.in]: studentIds }, 
+        tenant_id: tenantId 
+      },
+      include: [{ model: Surah, as: 'surah', attributes: ['name', 'number'] }],
+      order: [['created_at', 'DESC']]
+    });
+
+    const recordsByStudent: Record<number, any[]> = {};
+    studentIds.forEach(id => {
+      recordsByStudent[id] = [];
+    });
+
+    allRecords.forEach(r => {
+      const studentId = (r as any).student_id;
+      if (recordsByStudent[studentId]) {
+        recordsByStudent[studentId].push(r);
+      }
+    });
+
+    const results: Record<number, ProgressResult> = {};
+    // We can't use Promise.all here easily because calculateStudentProgress might be heavy,
+    // but we already have the records so it's just CPU work.
+    for (const id of studentIds) {
+      results[id] = await calculateStudentProgress(id, tenantId, recordsByStudent[id]);
+    }
+
+    return results;
+  } catch (error) {
+    logger.error('progressService.calculateBatchStudentProgress: Error', { error: (error as Error).message });
     throw error;
   }
 };

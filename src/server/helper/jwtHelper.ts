@@ -2,9 +2,11 @@ import jwt from 'jsonwebtoken';
 import { Response } from 'express';
 import { JWT_EXPIRES_IN, COOKIE_MAX_AGE } from '../constants';
 
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production'
-  ? (() => { throw new Error('JWT_SECRET environment variable is required in production'); })()
-  : 'dev-secret-only-not-for-production-use');
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
 
 export interface JwtPayload {
   userId: number;

@@ -1,5 +1,6 @@
 import logger from '../utils/logger';
 import { SystemOwner, Role } from '../model';
+import { generateBlindIndex } from '../utils/crypto';
 
 export interface CreateSystemOwnerDTO {
   name: string;
@@ -19,7 +20,8 @@ export const createSystemOwner = async (data: CreateSystemOwnerDTO, transaction?
   logger.debug('systemOwnerService.createSystemOwner: Entry', { email: data.email });
   try {
     // Prevent duplicates
-    const existing = await SystemOwner.findOne({ where: { email: data.email }, transaction });
+    const emailBlindIndex = generateBlindIndex(data.email);
+    const existing = await SystemOwner.findOne({ where: { email_blind_index: emailBlindIndex }, transaction });
     if (existing) {
       throw new Error('System owner with this email already exists');
     }
@@ -59,7 +61,8 @@ export const getSystemOwnerById = async (id: number) => {
 export const getSystemOwnerByEmail = async (email: string) => {
   logger.debug('systemOwnerService.getSystemOwnerByEmail: Entry', { email });
   try {
-    const owner = await SystemOwner.findOne({ where: { email } });
+    const emailBlindIndex = generateBlindIndex(email);
+    const owner = await SystemOwner.findOne({ where: { email_blind_index: emailBlindIndex } });
     return owner;
   } catch (error: any) {
     logger.error('systemOwnerService.getSystemOwnerByEmail: Error', { email, error: error.message });

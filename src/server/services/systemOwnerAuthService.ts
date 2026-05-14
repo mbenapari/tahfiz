@@ -1,6 +1,9 @@
 import logger from '../utils/logger';
 import { SystemOwner, BlacklistedToken } from '../model';
+import bcrypt from 'bcrypt';
 import * as jwtHelper from '../helper/jwtHelper';
+import { generateBlindIndex } from '../utils/crypto';
+import { bruteForceService } from '../utils/bruteForceService';
 import jwt from 'jsonwebtoken';
 import { Response } from 'express';
 
@@ -9,13 +12,29 @@ export const loginSystemOwner = async (email: string, password: string, res?: Re
   try {
     if (!email || !password) throw new Error('Email and password are required');
 
-    const owner = await SystemOwner.findOne({ where: { email } });
+    // Brute-force protection check
+    const lockout = bruteForceService.isLockedOut(email);
+    if (lockout.locked) {
+      const minutes = Math.ceil(lockout.remainingMs / 60000);
+      throw new Error(`Account is temporarily locked. Please try again in ${minutes} minutes.`);
+    }
+
+    const emailBlindIndex = generateBlindIndex(email);
+    const owner = await SystemOwner.findOne({ where: { email_blind_index: emailBlindIndex } });
     if (!owner) {
+      await bcrypt.hash(password, 12);
+      bruteForceService.recordFailedAttempt(email);
       throw new Error('Invalid credentials');
     }
 
     const valid = await owner.validatePassword(password);
-    if (!valid) throw new Error('Invalid credentials');
+    if (!valid) {
+      bruteForceService.recordFailedAttempt(email);
+      throw new Error('Invalid credentials');
+    }
+
+    // Reset brute-force attempts on successful login
+    bruteForceService.resetAttempts(email);
 
     // Sign token. Reuse jwt payload structure: userId, roleId, tenantId
     const token = jwtHelper.signToken({ userId: owner.id, roleId: 0, tenantId: 0 });

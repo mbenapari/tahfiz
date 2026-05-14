@@ -19,8 +19,8 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({ isOpen, onClose }) =
     `}>
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <div className="bg-primary/20 p-2 rounded-lg backdrop-blur-sm border border-primary/30">
-            <Logo className="text-primary w-6 h-6" />
+          <div className="bg-white p-1.5 rounded-lg border border-border-green/20 shadow-sm">
+            <Logo className="w-8 h-8 object-contain" />
           </div>
           <div className="text-white font-bold">Tahfiz Owner</div>
         </div>

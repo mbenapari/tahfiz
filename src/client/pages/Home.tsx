@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
+import { Logo } from '../components/Logo';
 
 const Home: React.FC = () => {
   const { user, loading } = useAuth();
@@ -28,7 +29,12 @@ const Home: React.FC = () => {
     <div className="min-h-screen bg-[#f8fffd] text-slate-900">
       <header className="sticky top-0 z-50 border-b border-[#e9f3ef] bg-[#f8fffd]/95 backdrop-blur">
         <div className="mx-auto flex h-20 w-full max-w-[1220px] items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="text-[17px] font-bold tracking-[-0.01em] text-[#0e5147]">Tahfiz</div>
+          <Link to="/" className="flex items-center gap-3">
+            <div className="bg-white p-1 rounded-lg border border-[#e9f3ef] shadow-sm">
+              <Logo className="w-10 h-10 object-contain" />
+            </div>
+            <div className="text-[17px] font-bold tracking-[-0.01em] text-[#0e5147]">Tahfiz</div>
+          </Link>
           <div className="flex items-center gap-3">
             <Link to="/login" className="rounded-md px-3 py-2 text-[14px] font-semibold text-[#24574f] transition-colors hover:text-[#0f766e]">
               Login
@@ -202,7 +208,12 @@ const Home: React.FC = () => {
       <footer className="border-t border-[#e7f0ed] bg-[#f7fffc]">
         <div className="mx-auto grid w-full max-w-[1220px] grid-cols-1 gap-10 px-4 py-12 sm:px-6 md:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr] lg:px-8">
           <div>
-            <div className="text-[18px] font-bold tracking-[-0.01em] text-[#0d4c44]">Tahfiz</div>
+            <div className="flex items-center gap-3">
+              <div className="bg-white p-1 rounded-lg border border-[#e9f3ef] shadow-sm">
+                <Logo className="w-8 h-8 object-contain" />
+              </div>
+              <div className="text-[18px] font-bold tracking-[-0.01em] text-[#0d4c44]">Tahfiz</div>
+            </div>
             <p className="mt-4 max-w-[420px] text-[14px] leading-[1.6] text-[#6d8781]">
               A digital platform for Quran schools and memorization institutions, designed for teachers, students, and administrators.
             </p>

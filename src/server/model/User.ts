@@ -1,6 +1,7 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
 import bcrypt from 'bcrypt';
+import { encrypt, decrypt, generateBlindIndex } from '../utils/crypto';
 
 export enum UserRole {
   STUDENT = 'student',
@@ -15,6 +16,7 @@ interface UserAttributes {
   first_name: string;
   last_name?: string;
   email?: string;
+  email_blind_index?: string;
   password?: string;
   phone?: string;
   role: UserRole;
@@ -37,6 +39,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare first_name: string;
   declare last_name: string;
   declare email: string;
+  declare email_blind_index: string;
   declare password: string;
   declare phone: string;
   declare role: UserRole;
@@ -93,12 +96,16 @@ User.init(
       allowNull: true,
       unique: true,
     },
+    email_blind_index: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+    },
     password: {
       type: DataTypes.STRING(255),
       allowNull: true,
     },
     phone: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.STRING(255),
       allowNull: true,
     },
     is_onboarded: {
@@ -110,7 +117,7 @@ User.init(
       allowNull: false,
     },
     student_identifier: {
-      type: DataTypes.STRING(100),
+      type: DataTypes.STRING(255),
       allowNull: true,
     },
     grade_level: {
@@ -158,13 +165,44 @@ User.init(
           const salt = await bcrypt.genSalt(12);
           user.password = await bcrypt.hash(user.password, salt);
         }
+        // Encrypt PII fields
+        if (user.email) {
+          user.email_blind_index = generateBlindIndex(user.email);
+          user.email = encrypt(user.email);
+        }
+        if (user.phone) user.phone = encrypt(user.phone);
+        if (user.student_identifier) user.student_identifier = encrypt(user.student_identifier);
       },
       beforeUpdate: async (user: User) => {
         if (user.changed('password') && user.password) {
           const salt = await bcrypt.genSalt(12);
           user.password = await bcrypt.hash(user.password, salt);
         }
+        // Encrypt PII fields if changed
+        if (user.changed('email') && user.email) {
+          user.email_blind_index = generateBlindIndex(user.email);
+          user.email = encrypt(user.email);
+        }
+        if (user.changed('phone') && user.phone) {
+          user.phone = encrypt(user.phone);
+        }
+        if (user.changed('student_identifier') && user.student_identifier) {
+          user.student_identifier = encrypt(user.student_identifier);
+        }
       },
+      afterFind: (results: any) => {
+        const decryptUser = (u: any) => {
+          if (u.email) u.email = decrypt(u.email);
+          if (u.phone) u.phone = decrypt(u.phone);
+          if (u.student_identifier) u.student_identifier = decrypt(u.student_identifier);
+        };
+
+        if (Array.isArray(results)) {
+          results.forEach(u => u && decryptUser(u));
+        } else if (results) {
+          decryptUser(results);
+        }
+      }
     },
   }
 );

@@ -72,9 +72,9 @@ const OwnerLogin: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-surface-dark via-surface-dark to-primary/20 z-0"></div>
 
         <div className="relative z-10">
-          <div className="flex items-center gap-3 text-white">
-            <div className="bg-primary/20 p-2 rounded-lg backdrop-blur-sm border border-primary/30">
-              <Logo className="text-primary w-6 h-6" />
+          <div className="flex flex-col items-center gap-4">
+            <div className="bg-white p-3 rounded-2xl shadow-xl border border-border-green/20">
+              <Logo className="w-16 h-16 object-contain" />
             </div>
             <span className="text-xl font-bold tracking-wide">Tahfiz App</span>
           </div>

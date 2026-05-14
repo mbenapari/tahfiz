@@ -1,23 +1,13 @@
 import { Router } from 'express';
-import * as userController from '../controller/userController';
-import { authenticate } from '../middleware/authMiddleware';
+import * as authController from '../controller/authController';
+import { rateLimit } from '../middleware/rateLimitMiddleware';
 
 const router = Router();
 
-/**
- * @swagger
- * /api/auth/logout:
- *   post:
- *     summary: Log out the current user and invalidate the session
- *     tags: [Auth]
- *     security:
- *       - cookieAuth: []
- *     responses:
- *       200:
- *         description: Logged out successfully
- *       401:
- *         description: Unauthorized
- */
-router.post('/logout', authenticate, userController.logout);
+const authLimiter = rateLimit(60 * 1000, 10); // 10 requests per minute
+
+router.post('/register', authLimiter, authController.register);
+router.post('/login', authLimiter, authController.login);
+router.post('/logout', authController.logout);
 
 export default router;
