@@ -152,51 +152,46 @@ export const analyticsService = {
   getAttendanceBreakdown: async (tenantId: number, startDate: string, endDate: string): Promise<{ classes: AttendanceBreakdown[], grades: AttendanceBreakdown[], schoolWide: AttendanceBreakdown }> => {
     try {
       const getBreakdown = async (groupByField: 'class_name' | 'grade_level' | 'all') => {
-        const queryOptions: any = {
+        const groupColumn = groupByField === 'all' ? literal("'all'") : col(`student.${groupByField}`);
+        
+        const results = await Session.findAll({
           where: {
             tenant_id: tenantId,
             session_date: { [Op.between]: [startDate, endDate] }
           },
+          attributes: [
+            [groupColumn, 'label'],
+            [fn('COUNT', col('Session.id')), 'total_sessions'],
+            [fn('SUM', literal("CASE WHEN attendance.status = 'present' THEN 1 ELSE 0 END")), 'present_count']
+          ],
           include: [
             {
               model: Attendance,
               as: 'attendance',
+              attributes: [],
               required: true
             },
             {
               model: User,
               as: 'student',
-              required: true,
-              attributes: ['class_name', 'grade_level']
+              attributes: [],
+              required: true
             }
-          ]
-        };
+          ],
+          group: groupByField === 'all' ? [] : [col(`student.${groupByField}`)],
+          raw: true
+        }) as any[];
 
-        const sessions = await Session.findAll(queryOptions) as (Session & { attendance: Attendance, student: User })[];
-
-        const groups: { [key: string]: { total: number, present: number } } = {};
-
-        sessions.forEach(session => {
-          let key = 'all';
-          if (groupByField !== 'all') {
-            key = (session.student as any)[groupByField] || 'Unassigned';
-          }
-
-          if (!groups[key]) {
-            groups[key] = { total: 0, present: 0 };
-          }
-          groups[key].total++;
-          if (session.attendance?.status === AttendanceStatus.PRESENT) {
-            groups[key].present++;
-          }
+        return results.map(row => {
+          const total = parseInt(row.total_sessions || '0');
+          const present = parseInt(row.present_count || '0');
+          return {
+            label: row.label || 'Unassigned',
+            percentage: total > 0 ? (present / total) * 100 : 0,
+            total_sessions: total,
+            present_count: present
+          };
         });
-
-        return Object.entries(groups).map(([label, data]) => ({
-          label,
-          percentage: data.total > 0 ? (data.present / data.total) * 100 : 0,
-          total_sessions: data.total,
-          present_count: data.present
-        }));
       };
 
       const classes = await getBreakdown('class_name');

@@ -90,6 +90,6 @@ export const buildSearchWhereClause = (query: string, fields: string[] = [], max
   if (!sanitizedQuery) return {};
 
   return {
-    [Op.or]: fields.map(field => ({ [field]: { [Op.like]: `%${sanitizedQuery}%` } }))
+    [Op.or]: fields.map(field => ({ [field]: { [Op.like]: `${sanitizedQuery}%` } }))
   };
 };

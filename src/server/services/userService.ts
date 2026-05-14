@@ -4,8 +4,9 @@ import { UserRole } from '../model/User';
 import * as progressService from './progressService';
 import * as statsService from './statsService';
 import * as queryHelper from '../helper/queryHelper';
+import { generateBlindIndex } from '../utils/crypto';
 import logger from '../utils/logger';
-import { DEFAULT_PAGE_SIZE, TOTAL_QURAN_AYAHS } from '../constants';
+import { DEFAULT_PAGE_SIZE, TOTAL_QURAN_AYAHS, VELOCITY_BUCKET_SIZE, RECENT_ACTIVITY_LIMIT } from '../constants';
 
 export interface CreateUserDTO {
   tenant_id?: number;
@@ -156,7 +157,8 @@ export const getUserInTenant = async (id: number, tenant_id: number) => {
 export const getUserByEmail = async (email: string, tenant_id?: number) => {
   logger.debug(`userService.getUserByEmail: Entry`, { email, tenant_id });
   try {
-    const where: any = { email };
+    const emailBlindIndex = generateBlindIndex(email);
+    const where: any = { email_blind_index: emailBlindIndex };
     if (tenant_id) {
       where.tenant_id = tenant_id;
     }
@@ -235,7 +237,7 @@ export const getInstructorsByTenant = async (tenantId: number) => {
   }
 };
 
-const mapStudentWithProgress = async (user: any, tenantId: number) => {
+const mapStudentWithProgress = async (user: any, tenantId: number, preCalculatedProgress?: progressService.ProgressResult) => {
   const userJSON = user.toJSON() as any;
   
   // Calculate last session
@@ -247,9 +249,8 @@ const mapStudentWithProgress = async (user: any, tenantId: number) => {
     };
   }
 
-  // Calculate progress and current level based on Memorization Records
-  const records = userJSON.student_memorization_records || [];
-  const calculatedProgress = await progressService.calculateStudentProgress(user.id, tenantId, records);
+  // Calculate progress and current level
+  const calculatedProgress = preCalculatedProgress || await progressService.calculateStudentProgress(user.id, tenantId);
 
   return {
     ...userJSON,
@@ -284,23 +285,17 @@ export const getStudentsWithProgress = async (tenantId: number, page: number = 1
           limit: 1,
           order: [['session_date', 'DESC']],
           attributes: ['session_date', 'notes']
-        },
-        {
-          model: MemorizationRecord,
-          as: 'student_memorization_records',
-          include: [
-            {
-              model: Surah,
-              as: 'surah',
-              attributes: ['name', 'number']
-            }
-          ],
-          order: [['created_at', 'DESC']]
         }
       ]
     });
 
-    const studentData = await Promise.all(users.map(user => mapStudentWithProgress(user, tenantId)));
+    // Batch calculate progress for all students in this page
+    const studentIds = users.map(u => u.id);
+    const batchProgress = await progressService.calculateBatchStudentProgress(studentIds, tenantId);
+
+    const studentData = await Promise.all(users.map(user => 
+      mapStudentWithProgress(user, tenantId, batchProgress[user.id])
+    ));
 
     return {
       students: studentData,
@@ -345,23 +340,17 @@ export const searchStudentsWithProgress = async (query: string, tenantId: number
           limit: 1,
           order: [['session_date', 'DESC']],
           attributes: ['session_date', 'notes']
-        },
-        {
-          model: MemorizationRecord,
-          as: 'student_memorization_records',
-          include: [
-            {
-              model: Surah,
-              as: 'surah',
-              attributes: ['name', 'number']
-            }
-          ],
-          order: [['created_at', 'DESC']]
         }
       ]
     });
 
-    const studentData = await Promise.all(users.map(user => mapStudentWithProgress(user, tenantId)));
+    // Batch calculate progress for all students in this page
+    const studentIds = users.map(u => u.id);
+    const batchProgress = await progressService.calculateBatchStudentProgress(studentIds, tenantId);
+
+    const studentData = await Promise.all(users.map(user => 
+      mapStudentWithProgress(user, tenantId, batchProgress[user.id])
+    ));
 
     return {
       students: studentData,
@@ -438,8 +427,20 @@ export const getStudentProfile = async (id: number, tenantId: number) => {
 
     const userJSON = user.toJSON() as any;
     
-    // 2. Calculate Progress Metrics using consolidated statsService
-    const studentStats = await statsService.getStudentIndividualStats(id, tenantId);
+    // 2. Calculate Progress Metrics and Mastery Data concurrently
+    const [studentStats, allSurahs, memorizationRecordsAll, revisionRecordsAll] = await Promise.all([
+      statsService.getStudentIndividualStats(id, tenantId),
+      Surah.findAll({ order: [['number', 'ASC']] }),
+      MemorizationRecord.findAll({
+        where: { student_id: id, tenant_id: tenantId },
+        attributes: ['surah_number', 'start_ayah', 'end_ayah', 'created_at']
+      }),
+      RevisionRecord.findAll({
+        where: { student_id: id, tenant_id: tenantId },
+        attributes: ['surah_number', 'start_ayah', 'end_ayah']
+      })
+    ]);
+
     const totalAyahsMemorized = studentStats.totalAyahsMemorized;
     const completionPercentage = studentStats.completionPercentage;
     const attendanceRate = studentStats.attendanceRate;
@@ -485,18 +486,7 @@ export const getStudentProfile = async (id: number, tenantId: number) => {
       });
 
       return activities;
-    }).flat().slice(0, 10);
-
-    // 4. Mastery Data (Detailed Objects for all 114 Surahs)
-    const allSurahs = await Surah.findAll({ order: [['number', 'ASC']] });
-    const memorizationRecordsAll = await MemorizationRecord.findAll({
-      where: { student_id: id, tenant_id: tenantId },
-      attributes: ['surah_number', 'start_ayah', 'end_ayah', 'created_at']
-    });
-    const revisionRecordsAll = await RevisionRecord.findAll({
-      where: { student_id: id, tenant_id: tenantId },
-      attributes: ['surah_number', 'start_ayah', 'end_ayah']
-    });
+    }).flat().slice(0, RECENT_ACTIVITY_LIMIT);
 
     const mBySurah = new Map<number, typeof memorizationRecordsAll>();
     for (const r of memorizationRecordsAll) {
@@ -575,7 +565,7 @@ export const getStudentProfile = async (id: number, tenantId: number) => {
     });
 
     const velocityData = velocityBuckets.map((totalAyahs, i) => {
-      const pages = Math.round((totalAyahs / 10) * 10) / 10;
+      const pages = Math.round((totalAyahs / VELOCITY_BUCKET_SIZE) * 10) / 10;
       return {
         week: `W${8-i}`,
         pages: pages || 0
