@@ -3,6 +3,7 @@ import { Role, School } from '../model';
 import * as userService from '../services/userService';
 import * as permissionService from '../services/permissionService';
 import { UserRole } from '../model/User';
+import { decrypt } from '../utils/crypto';
 
 describe('User Controller Test Suite', () => {
   const testEmail = `instructor_test_${Date.now()}@example.com`;
@@ -64,7 +65,7 @@ describe('User Controller Test Suite', () => {
     expect(newInstructor.id).toBeDefined();
     expect(newInstructor.role).toBe(UserRole.INSTRUCTOR);
     expect(newInstructor.tenant_id).toBe(testSchool.id);
-    expect(newInstructor.email).toBe(testEmail);
+    expect(decrypt(newInstructor.email)).toBe(testEmail);
 
     const hasPermission = await permissionService.hasPermission(adminUser.id, 'users:manage');
     expect(hasPermission).toBe(true);
@@ -77,7 +78,7 @@ describe('User Controller Test Suite', () => {
       password: 'Password123!',
       role: UserRole.INSTRUCTOR,
       phone: '1111111111'
-    })).rejects.toThrow(/(Validation error|duplicate|unique)/i);
+    })).rejects.toThrow(/(Validation error|duplicate|unique|already registered)/i);
 
     instructor2 = await userService.createUser({
       tenant_id: testSchool.id,
@@ -98,11 +99,12 @@ describe('User Controller Test Suite', () => {
       email: `updated_${Date.now()}@example.com`,
       phone: '9999999999'
     });
-    expect(updatedInstructor.first_name).toBe('Updated');
-    expect(updatedInstructor.phone).toBe('9999999999');
 
-    const allInstructors = await userService.getInstructorsByTenant(testSchool.id);
-    expect(allInstructors.length).toBeGreaterThanOrEqual(1);
-    expect(allInstructors.some((instructor: any) => instructor.id === instructor2.id)).toBe(true);
+    expect(updatedInstructor.first_name).toBe('Updated');
+    expect(decrypt(updatedInstructor.phone)).toBe('9999999999');
+
+    const instructors = await userService.getInstructorsByTenant(testSchool.id);
+    expect(instructors.length).toBeGreaterThanOrEqual(1);
+    expect(instructors.some((instructor: any) => instructor.id === instructor2.id)).toBe(true);
   });
 });

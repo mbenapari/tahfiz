@@ -55,6 +55,16 @@ export const createUser = async (data: CreateUserDTO, transaction?: any) => {
         throw new Error(`${errorMsg} Please contact administrator.`);
       }
     }
+
+    // Check for existing user with same email (blind index)
+    if (data.email) {
+      const emailBlindIndex = generateBlindIndex(data.email);
+      const existingUser = await User.findOne({ where: { email_blind_index: emailBlindIndex }, transaction });
+      if (existingUser) {
+        throw new Error('Email already registered');
+      }
+    }
+
     const user = await User.create(data, { transaction });
     
     logger.info('userService.createUser: Success', { 
