@@ -34,6 +34,13 @@ const syncBlacklist = async () => {
 syncBlacklist();
 setInterval(syncBlacklist, CACHE_REFRESH_INTERVAL).unref();
 
+/**
+ * Manually add a token to the blacklist cache (e.g., during logout).
+ */
+export const addToBlacklistCache = (token: string) => {
+  blacklistCache.add(token);
+};
+
 // Extend Request type to include user
 declare global {
   namespace Express {
