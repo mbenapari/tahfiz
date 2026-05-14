@@ -19,6 +19,7 @@ scale.
 ### CRITICAL                                                                    
                                                                                 
 #### 1.1 N+1 Query Problem in Student Profile                                   
+Status: COMPLETED (Used Promise.all for concurrent execution)                   
                                                                                 
 Location: src/server/services/userService.ts:180-250                            
 Problem: getStudentProfile makes 4+ sequential database calls when they could be
@@ -39,6 +40,7 @@ concurrent execution.
 ────────────────────────────────────────────────────────────────────────────────
                                                                                 
 #### 1.2 Full Table Scans on Search                                             
+Status: COMPLETED (Removed leading wildcard for index performance)              
                                                                                 
 Location: src/server/helper/queryHelper.ts:47                                   
 Problem: Using LIKE '%query%' prevents index usage:                             
@@ -58,6 +60,7 @@ trigram indexes. For immediate fix, remove leading wildcard: %query → query%.
 ### HIGH                                                                        
                                                                                 
 #### 1.3 Missing Pagination on List Endpoints                                   
+Status: COMPLETED (Removed heavy nested includes and implemented batch calculation)
                                                                                 
 Location: src/server/services/userService.ts:160-185                            
 Problem: getStudentsWithProgress paginates the outer query but fetches ALL      
@@ -78,6 +81,7 @@ student.
 ────────────────────────────────────────────────────────────────────────────────
                                                                                 
 #### 1.4 Inefficient Analytics Aggregation                                      
+Status: COMPLETED (Implemented SQL GROUP BY with aggregate functions)           
                                                                                 
 Location: src/server/services/analyticsService.ts:90-130                        
 Problem: getAttendanceBreakdown fetches ALL sessions then iterates in memory:   
@@ -103,6 +107,7 @@ ELSE 0 END) as present
 ### MEDIUM                                                                      
                                                                                 
 #### 1.5 Cache Sync Gap                                                         
+Status: COMPLETED (Implemented immediate cache invalidation on logout)          
                                                                                 
 Location: src/server/middleware/authMiddleware.ts:18-30                         
 Problem: Token blacklist syncs every 5 minutes - revoked tokens work during this
@@ -118,6 +123,7 @@ Redis for distributed caching.
 ────────────────────────────────────────────────────────────────────────────────
                                                                                 
 #### 1.6 Repeated Database Calls in Lops                                        
+Status: COMPLETED (Implemented calculateBatchStudentProgress to avoid N+1)      
                                                                                 
 Location: src/server/services/userService.ts:220-280                            
 Problem: mapStudentWithProgress is called in Promise.all but calls              
@@ -137,6 +143,9 @@ Recommendation: Batch calculate progress for all users in single query.
 ### CRITICAL                                                                    
                                                                                 
 #### 2.1 PII Fields Stored Without Encryption                                   
+Status: COMPLETED (Implemented AES-256-GCM field-level encryption with Blind Indexing)
+Note: Implemented HMAC-SHA256 blind indexing for efficient and secure email lookups.
+Migration: Existing plain text data has been migrated to encrypted format, and blind indexes have been populated using `src/server/scripts/migratePii.ts`. Column lengths were increased to accommodate encrypted hex strings.
                                                                                 
 Location: src/server/model/User.ts:54-98                                        
 Problem: Sensitive PII stored in plain text:                                    
@@ -169,6 +178,7 @@ Recommendation: Implement field-level encryption using:
 ────────────────────────────────────────────────────────────────────────────────
                                                                                 
 #### 2.2 Dev Secrets Fallback in Production                                     
+Status: COMPLETED (Implemented fail-fast for all required environment variables)
                                                                                 
 Location: src/server/helper/jwtHelper.ts:7-11                                   
 Problem: Falls back to insecure dev secrets if env vars missing:                
@@ -194,6 +204,7 @@ Recommendation: Fail fast in all environments - no secret fallbacks:
 ### HIGH                                                                        
                                                                                 
 #### 2.3 No Rate Limiting on Authentication Endpoints                           
+Status: COMPLETED (Implemented express-rate-limit on all auth endpoints)         
                                                                                 
 Location: src/server/routes/authRoutes.ts                                       
 Problem: /api/auth/register and /api/auth/login have NO rate limiting:          
@@ -234,7 +245,7 @@ Recommendation: Use Redis-backed rate limiter for production:
 ### MEDIUM                                                                      
                                                                                 
 #### 2.5 Missing Authorization Checks on Some Endpoints                         
-                                                                                
+Status: COMPLETED (Added checkPermission middleware to sensitive routes)                                                                               
 Location: src/server/routes/userRoutes.ts                                       
 Problem: deleteStudent and updateStudent rely only on authenticate middleware,  
 not role-based checks:                                                          
@@ -516,3 +527,74 @@ Recommended First Steps
     - Controller refactoring                                                    
     - Implement Redis-backed rate limiting                                      
     - Add database indexes for search fields 
+
+    ✅ FIXED                                                                        
+                                                                                
+### 2.4: In-Memory Rate Limiter Doesn't Scale                                   
+                                                                                
+Location: src/server/middleware/rateLimitMiddleware.ts                          
+                                                                                
+Status: FIXED (Implemented Redis store support for distributed rate limiting)   
+                                                                                
+────────────────────────────────────────────────────────────────────────────────
+                                                                                
+✅ FIXED                                                                        
+                                                                                
+### 2.6: Timing Attack on Login                                                 
+                                                                                
+Location: src/server/controller/userController.ts                               
+                                                                                
+Status: FIXED (Implemented dummy bcrypt operation to normalize timing)          
+                                                                                
+────────────────────────────────────────────────────────────────────────────────
+                                                                                
+✅ FIXED                                                                        
+                                                                                
+### 2.7: No Brute-Force Protection                                              
+                                                                                
+Location: src/server/controller/userController.ts (login endpoint)              
+                                                                                
+Status: FIXED (Implemented bruteForceService with lockout after 5 attempts)     
+                                                                                
+✅ FIXED                                                                        
+                                                                                
+### 3.1: God Controller                                                         
+                                                                                
+Location: src/server/controller/userController.ts (split into multiple files)   
+                                                                                
+Status: FIXED (Split into authController, studentController, instructorController, and profileController)
+                                                                                
+────────────────────────────────────────────────────────────────────────────────
+                                                                                
+✅ FIXED                                                                        
+                                                                                
+### 3.4: Magic Numbers                                                          
+                                                                                
+Location: src/server/services/userService.ts (various places)                   
+                                                                                
+Status: FIXED (Extracted magic numbers to src/server/constants.ts)              
+                                                                                
+────────────────────────────────────────────────────────────────────────────────
+                                                                                
+✅ FIXED                                                                        
+                                                                                
+### 3.5: Inconsistent Error Responses                                           
+                                                                                
+Location: Multiple controllers/routes                                           
+                                                                                
+Status: FIXED (Created src/server/utils/apiResponse.ts standardized DTO)        
+                                                                                
+────────────────────────────────────────────────────────────────────────────────
+                                                                                
+Priority Summary                                                                
+                                                                                
+┌──────────┬───────────────────────────────────────────────────────┐            
+│ Priority │ Items                                                 │            
+├──────────┼───────────────────────────────────────────────────────┤            
+│ High     │ 2.6 (Timing Attack), 2.7 (Brute-Force)                │            
+├──────────┼───────────────────────────────────────────────────────┤            
+│ Medium   │ 2.4 (Redis Rate Limiter), 3.5 (Error Standardization) │            
+├──────────┼───────────────────────────────────────────────────────┤            
+│ Low      │ 3.1 (God Controller), 3.4 (Magic Numbers)             │            
+│          │ (ALL COMPLETED)                                       │            
+└──────────┴───────────────────────────────────────────────────────┘   
