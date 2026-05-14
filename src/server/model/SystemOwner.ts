@@ -1,11 +1,13 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
 import bcrypt from 'bcrypt';
+import { encrypt, decrypt, generateBlindIndex } from '../utils/crypto';
 
 interface SystemOwnerAttributes {
   id: number;
   name: string;
   email: string;
+  email_blind_index?: string;
   phone?: string | null;
   password?: string;
   role: 'sys_admin' | 'super';
@@ -19,6 +21,7 @@ class SystemOwner extends Model<SystemOwnerAttributes, SystemOwnerCreationAttrib
   declare id: number;
   declare name: string;
   declare email: string;
+  declare email_blind_index: string;
   declare phone: string | null;
   declare password: string;
   declare role: 'sys_admin' | 'super';
@@ -47,12 +50,16 @@ SystemOwner.init(
       allowNull: false,
       unique: true,
     },
+    email_blind_index: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+    },
     password: {
       type: DataTypes.STRING(255),
       allowNull: true,
     },
     phone: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.STRING(255),
       allowNull: true,
     },
     role: {
@@ -81,11 +88,37 @@ SystemOwner.init(
           const salt = await bcrypt.genSalt(12);
           owner.password = await bcrypt.hash(owner.password, salt);
         }
+        // Encrypt PII
+        if (owner.email) {
+          owner.email_blind_index = generateBlindIndex(owner.email);
+          owner.email = encrypt(owner.email);
+        }
+        if (owner.phone) owner.phone = encrypt(owner.phone);
       },
       beforeUpdate: async (owner: SystemOwner) => {
         if ((owner as any).changed && (owner as any).changed('password') && owner.password) {
           const salt = await bcrypt.genSalt(12);
           owner.password = await bcrypt.hash(owner.password, salt);
+        }
+        // Encrypt PII if changed
+        if ((owner as any).changed && (owner as any).changed('email') && owner.email) {
+          owner.email_blind_index = generateBlindIndex(owner.email);
+          owner.email = encrypt(owner.email);
+        }
+        if ((owner as any).changed && (owner as any).changed('phone') && owner.phone) {
+          owner.phone = encrypt(owner.phone);
+        }
+      },
+      afterFind: (results: any) => {
+        const decryptOwner = (o: any) => {
+          if (o.email) o.email = decrypt(o.email);
+          if (o.phone) o.phone = decrypt(o.phone);
+        };
+
+        if (Array.isArray(results)) {
+          results.forEach(o => o && decryptOwner(o));
+        } else if (results) {
+          decryptOwner(results);
         }
       }
     }
