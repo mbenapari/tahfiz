@@ -13,4 +13,4 @@ npx sequelize-cli db:seed:all --env production
 
 # Start the application
 echo "Starting application..."
-npm run start:docker
+exec npm run start:docker
