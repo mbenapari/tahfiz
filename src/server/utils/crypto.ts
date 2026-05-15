@@ -11,8 +11,13 @@ const KEY = process.env.ENCRYPTION_KEY;
 
 // Fail fast in production if key is missing
 if (!KEY && process.env.NODE_ENV === 'production') {
-  const errorMsg = 'CRITICAL: ENCRYPTION_KEY is required in production environment.';
-  logger.error(errorMsg);
+  const envStatus = KEY === undefined ? 'undefined' : 'empty';
+  const errorMsg = `CRITICAL: ENCRYPTION_KEY is ${envStatus} in production environment. Ensure it is set in your environment variables or .env file.`;
+  logger.error(errorMsg, { 
+    nodeEnv: process.env.NODE_ENV,
+    hasKey: !!KEY,
+    keyType: typeof KEY
+  });
   throw new Error(errorMsg);
 }
 
