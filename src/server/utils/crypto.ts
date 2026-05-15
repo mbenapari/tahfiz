@@ -1,5 +1,8 @@
 import crypto from 'crypto';
+import dotenv from 'dotenv';
 import logger from './logger';
+
+dotenv.config();
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
