@@ -35,7 +35,6 @@ export const rateLimit = (windowMs: number, max: number) => {
     message: {
       error: 'Too many requests, please try again later.'
     },
-    // Use IP address as the key
-    keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
+    // Use default key generator (IP-based) which handles IPv6 normalization correctly
   });
 };
