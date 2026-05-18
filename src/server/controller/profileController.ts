@@ -17,7 +17,7 @@ export const getCurrentUser = async (req: Request, res: Response) => {
 
   try {
     const user = await userService.getUserById(userId);
-    const permissions = await permissionService.getEffectivePermissions(userId);
+    const permissions = await permissionService.getEffectivePermissions(userId, correlationId);
 
     logger.debug('profileController.getCurrentUser: Success', { correlationId, userId });
     return res.json(apiResponse.success({
