@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **fix: validate ENCRYPTION_KEY length and provide descriptive errors**: Added key length validation for AES-256-GCM to prevent "Invalid key length" errors during encryption operations. The system now falls back to a development key in non-production environments while failing fast in production if the key is missing or invalid. (d075a90)
+- **fix: improve CSRF token handling with credentials inclusion and stable session identifiers**: Enhanced CSRF protection by ensuring credentials (cookies) are always included in fetch requests and using a stable session identifier ("authenticated"/"anonymous") instead of the full JWT token. This prevents token rejection during auth state transitions. (6ca11fd)
+- **fix: correct API response parsing in auth context to prevent logout after onboarding**: Fixed `checkAuth` function to correctly parse the standardized `apiResponse` format (`result.data.user`) instead of reading from the root level, preventing users from being unexpectedly logged out after completing onboarding. (0c82991)
+
+### Added
+- **feat: add student and instructor CRUD permissions to RBAC seeder**: Added `student:write`, `student:delete`, `instructor:write`, and `instructor:delete` permissions to the database seeder and assigned them to admin and super_admin roles. (3caa527)
+- **feat: add comprehensive logging to permission service with embedded data**: Enhanced `permissionService.ts` with detailed structured logging at every decision point (cache hits/misses, role checks, override applications) using embedded data format for better traceability. Includes `logId` parameter for end-to-end request correlation. (cdd93e6)
+
+### Refactored
+- **refactor: adopt apiFetch utility across all frontend pages for consistent CSRF handling**: Replaced native `fetch` calls with the `apiFetch` utility across all frontend pages (Login, Register, OwnerLogin, CreateSchool, ManageSchools, ManageUsers, ManageOwners, OwnerDashboard, EnrollStudent, StudentProfile, Students) to ensure consistent CSRF token handling and proper credential inclusion. (8306fb3)
+
 ### Added
 - **feat: implement field-level encryption with blind indexing for PII**: Implemented AES-256-GCM encryption for sensitive user data (email, phone, student identifier) and HMAC-SHA256 blind indexing for secure, efficient lookups. (c6e29e3)
 - **feat: enhance security with distributed rate limiting and hardened secrets**: Upgraded rate limiting to support Redis for distributed environments and implemented strict fail-fast validation for environment variables (JWT_SECRET, DB credentials). Added immediate token revocation on logout. (ce7281c)
