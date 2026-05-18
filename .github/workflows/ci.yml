@@ -47,6 +47,7 @@ jobs:
           DB_PASSWORD: postgres
           DB_NAME: tahfiz_test
           JWT_SECRET: test-secret
+          ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           CSRF_SECRET: test-csrf-secret
         run: |
           npx sequelize-cli db:migrate --env test
