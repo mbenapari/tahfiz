@@ -35,25 +35,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Try normal user endpoint first
       let response = await apiFetch('/api/users/me');
       if (response.ok) {
-        const data = await response.json();
-        // Ensure is_onboarded is a boolean
-        if (data.user) {
-          data.user.is_onboarded = !!data.user.is_onboarded;
+        const result = await response.json();
+        // The backend returns { success: true, data: { user: { ... } } }
+        const userData = result.data?.user || result.user;
+        
+        if (userData) {
+          // Ensure is_onboarded is a boolean
+          userData.is_onboarded = !!userData.is_onboarded;
+          setUser(userData);
+          return;
         }
-        setUser(data.user);
-        return;
       }
 
       // If not found, try system owner endpoint
       response = await apiFetch('/api/owner/me');
       if (response.ok) {
-        const data = await response.json();
-        // Ensure is_onboarded is a boolean (system owners are always onboarded)
-        if (data.user) {
-          data.user.is_onboarded = true;
+        const result = await response.json();
+        const userData = result.data?.user || result.user;
+        
+        if (userData) {
+          // Ensure is_onboarded is a boolean (system owners are always onboarded)
+          userData.is_onboarded = true;
+          setUser(userData);
+          return;
         }
-        setUser(data.user);
-        return;
       }
 
       setUser(null);
