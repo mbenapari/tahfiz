@@ -85,8 +85,9 @@ export const checkPermission = (permissionSlug: string) => {
     }
 
     const userId = req.user.userId;
+    const logId = req.correlationId || 'N/A';
 
-    const hasAccess = await permissionService.hasPermission(userId, permissionSlug);
+    const hasAccess = await permissionService.hasPermission(userId, permissionSlug, logId);
 
     if (!hasAccess) {
       return res.status(403).json({ 

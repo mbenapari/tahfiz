@@ -10,6 +10,7 @@ import {
 import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/Logo';
 import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../utils/api';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ const Login: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch('/api/users/login', {
+      const response = await apiFetch('/api/users/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -47,23 +48,28 @@ const Login: React.FC = () => {
         }),
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error(result.error?.message || result.error || 'Login failed');
+      }
+
+      const userData = result.data?.user || result.user;
+      if (!userData) {
+        throw new Error('Login successful but user data is missing');
       }
 
       // Update global auth state
-      setUser(data.user);
+      setUser(userData);
 
       // Validation for required fields
-      if (!data.user.id || !data.user.role) {
+      if (!userData.id || !userData.role) {
         throw new Error('Incomplete user data received from server');
       }
 
       // Check if user is admin and doesn't have a tenantId or is assigned to a default/placeholder tenant
       // Note: Adjust tenantId logic as per system requirements (e.g., tenantId 1 might be a global/admin tenant)
-      if (data.user.role === 'admin' && (!data.user.tenantId || data.user.tenantId === 1)) {
+      if (userData.role === 'admin' && (!userData.tenantId || userData.tenantId === 1)) {
         navigate('/schools/new');
       } else {
         navigate('/');

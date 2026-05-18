@@ -9,6 +9,7 @@ import {
   LayoutDashboard
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { apiFetch } from '../utils/api';
 
 const CreateSchool: React.FC = () => {
   const navigate = useNavigate();
@@ -83,7 +84,7 @@ const CreateSchool: React.FC = () => {
     setStatus(null);
 
     try {
-      const response = await fetch('/api/schools/create', {
+      const response = await apiFetch('/api/schools/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -91,10 +92,10 @@ const CreateSchool: React.FC = () => {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create school');
+        throw new Error(result.error?.message || result.error || 'Failed to create school');
       }
 
       setStatus({ type: 'success', message: 'School created successfully!' });

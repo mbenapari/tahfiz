@@ -31,6 +31,7 @@ import { Tooltip } from '../../components/Tooltip';
 import { StudentReportModal } from '../../components/StudentReportModal';
 import { ContactParentModal } from '../../components/ContactParentModal';
 import { EditStudentModal } from '../../components/EditStudentModal';
+import { apiFetch } from '../../utils/api';
 
 const ICON_MAP: Record<string, any> = {
   'CheckCircle2': CheckCircle2,
@@ -54,10 +55,10 @@ export const StudentProfile: React.FC = () => {
     const fetchStudentProfile = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/users/students/${id}`);
+        const response = await apiFetch(`/api/users/students/${id}`);
         if (!response.ok) throw new Error('Failed to fetch student profile');
-        const data = await response.json();
-        setStudentData(data.student);
+        const result = await response.json();
+        setStudentData(result.data?.student || result.student);
       } catch (err: any) {
         setError(err.message);
         console.error('Error fetching student profile:', err);

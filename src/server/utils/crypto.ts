@@ -7,22 +7,34 @@ dotenv.config();
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
-const KEY = process.env.ENCRYPTION_KEY;
-
-// Fail fast in production if key is missing
-if (!KEY && process.env.NODE_ENV === 'production') {
-  const envStatus = KEY === undefined ? 'undefined' : 'empty';
-  const errorMsg = `CRITICAL: ENCRYPTION_KEY is ${envStatus} in production environment. Ensure it is set in your environment variables or .env file.`;
-  logger.error(errorMsg, { 
-    nodeEnv: process.env.NODE_ENV,
-    hasKey: !!KEY,
-    keyType: typeof KEY
-  });
-  throw new Error(errorMsg);
-}
 
 // Fallback for development only
-const ENCRYPTION_KEY = KEY ? Buffer.from(KEY, 'hex') : Buffer.from('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', 'hex');
+const getEncryptionKey = (): Buffer => {
+  const rawKey = process.env.ENCRYPTION_KEY?.trim();
+  
+  if (rawKey) {
+    const keyBuffer = Buffer.from(rawKey, 'hex');
+    if (keyBuffer.length === 32) {
+      return keyBuffer;
+    }
+    
+    const errorMsg = `Invalid ENCRYPTION_KEY length: expected 32 bytes (64 hex characters), got ${keyBuffer.length} bytes.`;
+    if (process.env.NODE_ENV === 'production') {
+      logger.error(`CRITICAL: ${errorMsg}`);
+      throw new Error(errorMsg);
+    } else {
+      logger.warn(`${errorMsg} Falling back to development key.`);
+    }
+  } else if (process.env.NODE_ENV === 'production') {
+    const errorMsg = `CRITICAL: ENCRYPTION_KEY is missing in production environment.`;
+    logger.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+  
+  return Buffer.from('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', 'hex');
+};
+
+const ENCRYPTION_KEY = getEncryptionKey();
 
 /**
  * Encrypts plain text using AES-256-GCM.

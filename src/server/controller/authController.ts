@@ -87,7 +87,7 @@ export const register = async (req: Request, res: Response) => {
     logger.debug('authController.register: Auth cookie set', { correlationId, userId: userWithTenant.id });
 
     // Get effective permissions
-    const permissions = await permissionService.getEffectivePermissions(userWithTenant.id);
+    const permissions = await permissionService.getEffectivePermissions(userWithTenant.id, correlationId);
 
     logger.info('authController.register: Success', { correlationId, userId: userWithTenant.id });
     return res.status(201).json(apiResponse.success({

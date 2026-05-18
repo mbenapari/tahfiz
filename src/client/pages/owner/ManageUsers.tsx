@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../../utils/api';
 
 const ManageUsers: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
@@ -8,9 +9,9 @@ const ManageUsers: React.FC = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/owner/manage/users', { credentials: 'include' });
-      const data = await res.json();
-      setUsers(data);
+      const res = await apiFetch('/api/owner/manage/users', { credentials: 'include' });
+      const result = await res.json();
+      setUsers(result.data || result || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load');
     } finally { setLoading(false); }
@@ -20,7 +21,7 @@ const ManageUsers: React.FC = () => {
 
   const remove = async (id: number) => {
     if (!confirm('Delete user?')) return;
-    await fetch(`/api/owner/manage/users/${id}`, { method: 'DELETE', credentials: 'include' });
+    await apiFetch(`/api/owner/manage/users/${id}`, { method: 'DELETE', credentials: 'include' });
     await fetchUsers();
   };
 

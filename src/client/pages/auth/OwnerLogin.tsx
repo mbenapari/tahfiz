@@ -9,6 +9,7 @@ import {
 import { Link, useNavigate } from 'react-router';
 import { Logo } from '../../components/Logo';
 import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../utils/api';
 
 const OwnerLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ const OwnerLogin: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch('/api/owner/login', {
+      const response = await apiFetch('/api/owner/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -46,14 +47,14 @@ const OwnerLogin: React.FC = () => {
         }),
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error(result.error?.message || result.error || 'Login failed');
       }
 
       // Backend returns { user, token }
-      const user = data.user;
+      const user = result.data?.user || result.user;
       if (!user || !user.id) throw new Error('Invalid response from server');
       setUser(user);
       navigate('/owner');

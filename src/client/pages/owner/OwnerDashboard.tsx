@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Users, Shield, School, Activity } from 'lucide-react';
+import { apiFetch } from '../../utils/api';
 
 const MetricCard: React.FC<{ title: string; value: number; icon: React.ElementType }> = ({ title, value, icon: Icon }) => (
   <div className="bg-surface-dark border border-border-green/30 rounded-xl p-6 shadow-sm">
@@ -26,10 +27,10 @@ const OwnerDashboard: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/stats/platform', { credentials: 'include' });
+        const res = await apiFetch('/api/stats/platform', { credentials: 'include' });
         if (!res.ok) throw new Error('Failed to load metrics');
-        const data = await res.json();
-        setMetrics(data);
+        const result = await res.json();
+        setMetrics(result.data || result);
       } catch (err: any) {
         setError(err.message || 'Error fetching metrics');
       } finally {

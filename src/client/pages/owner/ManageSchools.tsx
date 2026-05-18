@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../../utils/api';
 
 const ManageSchools: React.FC = () => {
   const [schools, setSchools] = useState<any[]>([]);
@@ -10,9 +11,9 @@ const ManageSchools: React.FC = () => {
   const fetchSchools = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/owner/manage/schools', { credentials: 'include' });
-      const data = await res.json();
-      setSchools(data);
+      const res = await apiFetch('/api/owner/manage/schools', { credentials: 'include' });
+      const result = await res.json();
+      setSchools(result.data || result || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load');
     } finally { setLoading(false); }
@@ -24,7 +25,7 @@ const ManageSchools: React.FC = () => {
     e.preventDefault();
     try {
       const payload = { name: form.name, slug: form.slug, study_days: JSON.parse(form.study_days) };
-      const res = await fetch('/api/owner/manage/schools', {
+      const res = await apiFetch('/api/owner/manage/schools', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('Create failed');
@@ -35,7 +36,7 @@ const ManageSchools: React.FC = () => {
 
   const remove = async (id: number) => {
     if (!confirm('Delete school?')) return;
-    await fetch(`/api/owner/manage/schools/${id}`, { method: 'DELETE', credentials: 'include' });
+    await apiFetch(`/api/owner/manage/schools/${id}`, { method: 'DELETE', credentials: 'include' });
     await fetchSchools();
   };
 

@@ -1,5 +1,6 @@
 import { User, Role, Permission, UserPermission, RolePermission } from '../model';
 import { PermissionAccess } from '../model/UserPermission';
+import logger from '../utils/logger';
 
 const PERMISSION_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -45,13 +46,20 @@ const cacheInvalidate = (userId: number): void => {
  *
  * Results are cached per user+permission for 5 minutes.
  */
-export const hasPermission = async (userId: number, permissionSlug: string): Promise<boolean> => {
+export const hasPermission = async (userId: number, permissionSlug: string, logId: string = 'N/A'): Promise<boolean> => {
   const cacheKey = `user:${userId}:perm:${permissionSlug}`;
   const cached = cacheGet(cacheKey);
-  if (cached !== null) return cached as boolean;
+  
+  if (cached !== null) {
+    logger.debug(`permissionService.hasPermission: Cache HIT userId=${userId} permissionSlug=${permissionSlug} result=${cached} logId=${logId}`);
+    return cached as boolean;
+  }
+
+  logger.debug(`permissionService.hasPermission: Cache MISS userId=${userId} permissionSlug=${permissionSlug} logId=${logId}`);
 
   try {
     // 1. Check User Overrides
+    logger.debug(`permissionService.hasPermission: Checking user overrides userId=${userId} permissionSlug=${permissionSlug} logId=${logId}`);
     const override = await UserPermission.findOne({
       where: { user_id: userId },
       include: [{
@@ -63,11 +71,13 @@ export const hasPermission = async (userId: number, permissionSlug: string): Pro
 
     if (override) {
       const result = override.access_type === PermissionAccess.ALLOW;
+      logger.info(`permissionService.hasPermission: Found user override userId=${userId} permissionSlug=${permissionSlug} accessType=${override.access_type} result=${result} logId=${logId}`);
       cacheSet(cacheKey, result);
       return result;
     }
 
     // 2. Check Role Defaults
+    logger.debug(`permissionService.hasPermission: Checking role defaults userId=${userId} permissionSlug=${permissionSlug} logId=${logId}`);
     const user = await User.findByPk(userId, {
       include: [{
         model: Role,
@@ -82,10 +92,13 @@ export const hasPermission = async (userId: number, permissionSlug: string): Pro
     });
 
     const result = (user as any)?.role_obj ? true : false;
+    logger.info(`permissionService.hasPermission: Role default check complete userId=${userId} permissionSlug=${permissionSlug} hasRolePermission=${result} logId=${logId}`);
+    
     cacheSet(cacheKey, result);
     return result;
-  } catch (error) {
-    console.error('Error checking permission:', error);
+  } catch (error: any) {
+    logger.error(`permissionService.hasPermission: Error checking permission userId=${userId} permissionSlug=${permissionSlug} error=${error.message} logId=${logId}`);
+    if (error.stack) logger.error(`permissionService.hasPermission: Stack trace userId=${userId} logId=${logId} stack=${error.stack}`);
     return false;
   }
 };
@@ -94,9 +107,11 @@ export const hasPermission = async (userId: number, permissionSlug: string): Pro
  * Gets all effective permissions for a user (merged defaults and overrides).
  * Returns a list of permission slugs.
  */
-export const getEffectivePermissions = async (userId: number): Promise<string[]> => {
+export const getEffectivePermissions = async (userId: number, logId: string = 'N/A'): Promise<string[]> => {
+  logger.debug(`permissionService.getEffectivePermissions: Entry userId=${userId} logId=${logId}`);
   try {
     // 1. Get User Overrides
+    logger.debug(`permissionService.getEffectivePermissions: Fetching user overrides userId=${userId} logId=${logId}`);
     const overrides = await UserPermission.findAll({
       where: { user_id: userId },
       include: [{
@@ -106,6 +121,7 @@ export const getEffectivePermissions = async (userId: number): Promise<string[]>
     });
 
     // 2. Get User's Role Permissions
+    logger.debug(`permissionService.getEffectivePermissions: Fetching role permissions userId=${userId} logId=${logId}`);
     const user = await User.findByPk(userId, {
       include: [{
         model: Role,
@@ -121,26 +137,34 @@ export const getEffectivePermissions = async (userId: number): Promise<string[]>
 
     // Add Role Permissions first
     if ((user as any)?.role_obj?.permissions) {
+      const rolePermissionsCount = (user as any).role_obj.permissions.length;
+      logger.debug(`permissionService.getEffectivePermissions: Adding ${rolePermissionsCount} role permissions userId=${userId} logId=${logId}`);
       (user as any).role_obj.permissions.forEach((perm: any) => {
         effectivePermissions.add(perm.slug);
       });
     }
 
     // Apply Overrides
-    // If DENY, remove from set. If ALLOW, add to set.
-    // Note: Overrides query result structure depends on how Sequelize returns it, assuming 'Permission' is populated
-    overrides.forEach((override: any) => {
-      const permSlug = override.Permission.slug;
-      if (override.access_type === PermissionAccess.DENY) {
-        effectivePermissions.delete(permSlug);
-      } else if (override.access_type === PermissionAccess.ALLOW) {
-        effectivePermissions.add(permSlug);
-      }
-    });
+    if (overrides.length > 0) {
+      logger.debug(`permissionService.getEffectivePermissions: Applying ${overrides.length} overrides userId=${userId} logId=${logId}`);
+      overrides.forEach((override: any) => {
+        const permSlug = override.Permission.slug;
+        if (override.access_type === PermissionAccess.DENY) {
+          logger.debug(`permissionService.getEffectivePermissions: Denying permission via override userId=${userId} permissionSlug=${permSlug} logId=${logId}`);
+          effectivePermissions.delete(permSlug);
+        } else if (override.access_type === PermissionAccess.ALLOW) {
+          logger.debug(`permissionService.getEffectivePermissions: Allowing permission via override userId=${userId} permissionSlug=${permSlug} logId=${logId}`);
+          effectivePermissions.add(permSlug);
+        }
+      });
+    }
 
+    const finalCount = effectivePermissions.size;
+    logger.info(`permissionService.getEffectivePermissions: Success userId=${userId} finalPermissionCount=${finalCount} logId=${logId}`);
     return Array.from(effectivePermissions);
-  } catch (error) {
-    console.error('Error getting effective permissions:', error);
+  } catch (error: any) {
+    logger.error(`permissionService.getEffectivePermissions: Error getting effective permissions userId=${userId} error=${error.message} logId=${logId}`);
+    if (error.stack) logger.error(`permissionService.getEffectivePermissions: Stack trace userId=${userId} logId=${logId} stack=${error.stack}`);
     return [];
   }
 };

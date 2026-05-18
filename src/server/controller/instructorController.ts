@@ -35,7 +35,7 @@ export const createInstructor = async (req: Request, res: Response) => {
   }
 
   // Check if user has permission to manage users
-  const hasPermission = await permissionService.hasPermission(req.user!.userId, 'users:manage');
+  const hasPermission = await permissionService.hasPermission(req.user!.userId, 'users:manage', correlationId);
   if (!hasPermission) {
     return res.status(403).json(apiResponse.fail('FORBIDDEN', 'Forbidden: You do not have permission to manage users'));
   }
