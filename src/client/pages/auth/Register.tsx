@@ -17,6 +17,7 @@ import {
 
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../utils/api';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ const Register: React.FC = () => {
     setStatus(null);
 
     try {
-      const response = await fetch('/api/users/register', {
+      const response = await apiFetch('/api/users/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,18 +62,23 @@ const Register: React.FC = () => {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
+        throw new Error(result.error?.message || 'Registration failed');
+      }
+
+      const userData = result.data?.user;
+      if (!userData) {
+        throw new Error('Registration successful but user data is missing');
       }
 
       setStatus({ type: 'success', message: 'User registered successfully!' });
       
       // Update global auth state
-      setUser(data.user);
+      setUser(userData);
 
-      if (data.user.role === 'admin' && !data.user.tenantId) {
+      if (userData.role === 'admin' && !userData.tenantId) {
         navigate('/schools/new');
       } else {
         navigate('/');

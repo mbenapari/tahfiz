@@ -15,6 +15,7 @@ import {
 import { useNavigate } from 'react-router';
 import { Tooltip } from '../../components/Tooltip';
 import { EditStudentModal } from '../../components/EditStudentModal';
+import { apiFetch } from '../../utils/api';
 
 interface Student {
   id: number;
@@ -57,14 +58,14 @@ export const Students: React.FC = () => {
         ? `/api/users/students/search?query=${encodeURIComponent(query)}`
         : '/api/users/students';
       
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch students');
       }
-      const data = await response.json();
+      const result = await response.json();
       
-      // The backend returns { students: [] } for getStudents and { users: [] } for search
-      const results = data.students || data.users || [];
+      // The backend returns { success: true, data: { students: [], ... } }
+      const results = result.data?.students || result.data?.users || result.students || result.users || [];
       
       // Transform backend data to include UI-specific progress info if missing
       const transformedStudents = results.map((s: any) => ({

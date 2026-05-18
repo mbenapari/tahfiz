@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../../utils/api';
 
 const ManageOwners: React.FC = () => {
   const [owners, setOwners] = useState<any[]>([]);
@@ -10,9 +11,9 @@ const ManageOwners: React.FC = () => {
   const fetchOwners = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/owner/manage/owners', { credentials: 'include' });
-      const data = await res.json();
-      setOwners(data);
+      const res = await apiFetch('/api/owner/manage/owners', { credentials: 'include' });
+      const result = await res.json();
+      setOwners(result.data || result || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load');
     } finally { setLoading(false); }
@@ -24,7 +25,7 @@ const ManageOwners: React.FC = () => {
     e.preventDefault();
     try {
       const payload = { name: form.name, email: form.email, phone: form.phone, role: form.role, password: form.password };
-      const res = await fetch('/api/owner/manage/owners', {
+      const res = await apiFetch('/api/owner/manage/owners', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('Create failed');
@@ -35,7 +36,7 @@ const ManageOwners: React.FC = () => {
 
   const remove = async (id: number) => {
     if (!confirm('Delete owner?')) return;
-    await fetch(`/api/owner/manage/owners/${id}`, { method: 'DELETE', credentials: 'include' });
+    await apiFetch(`/api/owner/manage/owners/${id}`, { method: 'DELETE', credentials: 'include' });
     await fetchOwners();
   };
 

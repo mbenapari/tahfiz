@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../utils/api';
 
 interface UserSearchResult {
   id: number;
@@ -56,11 +57,11 @@ export const EnrollStudent: React.FC = () => {
 
     setIsSearching(true);
     try {
-      const response = await fetch(`/api/users/students/search?query=${encodeURIComponent(query)}`);
+      const response = await apiFetch(`/api/users/students/search?query=${encodeURIComponent(query)}`);
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
         // The backend returns { students: [...] } for this endpoint
-        setSearchResults(data.students || data.users || []);
+        setSearchResults(result.data?.students || result.data?.users || result.students || result.users || []);
       } else if (response.status === 403) {
         console.error('Search error: Forbidden (403). Possible missing tenant ID.');
         setSearchResults([]);
@@ -111,7 +112,7 @@ export const EnrollStudent: React.FC = () => {
         return;
       }
 
-      const response = await fetch('/api/users/students', {
+      const response = await apiFetch('/api/users/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -120,7 +121,7 @@ export const EnrollStudent: React.FC = () => {
       if (response.ok) {
         if (isOnboarding) {
           try {
-            await fetch('/api/users/onboarding/complete', { method: 'POST' });
+            await apiFetch('/api/users/onboarding/complete', { method: 'POST' });
             await checkAuth(); // Refresh user state to reflect onboarding completion
           } catch (err) {
             console.error('Failed to complete onboarding:', err);
@@ -128,8 +129,8 @@ export const EnrollStudent: React.FC = () => {
         }
         navigate('/students');
       } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to enroll student');
+        const result = await response.json();
+        alert(result.error?.message || result.error || 'Failed to enroll student');
       }
     } catch (error) {
       console.error('Enrollment error:', error);
