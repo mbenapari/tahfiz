@@ -11,7 +11,7 @@ export const setNativeFetch = (fn: typeof fetch) => {
 
 export const fetchCsrfToken = async () => {
   try {
-    const response = await nativeFetch('/api/csrf-token');
+    const response = await nativeFetch('/api/csrf-token', { credentials: 'include' });
     if (response.ok) {
       const data = await response.json();
       csrfToken = data.csrfToken;
@@ -27,29 +27,33 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
   const method = options.method?.toUpperCase() || 'GET';
   const isStateChanging = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
 
+  // Always include credentials to ensure cookies (JWT and CSRF) are sent/received
+  const fetchOptions: RequestInit = {
+    credentials: 'include',
+    ...options,
+  };
+
   if (isStateChanging && !csrfToken) {
     await fetchCsrfToken();
   }
 
-  const headers = new Headers(options.headers || {});
+  const headers = new Headers(fetchOptions.headers || {});
   if (isStateChanging && csrfToken) {
     headers.set('x-csrf-token', csrfToken);
   }
+  fetchOptions.headers = headers;
 
-  const response = await nativeFetch(url, {
-    ...options,
-    headers,
-  });
+  let response = await nativeFetch(url, fetchOptions);
 
-  // If we get a 403 Forbidden, it might be an expired CSRF token
+  // If we get a 403 Forbidden, it might be an expired or invalid CSRF token
+  // (e.g. if the user's auth state changed from anonymous to authenticated)
   if (response.status === 403 && isStateChanging) {
+    console.warn(`CSRF 403 on ${url}, retrying with fresh token...`);
     await fetchCsrfToken();
     if (csrfToken) {
       headers.set('x-csrf-token', csrfToken);
-      return nativeFetch(url, {
-        ...options,
-        headers,
-      });
+      fetchOptions.headers = headers;
+      response = await nativeFetch(url, fetchOptions);
     }
   }
 

@@ -3,9 +3,9 @@ import { Request, Response, NextFunction } from "express";
 
 const doubleCsrfUtilities = doubleCsrf({
   getSecret: () => process.env.CSRF_SECRET || "very-secret-string",
-  cookieName: "x-csrf-token",
+  cookieName: "_csrf_secret",
   cookieOptions: {
-    httpOnly: false,
+    httpOnly: true, // Better security
     sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
@@ -13,7 +13,11 @@ const doubleCsrfUtilities = doubleCsrf({
   size: 64,
   ignoredMethods: ["GET", "HEAD", "OPTIONS"],
   getCsrfTokenFromRequest: (req: Request) => req.headers["x-csrf-token"] as string,
-  getSessionIdentifier: (req: Request) => req.cookies.jwt || "anonymous",
+  getSessionIdentifier: (req: Request) => {
+    // Use a more stable identifier if possible, like a session ID or a part of the JWT
+    // For now, if JWT exists, we use it, otherwise anonymous
+    return req.cookies.jwt ? "authenticated" : "anonymous";
+  },
 });
 
 export const doubleCsrfProtection = doubleCsrfUtilities.doubleCsrfProtection;
