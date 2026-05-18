@@ -29,6 +29,10 @@ module.exports = {
       { name: 'Manage Users', slug: 'users:manage', description: 'Can create/edit/delete users', created_at: now, updated_at: now },
       { name: 'Edit Attendance', slug: 'attendance:edit', description: 'Can mark attendance', created_at: now, updated_at: now },
       { name: 'View Reports', slug: 'reports:view', description: 'Can view reports', created_at: now, updated_at: now },
+      { name: 'Create/Edit Students', slug: 'student:write', description: 'Can create or update student records', created_at: now, updated_at: now },
+      { name: 'Delete Students', slug: 'student:delete', description: 'Can delete student records', created_at: now, updated_at: now },
+      { name: 'Create/Edit Instructors', slug: 'instructor:write', description: 'Can create or update instructor records', created_at: now, updated_at: now },
+      { name: 'Delete Instructors', slug: 'instructor:delete', description: 'Can delete instructor records', created_at: now, updated_at: now },
     ];
 
     for (const p of permissions) {
@@ -50,12 +54,14 @@ module.exports = {
 
     const rolePermissions = [];
 
-    // Admin gets all
-    if (roleMap['admin']) {
-      permsData.forEach(p => {
-        rolePermissions.push({ role_id: roleMap['admin'], permission_id: p.id, created_at: now });
-      });
-    }
+    // Admin and Super Admin get all permissions
+    ['admin', 'super_admin'].forEach(roleSlug => {
+      if (roleMap[roleSlug]) {
+        permsData.forEach(p => {
+          rolePermissions.push({ role_id: roleMap[roleSlug], permission_id: p.id, created_at: now });
+        });
+      }
+    });
 
     // Instructor gets specific
     if (roleMap['instructor']) {
