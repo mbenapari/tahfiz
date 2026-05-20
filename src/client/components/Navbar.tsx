@@ -47,15 +47,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
           <MessageSquare className="text-white group-hover:text-primary transition-colors" size={22} />
         </button>
 
-        {/* New Session Button */}
-        <button 
-          onClick={() => navigate('/students')}
-          className="flex items-center gap-2 bg-primary text-background-dark px-5 py-2.5 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20 ml-2"
-        >
-          <Plus size={20} />
-          <span>New Session</span>
-        </button>
-
       </div>
     </header>
   );
