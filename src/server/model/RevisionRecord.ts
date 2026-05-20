@@ -8,6 +8,8 @@ interface RevisionRecordAttributes {
   student_id: number;
   instructor_id?: number;
   surah_number?: number;
+  start_surah_number?: number;
+  end_surah_number?: number;
   start_ayah?: number;
   end_ayah?: number;
   start_page?: number;
@@ -29,6 +31,8 @@ class RevisionRecord extends Model<RevisionRecordAttributes, RevisionRecordCreat
   declare student_id: number;
   declare instructor_id: number;
   declare surah_number: number;
+  declare start_surah_number: number;
+  declare end_surah_number: number;
   declare start_ayah: number;
   declare end_ayah: number;
   declare start_page: number;
@@ -80,6 +84,22 @@ RevisionRecord.init(
       },
     },
     surah_number: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'surahs',
+        key: 'number',
+      },
+    },
+    start_surah_number: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'surahs',
+        key: 'number',
+      },
+    },
+    end_surah_number: {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
