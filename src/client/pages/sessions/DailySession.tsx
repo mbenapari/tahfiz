@@ -44,8 +44,11 @@ export const DailySession: React.FC = () => {
   const [surahSearch, setSurahSearch] = useState('');
 
   const [selectedRevisionSurah, setSelectedRevisionSurah] = useState<Surah | null>(null);
+  const [selectedEndRevisionSurah, setSelectedEndRevisionSurah] = useState<Surah | null>(null);
   const [isRevisionSurahDropdownOpen, setIsRevisionSurahDropdownOpen] = useState(false);
+  const [isEndRevisionSurahDropdownOpen, setIsEndRevisionSurahDropdownOpen] = useState(false);
   const [revisionSurahSearch, setRevisionSurahSearch] = useState('');
+  const [endRevisionSurahSearch, setEndRevisionSurahSearch] = useState('');
   
   // Click outside listener for surah dropdowns
   useEffect(() => {
@@ -57,13 +60,16 @@ export const DailySession: React.FC = () => {
       if (!target.closest('.revision-surah-dropdown-container')) {
         setIsRevisionSurahDropdownOpen(false);
       }
+      if (!target.closest('.end-revision-surah-dropdown-container')) {
+        setIsEndRevisionSurahDropdownOpen(false);
+      }
     };
 
-    if (isSurahDropdownOpen || isRevisionSurahDropdownOpen) {
+    if (isSurahDropdownOpen || isRevisionSurahDropdownOpen || isEndRevisionSurahDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isSurahDropdownOpen, isRevisionSurahDropdownOpen]);
+  }, [isSurahDropdownOpen, isRevisionSurahDropdownOpen, isEndRevisionSurahDropdownOpen]);
 
   const filteredSurahs = surahs.filter(s => 
     s.name.toLowerCase().includes(surahSearch.toLowerCase()) || 
@@ -73,6 +79,11 @@ export const DailySession: React.FC = () => {
   const filteredRevisionSurahs = surahs.filter(s => 
     s.name.toLowerCase().includes(revisionSurahSearch.toLowerCase()) || 
     s.number.toString().includes(revisionSurahSearch)
+  );
+
+  const filteredEndRevisionSurahs = surahs.filter(s => 
+    s.name.toLowerCase().includes(endRevisionSurahSearch.toLowerCase()) || 
+    s.number.toString().includes(endRevisionSurahSearch)
   );
 
   const [rating, setRating] = useState(3);
@@ -109,7 +120,8 @@ export const DailySession: React.FC = () => {
         const response = await fetch(`/api/users/students/${studentId}`);
         if (!response.ok) throw new Error('Failed to fetch student details');
         const data = await response.json();
-        setStudent(data.student);
+        if (!data.success) throw new Error(data.error || 'Failed to fetch student details');
+        setStudent(data.data?.student ?? null);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -152,7 +164,7 @@ export const DailySession: React.FC = () => {
     // Validation
     const isAbsent = attendanceStatus === 'absent';
     const hasHifz = !isAbsent && !!selectedSurah && hifzStartAyah !== '' && hifzEndAyah !== '';
-    const hasRevision = !isAbsent && ((revisionTab === 'surah' && !!selectedRevisionSurah && revisionStart !== '' && revisionEnd !== '') || 
+    const hasRevision = !isAbsent && ((revisionTab === 'surah' && !!selectedRevisionSurah && !!selectedEndRevisionSurah && revisionStart !== '' && revisionEnd !== '') || 
                         (revisionTab === 'page' && revisionStart !== '' && revisionEnd !== ''));
 
     if (!isAbsent && !hasHifz && !hasRevision) {
@@ -194,7 +206,41 @@ export const DailySession: React.FC = () => {
 
     // Revision validation
     if (hasRevision) {
-      if (revisionTab === 'page') {
+      if (revisionTab === 'surah') {
+        if (!selectedRevisionSurah || !selectedEndRevisionSurah) {
+          setValidationError('Please select both start and end surahs for revision');
+          return;
+        }
+        if (selectedRevisionSurah.number > selectedEndRevisionSurah.number) {
+          setValidationError('Start surah cannot be after end surah');
+          return;
+        }
+        if (!revisionStart || !revisionEnd) {
+          setValidationError('Please specify the ayah range for Revision');
+          return;
+        }
+        const startAyah = Number(revisionStart);
+        const endAyah = Number(revisionEnd);
+        if (!Number.isInteger(startAyah) || !Number.isInteger(endAyah)) {
+          setValidationError('Ayah numbers must be whole numbers');
+          return;
+        }
+        if (startAyah <= 0 || endAyah <= 0) {
+          setValidationError('Ayah numbers must be positive');
+          return;
+        }
+        // If it's a single surah revision, check end ayah
+        if (selectedRevisionSurah.number === selectedEndRevisionSurah.number) {
+          if (startAyah > endAyah) {
+            setValidationError('Revision start ayah cannot be greater than end ayah');
+            return;
+          }
+          if (endAyah > selectedRevisionSurah.ayah_count) {
+            setValidationError(`Revision end ayah cannot be more than ${selectedRevisionSurah.ayah_count} (total ayahs in ${selectedRevisionSurah.name})`);
+            return;
+          }
+        }
+      } else if (revisionTab === 'page') {
         if (!revisionStart || !revisionEnd) {
           setValidationError('Please specify the page range for Revision');
           return;
@@ -275,15 +321,17 @@ export const DailySession: React.FC = () => {
           isFullSurah: isHifzCompleted,
           notes: hifzNotes
         } : null,
-        revisionRecord: (!isAbsent && hasRevision) ? {
-          surahNumber: revisionTab === 'surah' && selectedRevisionSurah ? selectedRevisionSurah.number : null,
-          startAyah: revisionTab === 'surah' ? (revisionStart ? Number(revisionStart) : 1) : null,
-          endAyah: revisionTab === 'surah' && selectedRevisionSurah ? (revisionEnd ? Number(revisionEnd) : selectedRevisionSurah.ayah_count) : null,
-          startPage: revisionTab === 'page' ? (revisionStart ? Number(revisionStart) : null) : null,
-          endPage: revisionTab === 'page' ? (revisionEnd ? Number(revisionEnd) : null) : null,
+        revisionRecord: hasRevision ? {
+          surahNumber: revisionTab === 'surah' ? selectedRevisionSurah?.number : undefined,
+          startSurahNumber: revisionTab === 'surah' ? selectedRevisionSurah?.number : undefined,
+          endSurahNumber: revisionTab === 'surah' ? selectedEndRevisionSurah?.number : undefined,
+          startAyah: revisionTab === 'surah' ? Number(revisionStart) : undefined,
+          endAyah: revisionTab === 'surah' ? Number(revisionEnd) : undefined,
+          startPage: revisionTab === 'page' ? Number(revisionStart) : undefined,
+          endPage: revisionTab === 'page' ? Number(revisionEnd) : undefined,
           isFullSurah: isRevisionCompleted,
-          notes: revisionTab === 'page' ? 'Revision by page' : ''
-        } : null,
+          notes: instructorNotes
+        } : undefined,
         rating: rating
       };
 
@@ -645,43 +693,45 @@ export const DailySession: React.FC = () => {
             </div>
 
             {revisionTab === 'surah' && (
-              <div className="flex flex-col gap-2 revision-surah-dropdown-container">
-                <label className="text-sm font-medium text-text-muted">Revision Surah</label>
-                <div className="relative">
-                  <div 
-                    onClick={() => setIsRevisionSurahDropdownOpen(!isRevisionSurahDropdownOpen)}
-                    className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white flex items-center justify-between cursor-pointer hover:border-primary/30 transition-colors"
-                  >
-                    <span className={selectedRevisionSurah ? "font-bold" : "text-text-muted/50 font-medium"}>
-                      {selectedRevisionSurah ? `${selectedRevisionSurah.number}. ${selectedRevisionSurah.name}` : "Select Surah..."}
-                    </span>
-                    <ChevronDown size={20} className={`text-text-muted transition-transform ${isRevisionSurahDropdownOpen ? 'rotate-180' : ''}`} />
-                  </div>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2 revision-surah-dropdown-container">
+                  <label className="text-sm font-medium text-text-muted">Start Surah</label>
+                  <div className="relative">
+                    <div 
+                      onClick={() => setIsRevisionSurahDropdownOpen(!isRevisionSurahDropdownOpen)}
+                      className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white flex items-center justify-between cursor-pointer hover:border-primary/30 transition-colors"
+                    >
+                      <span className={selectedRevisionSurah ? "font-bold" : "text-text-muted/50 font-medium"}>
+                        {selectedRevisionSurah ? `${selectedRevisionSurah.number}. ${selectedRevisionSurah.name}` : "Select Start Surah..."}
+                      </span>
+                      <ChevronDown size={20} className={`text-text-muted transition-transform ${isRevisionSurahDropdownOpen ? 'rotate-180' : ''}`} />
+                    </div>
 
-                  {isRevisionSurahDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-surface-dark border border-border-green/30 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="p-3 border-b border-border-green/20">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
-                          <input 
-                            autoFocus
-                            type="text"
-                            value={revisionSurahSearch}
-                            onChange={(e) => setRevisionSurahSearch(e.target.value)}
-                            placeholder="Search surah name or number..."
-                            className="w-full bg-background-dark/50 border border-border-green/20 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors"
-                          />
+                    {isRevisionSurahDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-surface-dark border border-border-green/30 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="p-3 border-b border-border-green/20">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+                            <input 
+                              autoFocus
+                              type="text"
+                              value={revisionSurahSearch}
+                              onChange={(e) => setRevisionSurahSearch(e.target.value)}
+                              placeholder="Search surah..."
+                              className="w-full bg-background-dark/50 border border-border-green/20 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors"
+                            />
+                          </div>
                         </div>
-                      </div>
-                      <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                        {filteredRevisionSurahs.length > 0 ? (
-                          filteredRevisionSurahs.map((surah) => (
+                        <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                          {filteredRevisionSurahs.map((surah) => (
                             <div 
                               key={surah.number}
                               onClick={() => {
                                 setSelectedRevisionSurah(surah);
                                 setIsRevisionSurahDropdownOpen(false);
                                 setRevisionSurahSearch('');
+                                // Automatically set end surah if not set
+                                if (!selectedEndRevisionSurah) setSelectedEndRevisionSurah(surah);
                               }}
                               className={`px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-primary/5 transition-colors ${selectedRevisionSurah?.number === surah.number ? 'bg-primary/10 text-primary' : 'text-text-muted hover:text-white'}`}
                             >
@@ -691,17 +741,65 @@ export const DailySession: React.FC = () => {
                                 </span>
                                 <span className="font-bold">{surah.name}</span>
                               </div>
-                              <span className="text-[10px] font-bold opacity-50 uppercase tracking-widest">{surah.ayah_count} Ayahs</span>
                             </div>
-                          ))
-                        ) : (
-                          <div className="px-4 py-8 text-center text-text-muted">
-                            <p className="text-sm italic">No surahs found matching your search.</p>
-                          </div>
-                        )}
+                          ))}
+                        </div>
                       </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 end-revision-surah-dropdown-container">
+                  <label className="text-sm font-medium text-text-muted">End Surah</label>
+                  <div className="relative">
+                    <div 
+                      onClick={() => setIsEndRevisionSurahDropdownOpen(!isEndRevisionSurahDropdownOpen)}
+                      className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white flex items-center justify-between cursor-pointer hover:border-primary/30 transition-colors"
+                    >
+                      <span className={selectedEndRevisionSurah ? "font-bold" : "text-text-muted/50 font-medium"}>
+                        {selectedEndRevisionSurah ? `${selectedEndRevisionSurah.number}. ${selectedEndRevisionSurah.name}` : "Select End Surah..."}
+                      </span>
+                      <ChevronDown size={20} className={`text-text-muted transition-transform ${isEndRevisionSurahDropdownOpen ? 'rotate-180' : ''}`} />
                     </div>
-                  )}
+
+                    {isEndRevisionSurahDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-surface-dark border border-border-green/30 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="p-3 border-b border-border-green/20">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+                            <input 
+                              autoFocus
+                              type="text"
+                              value={endRevisionSurahSearch}
+                              onChange={(e) => setEndRevisionSurahSearch(e.target.value)}
+                              placeholder="Search surah..."
+                              className="w-full bg-background-dark/50 border border-border-green/20 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                          {filteredEndRevisionSurahs.map((surah) => (
+                            <div 
+                              key={surah.number}
+                              onClick={() => {
+                                setSelectedEndRevisionSurah(surah);
+                                setIsEndRevisionSurahDropdownOpen(false);
+                                setEndRevisionSurahSearch('');
+                              }}
+                              className={`px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-primary/5 transition-colors ${selectedEndRevisionSurah?.number === surah.number ? 'bg-primary/10 text-primary' : 'text-text-muted hover:text-white'}`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-bold w-6 h-6 flex items-center justify-center bg-background-dark/50 rounded-md border border-border-green/20">
+                                  {surah.number}
+                                </span>
+                                <span className="font-bold">{surah.name}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -724,10 +822,10 @@ export const DailySession: React.FC = () => {
                 <input 
                   type="number" 
                   min="1"
-                  max={revisionTab === 'surah' && selectedRevisionSurah ? selectedRevisionSurah.ayah_count : undefined}
+                  max={revisionTab === 'surah' && selectedEndRevisionSurah ? selectedEndRevisionSurah.ayah_count : undefined}
                   value={revisionEnd}
                   onChange={(e) => setRevisionEnd(e.target.value)}
-                  placeholder={revisionTab === 'surah' && selectedRevisionSurah ? selectedRevisionSurah.ayah_count.toString() : "#"}
+                  placeholder={revisionTab === 'surah' && selectedEndRevisionSurah ? selectedEndRevisionSurah.ayah_count.toString() : "#"}
                   className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white font-bold focus:outline-none focus:border-primary/50 transition-colors placeholder:text-text-muted/20"
                 />
               </div>
@@ -740,7 +838,9 @@ export const DailySession: React.FC = () => {
                 <span className="text-sm font-bold text-white">
                   {revisionTab === 'page' 
                     ? `${Number(revisionEnd) - Number(revisionStart) >= 0 && revisionStart !== '' ? Number(revisionEnd) - Number(revisionStart) + 1 : 0} Pages`
-                    : `${Number(revisionEnd) - Number(revisionStart) >= 0 && revisionStart !== '' ? Number(revisionEnd) - Number(revisionStart) + 1 : (selectedRevisionSurah?.ayah_count || 0)} Ayahs`
+                    : selectedRevisionSurah && selectedEndRevisionSurah && selectedRevisionSurah.number !== selectedEndRevisionSurah.number
+                      ? `${selectedEndRevisionSurah.number - selectedRevisionSurah.number + 1} Surahs`
+                      : `${Number(revisionEnd) - Number(revisionStart) >= 0 && revisionStart !== '' ? Number(revisionEnd) - Number(revisionStart) + 1 : (selectedRevisionSurah?.ayah_count || 0)} Ayahs`
                   }
                 </span>
               </div>
@@ -750,14 +850,19 @@ export const DailySession: React.FC = () => {
                   style={{ 
                     width: revisionTab === 'page' 
                       ? `${Math.min(100, ((Number(revisionEnd) - Number(revisionStart) + 1) / 20) * 100)}%`
-                      : selectedRevisionSurah 
-                        ? `${Math.min(100, ((Number(revisionEnd) - Number(revisionStart) + 1) || selectedRevisionSurah.ayah_count) / selectedRevisionSurah.ayah_count * 100)}%`
-                        : '0%'
+                      : selectedRevisionSurah && selectedEndRevisionSurah && selectedRevisionSurah.number !== selectedEndRevisionSurah.number
+                        ? `${Math.min(100, ((selectedEndRevisionSurah.number - selectedRevisionSurah.number + 1) / 5) * 100)}%`
+                        : selectedRevisionSurah 
+                          ? `${Math.min(100, ((Number(revisionEnd) - Number(revisionStart) + 1) || selectedRevisionSurah.ayah_count) / selectedRevisionSurah.ayah_count * 100)}%`
+                          : '0%'
                   }}
                 ></div>
               </div>
               <p className="text-xs font-medium text-text-muted">
-                {revisionTab === 'page' ? 'Daily target: 20 pages' : `Target: ${selectedRevisionSurah?.ayah_count || 0} Ayahs`}
+                {revisionTab === 'page' ? 'Daily target: 20 pages' : 
+                 selectedRevisionSurah && selectedEndRevisionSurah && selectedRevisionSurah.number !== selectedEndRevisionSurah.number
+                   ? 'Target: 5 Surahs'
+                   : `Target: ${selectedRevisionSurah?.ayah_count || 0} Ayahs`}
               </p>
             </div>
 
