@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **fix: correct API response parsing in DailySession**: Fixed a bug where student data was not being correctly extracted from the nested API response, resolving "Student not found" errors.
 
 ### Tests
+- **test: fix foreign key constraint handling in user tests**: Create School (tenant) before user creation in auth_security and user_role tests to satisfy foreign key constraints. Update tenant_id from hardcoded 1 to dynamically created testSchool.id. Increase password validation timeout from 500ms to 1000ms for bcrypt overhead. Increase test timeouts to 10-30s range per project conventions. (6f42f06)
 - **test: implement masteryHelper for surah progress calculation**: Added unit tests in `masteryHelper.test.ts` to verify progress calculation logic for single-surah, multi-surah, and invalid range scenarios.
 
 ## [0.2.2] - 2026-05-20
