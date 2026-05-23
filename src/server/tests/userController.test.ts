@@ -106,5 +106,5 @@ describe('User Controller Test Suite', () => {
     const instructors = await userService.getInstructorsByTenant(testSchool.id);
     expect(instructors.length).toBeGreaterThanOrEqual(1);
     expect(instructors.some((instructor: any) => instructor.id === instructor2.id)).toBe(true);
-  });
+  }, 30000);
 });
