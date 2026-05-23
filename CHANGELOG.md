@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **feat: implement surah range revisions and mastery calculation**: Added support for multi-surah revision records (Muraja'ah) across models, services, and UI. Includes a new `masteryHelper` utility for robust student progress calculation and a comprehensive test suite.
+- **feat: add surah range support to RevisionRecord model**: Added `start_surah_number` and `end_surah_number` columns to the `revision_records` table with appropriate database migrations and Sequelize associations.
+
+### Changed
+- **feat: update DailySession and StudentProfile for surah range revisions**: Refactored the session logging and student profile interfaces to support selecting and displaying a range of surahs for revision activity.
+- **feat: integrate surah range revisions into session and report services**: Updated backend controllers and reporting logic to correctly process and format multi-surah revision data in API responses and CSV exports.
+
+### Style
+- **style: optimize Settings page for mobile devices**: Overhauled the school configuration page with a mobile-first design, featuring collapsible layouts, scrollable tabs, and responsive input controls for smaller screens (425px and below).
+- **style: refine Navbar for mobile view**: Improved mobile navigation with better spacing and responsive layout adjustments.
+
+### Fixed
+- **fix: correct API response parsing in DailySession**: Fixed a bug where student data was not being correctly extracted from the nested API response, resolving "Student not found" errors.
+
+### Tests
+- **test: fix foreign key constraint handling in user tests**: Create School (tenant) before user creation in auth_security and user_role tests to satisfy foreign key constraints. Update tenant_id from hardcoded 1 to dynamically created testSchool.id. Increase password validation timeout from 500ms to 1000ms for bcrypt overhead. Increase test timeouts to 10-30s range per project conventions. (6f42f06)
+- **test: implement masteryHelper for surah progress calculation**: Added unit tests in `masteryHelper.test.ts` to verify progress calculation logic for single-surah, multi-surah, and invalid range scenarios.
+
+## [0.2.2] - 2026-05-20
+
 ### Fixed
 - **fix: validate ENCRYPTION_KEY length and provide descriptive errors**: Added key length validation for AES-256-GCM to prevent "Invalid key length" errors during encryption operations. The system now falls back to a development key in non-production environments while failing fast in production if the key is missing or invalid. (d075a90)
 - **fix: improve CSRF token handling with credentials inclusion and stable session identifiers**: Enhanced CSRF protection by ensuring credentials (cookies) are always included in fetch requests and using a stable session identifier ("authenticated"/"anonymous") instead of the full JWT token. This prevents token rejection during auth state transitions. (6ca11fd)

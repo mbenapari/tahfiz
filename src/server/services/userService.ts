@@ -5,6 +5,7 @@ import * as progressService from './progressService';
 import * as statsService from './statsService';
 import * as queryHelper from '../helper/queryHelper';
 import { generateBlindIndex } from '../utils/crypto';
+import { calculateMasteryData } from '../utils/masteryHelper';
 import logger from '../utils/logger';
 import { DEFAULT_PAGE_SIZE, TOTAL_QURAN_AYAHS, VELOCITY_BUCKET_SIZE, RECENT_ACTIVITY_LIMIT } from '../constants';
 
@@ -447,7 +448,7 @@ export const getStudentProfile = async (id: number, tenantId: number) => {
       }),
       RevisionRecord.findAll({
         where: { student_id: id, tenant_id: tenantId },
-        attributes: ['surah_number', 'start_ayah', 'end_ayah']
+        attributes: ['surah_number', 'start_surah_number', 'end_surah_number', 'start_ayah', 'end_ayah']
       })
     ]);
 
@@ -498,58 +499,11 @@ export const getStudentProfile = async (id: number, tenantId: number) => {
       return activities;
     }).flat().slice(0, RECENT_ACTIVITY_LIMIT);
 
-    const mBySurah = new Map<number, typeof memorizationRecordsAll>();
-    for (const r of memorizationRecordsAll) {
-      const arr = mBySurah.get(r.surah_number) ?? [];
-      arr.push(r);
-      mBySurah.set(r.surah_number, arr);
-    }
-
-    const rBySurah = new Map<number, typeof revisionRecordsAll>();
-    for (const r of revisionRecordsAll) {
-      const arr = rBySurah.get(r.surah_number) ?? [];
-      arr.push(r);
-      rBySurah.set(r.surah_number, arr);
-    }
-
-    const masteryData = allSurahs.map(surah => {
-      const sNum = surah.number;
-      const mRecords = mBySurah.get(sNum) ?? [];
-      const rRecords = rBySurah.get(sNum) ?? [];
-
-      let status = 0; // Not Started
-      let details = 'Not started yet';
-
-      if (mRecords.length > 0) {
-        status = 1; // Memorized (at least partially)
-        // Find the range covered
-        const start = Math.min(...mRecords.map(r => r.start_ayah));
-        const end = Math.max(...mRecords.map(r => r.end_ayah));
-        
-        if (start === 1 && end === surah.ayah_count) {
-          details = `Fully Memorized (1-${surah.ayah_count})`;
-        } else {
-          details = `Memorized Ayahs: ${start}-${end}`;
-        }
-      }
-
-      // If there are revision records, it might "Need Revision" (status 2)
-      // For simplicity, if there's a recent revision record, we can mark it
-      if (rRecords.length > 0) {
-        status = 2; // Needs Revision / In Revision
-        const start = Math.min(...rRecords.map(r => r.start_ayah));
-        const end = Math.max(...rRecords.map(r => r.end_ayah));
-        details = `In Revision: Ayahs ${start}-${end}`;
-      }
-
-      return {
-        number: sNum,
-        name: surah.name,
-        ayahCount: surah.ayah_count,
-        status,
-        details
-      };
-    });
+    const masteryData = calculateMasteryData(
+      allSurahs.map(s => ({ number: s.number, name: s.name, ayah_count: s.ayah_count })),
+      memorizationRecordsAll,
+      revisionRecordsAll
+    );
 
     // 5. Velocity Data (Last 8 Weeks) - Single pass optimization
     const now = new Date();

@@ -41,7 +41,11 @@ export const getStudentReport = async (studentId: number, tenantId: number) => {
         { 
           model: RevisionRecord, 
           as: 'revision_records',
-          include: [{ model: Surah, as: 'surah', attributes: ['name'] }]
+          include: [
+            { model: Surah, as: 'surah', attributes: ['name'] },
+            { model: Surah, as: 'start_surah', attributes: ['name'] },
+            { model: Surah, as: 'end_surah', attributes: ['name'] }
+          ]
         }
       ],
       order: [['session_date', 'DESC']]
@@ -72,7 +76,12 @@ export const getStudentReport = async (studentId: number, tenantId: number) => {
         date: s.session_date,
         attendance: s.attendance?.status || 'N/A',
         memorization: s.memorization_records.map((m: any) => `${m.surah?.name} (${m.start_ayah}-${m.end_ayah})`).join(', '),
-        revision: s.revision_records.map((r: any) => `${r.surah?.name} (${r.start_ayah}-${r.end_ayah})`).join(', '),
+        revision: s.revision_records.map((r: any) => {
+          if (r.start_surah_number && r.end_surah_number && r.start_surah_number !== r.end_surah_number) {
+            return `Surahs ${r.start_surah?.name || r.start_surah_number} - ${r.end_surah?.name || r.end_surah_number}`;
+          }
+          return `${r.surah?.name || 'Surah ' + r.surah_number} (${r.start_ayah || 1}-${r.end_ayah || 'Full'})`;
+        }).join(', '),
         notes: s.notes
       }))
     };

@@ -6,6 +6,8 @@ export interface CreateRevisionRecordDTO {
   student_id: number;
   instructor_id?: number;
   surah_number?: number;
+  start_surah_number?: number;
+  end_surah_number?: number;
   start_ayah?: number;
   end_ayah?: number;
   start_page?: number;
@@ -17,6 +19,8 @@ export interface CreateRevisionRecordDTO {
 export interface UpdateRevisionRecordDTO {
   instructor_id?: number;
   surah_number?: number;
+  start_surah_number?: number;
+  end_surah_number?: number;
   start_ayah?: number;
   end_ayah?: number;
   start_page?: number;
@@ -40,6 +44,8 @@ export const getRevisionRecordById = async (id: number, tenant_id: number) => {
       where: { id, tenant_id },
       include: [
         { model: Surah, as: 'surah' },
+        { model: Surah, as: 'start_surah' },
+        { model: Surah, as: 'end_surah' },
         { model: User, as: 'student' },
         { model: User, as: 'instructor' },
         { model: Session, as: 'session' },
@@ -76,6 +82,8 @@ export const getStudentRevisionRecords = async (
       where: whereClause,
       include: [
         { model: Surah, as: 'surah' },
+        { model: Surah, as: 'start_surah' },
+        { model: Surah, as: 'end_surah' },
         { model: User, as: 'instructor' },
       ],
       order: [['created_at', 'DESC']],
@@ -93,6 +101,8 @@ export const getSessionRevisionRecords = async (session_id: number, tenant_id: n
       include: [
         { model: User, as: 'student' },
         { model: Surah, as: 'surah' },
+        { model: Surah, as: 'start_surah' },
+        { model: Surah, as: 'end_surah' },
       ],
     });
     return records;

@@ -28,6 +28,7 @@ export const saveDailySession = async (req: Request, res: Response) => {
     const hasRevision =
       revisionRecord &&
       (revisionRecord.surahNumber ||
+        (revisionRecord.startSurahNumber && revisionRecord.endSurahNumber) ||
         (revisionRecord.startAyah && revisionRecord.endAyah) ||
         (revisionRecord.startPage && revisionRecord.endPage));
     const hasAttendance = attendance && attendance.status;
@@ -73,6 +74,21 @@ export const saveDailySession = async (req: Request, res: Response) => {
         }
         if (Number(revisionRecord.endAyah) > surah.ayah_count) {
           return res.status(400).json({ error: `Revision end ayah cannot be more than ${surah.ayah_count} (total ayahs in ${surah.name})` });
+        }
+      }
+
+      // Surah range revision
+      if (revisionRecord.startSurahNumber && revisionRecord.endSurahNumber) {
+        if (Number(revisionRecord.startSurahNumber) > Number(revisionRecord.endSurahNumber)) {
+          return res.status(400).json({ error: 'Start surah cannot be greater than end surah' });
+        }
+        
+        // Validate both surahs exist
+        const startSurah = await surahService.getSurahByNumber(Number(revisionRecord.startSurahNumber));
+        const endSurah = await surahService.getSurahByNumber(Number(revisionRecord.endSurahNumber));
+        
+        if (!startSurah || !endSurah) {
+          return res.status(400).json({ error: 'Invalid surah range' });
         }
       }
 
@@ -136,6 +152,8 @@ export const saveDailySession = async (req: Request, res: Response) => {
         student_id: Number(studentId),
         instructor_id: instructorId,
         surah_number: revisionRecord.surahNumber ? Number(revisionRecord.surahNumber) : undefined,
+        start_surah_number: revisionRecord.startSurahNumber ? Number(revisionRecord.startSurahNumber) : undefined,
+        end_surah_number: revisionRecord.endSurahNumber ? Number(revisionRecord.endSurahNumber) : undefined,
         start_ayah: revisionRecord.startAyah ? Number(revisionRecord.startAyah) : undefined,
         end_ayah: revisionRecord.endAyah ? Number(revisionRecord.endAyah) : undefined,
         start_page: revisionRecord.startPage ? Number(revisionRecord.startPage) : undefined,

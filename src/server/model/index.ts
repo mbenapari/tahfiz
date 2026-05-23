@@ -95,6 +95,12 @@ RevisionRecord.belongsTo(User, { foreignKey: 'instructor_id', as: 'instructor' }
 Surah.hasMany(RevisionRecord, { foreignKey: 'surah_number', as: 'revision_records' });
 RevisionRecord.belongsTo(Surah, { foreignKey: 'surah_number', as: 'surah' });
 
+Surah.hasMany(RevisionRecord, { foreignKey: 'start_surah_number', as: 'start_revision_records' });
+RevisionRecord.belongsTo(Surah, { foreignKey: 'start_surah_number', as: 'start_surah' });
+
+Surah.hasMany(RevisionRecord, { foreignKey: 'end_surah_number', as: 'end_revision_records' });
+RevisionRecord.belongsTo(Surah, { foreignKey: 'end_surah_number', as: 'end_surah' });
+
 School.hasMany(JuzProgress, { foreignKey: 'tenant_id', as: 'juz_progress_records' });
 JuzProgress.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
 
