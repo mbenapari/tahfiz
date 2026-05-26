@@ -36,8 +36,7 @@ export const Reports: React.FC = () => {
   const [reportData, setReportData] = useState<any>(null);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
   
-  // Date range state - Default to last 30 days
-  const [dateRange, setDateRange] = useState(() => {
+  const getDefaultDateRange = () => {
     const end = new Date();
     const start = new Date();
     start.setDate(end.getDate() - 30);
@@ -45,7 +44,10 @@ export const Reports: React.FC = () => {
       startDate: start.toISOString().split('T')[0],
       endDate: end.toISOString().split('T')[0]
     };
-  });
+  };
+
+  const [dateRange, setDateRange] = useState(getDefaultDateRange);
+  const [pendingDateRange, setPendingDateRange] = useState(getDefaultDateRange);
 
   const fetchReportData = useCallback(async () => {
     setIsLoading(true);
@@ -95,6 +97,10 @@ export const Reports: React.FC = () => {
     fetchReportData();
   }, [fetchReportData]);
 
+  const handleApplyFilters = () => {
+    setDateRange(pendingDateRange);
+  };
+
   if (isLoading && !reportData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
@@ -120,7 +126,7 @@ export const Reports: React.FC = () => {
     );
   }
 
-  const { stats, trendData, topPerformers, reportTypes } = reportData;
+  const { stats = [], trendData = [], topPerformers = [], reportTypes = [] } = reportData;
 
   const handleDownloadReport = async (reportTitle: string) => {
     let endpoint = '';
@@ -168,9 +174,21 @@ export const Reports: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-col gap-1">
             <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Date Range</span>
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-surface-dark border border-border-green/30 rounded-xl text-sm font-bold text-white">
-              <Calendar size={16} className="text-primary" />
-              <span>{dateRange.startDate} - {dateRange.endDate}</span>
+            <div className="flex items-center gap-2 p-2 bg-surface-dark border border-border-green/30 rounded-xl">
+              <Calendar size={16} className="text-primary shrink-0" />
+              <input
+                type="date"
+                value={pendingDateRange.startDate}
+                onChange={(e) => setPendingDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                className="bg-transparent text-sm font-bold text-white outline-none [color-scheme:dark] w-full min-w-0"
+              />
+              <span className="text-text-muted text-sm font-bold">-</span>
+              <input
+                type="date"
+                value={pendingDateRange.endDate}
+                onChange={(e) => setPendingDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                className="bg-transparent text-sm font-bold text-white outline-none [color-scheme:dark] w-full min-w-0"
+              />
             </div>
           </div>
 
@@ -182,9 +200,13 @@ export const Reports: React.FC = () => {
             </div>
           </div>
 
-          <button className="mt-5 flex items-center gap-2 bg-primary hover:bg-primary-hover text-background-dark px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-primary/20">
+          <button
+            onClick={handleApplyFilters}
+            disabled={isLoading}
+            className="mt-5 flex items-center gap-2 bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-background-dark px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-primary/20"
+          >
             <Filter size={18} />
-            Apply
+            {isLoading ? 'Applying...' : 'Apply'}
           </button>
         </div>
       </div>
