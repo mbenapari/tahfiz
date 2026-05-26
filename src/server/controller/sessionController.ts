@@ -7,6 +7,7 @@ import * as attendanceService from '../services/attendanceService';
 import * as progressService from '../services/progressService';
 import { RecordType } from '../model/MemorizationRecord';
 import logger from '../utils/logger';
+import { validateRevisionRecord } from '../utils/revisionValidation';
 
 /**
  * Save a daily session for a student
@@ -58,49 +59,29 @@ export const saveDailySession = async (req: Request, res: Response) => {
 
     // Validation for Revision record if provided
     if (hasRevision) {
-      // Surah-based revision (ayah range)
-      if (revisionRecord.surahNumber) {
-        if (!revisionRecord.startAyah || !revisionRecord.endAyah) {
-          return res.status(400).json({ error: 'Revision record must include a start and end ayah' });
-        }
+      const validationInput = {
+        surahNumber: revisionRecord.surahNumber,
+        startSurahNumber: revisionRecord.startSurahNumber,
+        endSurahNumber: revisionRecord.endSurahNumber,
+        startAyah: revisionRecord.startAyah,
+        endAyah: revisionRecord.endAyah,
+        startPage: revisionRecord.startPage,
+        endPage: revisionRecord.endPage,
+      };
 
-        if (Number(revisionRecord.startAyah) > Number(revisionRecord.endAyah)) {
-          return res.status(400).json({ error: 'Revision start cannot be greater than end' });
+      const validation = await validateRevisionRecord(
+        validationInput,
+        async (num) => {
+          try {
+            return await surahService.getSurahByNumber(num);
+          } catch (error) {
+            return null;
+          }
         }
+      );
 
-        const surah = await surahService.getSurahByNumber(Number(revisionRecord.surahNumber));
-        if (!surah) {
-          return res.status(400).json({ error: `Invalid revision surah number: ${revisionRecord.surahNumber}` });
-        }
-        if (Number(revisionRecord.endAyah) > surah.ayah_count) {
-          return res.status(400).json({ error: `Revision end ayah cannot be more than ${surah.ayah_count} (total ayahs in ${surah.name})` });
-        }
-      }
-
-      // Surah range revision
-      if (revisionRecord.startSurahNumber && revisionRecord.endSurahNumber) {
-        if (Number(revisionRecord.startSurahNumber) > Number(revisionRecord.endSurahNumber)) {
-          return res.status(400).json({ error: 'Start surah cannot be greater than end surah' });
-        }
-        
-        // Validate both surahs exist
-        const startSurah = await surahService.getSurahByNumber(Number(revisionRecord.startSurahNumber));
-        const endSurah = await surahService.getSurahByNumber(Number(revisionRecord.endSurahNumber));
-        
-        if (!startSurah || !endSurah) {
-          return res.status(400).json({ error: 'Invalid surah range' });
-        }
-      }
-
-      // Page-based revision
-      if (revisionRecord.startPage || revisionRecord.endPage) {
-        if (!revisionRecord.startPage || !revisionRecord.endPage) {
-          return res.status(400).json({ error: 'Revision record must include a start and end page' });
-        }
-
-        if (Number(revisionRecord.startPage) > Number(revisionRecord.endPage)) {
-          return res.status(400).json({ error: 'Revision start page cannot be greater than end page' });
-        }
+      if (!validation.isValid) {
+        return res.status(400).json({ error: validation.errors[0] });
       }
     }
 
