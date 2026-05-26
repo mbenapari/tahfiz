@@ -21,6 +21,7 @@ interface UserAttributes {
   phone?: string;
   role: UserRole;
   student_identifier?: string;
+  daily_revision_target?: number;
   grade_level?: string;
   class_name?: string;
   is_onboarded: boolean;
@@ -30,7 +31,7 @@ interface UserAttributes {
   deleted_at?: Date;
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'tenant_id' | 'role_id' | 'last_name' | 'email' | 'password' | 'phone' | 'student_identifier' | 'grade_level' | 'class_name' | 'is_onboarded' | 'last_login_at' | 'created_at' | 'updated_at' | 'deleted_at'> {}
+interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'tenant_id' | 'role_id' | 'last_name' | 'email' | 'password' | 'phone' | 'student_identifier' | 'daily_revision_target' | 'grade_level' | 'class_name' | 'is_onboarded' | 'last_login_at' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: number;
@@ -44,6 +45,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare phone: string;
   declare role: UserRole;
   declare student_identifier: string;
+  declare daily_revision_target: number;
   declare grade_level: string;
   declare class_name: string;
   declare is_onboarded: boolean;
@@ -119,6 +121,11 @@ User.init(
     student_identifier: {
       type: DataTypes.STRING(255),
       allowNull: true,
+    },
+    daily_revision_target: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 0,
     },
     grade_level: {
       type: DataTypes.STRING(50),

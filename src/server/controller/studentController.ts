@@ -107,7 +107,7 @@ export const updateStudent = async (req: Request, res: Response) => {
   const correlationId = req.correlationId;
   const { id } = req.params;
   const tenantId = req.user?.tenantId;
-  const { firstName, lastName, email, phone, studentIdentifier } = req.body;
+  const { firstName, lastName, email, phone, studentIdentifier, dailyRevisionTarget } = req.body;
 
   try {
     const student = await userService.getUserById(Number(id));
@@ -122,7 +122,8 @@ export const updateStudent = async (req: Request, res: Response) => {
       last_name: lastName,
       email,
       phone,
-      student_identifier: studentIdentifier
+      student_identifier: studentIdentifier,
+      daily_revision_target: dailyRevisionTarget
     };
 
     const updatedUser = await userService.updateUser(Number(id), updatedData);
