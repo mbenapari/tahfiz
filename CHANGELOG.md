@@ -10,10 +10,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **feat: implement surah range revisions and mastery calculation**: Added support for multi-surah revision records (Muraja'ah) across models, services, and UI. Includes a new `masteryHelper` utility for robust student progress calculation and a comprehensive test suite.
 - **feat: add surah range support to RevisionRecord model**: Added `start_surah_number` and `end_surah_number` columns to the `revision_records` table with appropriate database migrations and Sequelize associations.
+- **feat: add configurable daily revision target per student**: Added `daily_revision_target` field to User model allowing students to have individualized daily page targets. Updated studentController to handle the new field during updates, userService to include it in student profiles with a default of 20 pages, and frontend components (EditStudentModal, DailySession) to display and edit this per-student setting. (9859272)
+- **feat: improve Reports page date range picker with separate pending state and Apply button**: Refactored date range selection to use a pending state that only applies when the user clicks Apply, preventing unnecessary API calls on every date change. Added proper date input fields instead of displaying raw date strings. (dffc1e9)
+- **feat: add mobile card view for session history in StudentReportModal**: Added responsive mobile-friendly cards (md:hidden) to display session history on small screens alongside the existing desktop table view (hidden md:block). Each card shows date, attendance status, memorization and revision details. (eec7dab)
 
 ### Changed
 - **feat: update DailySession and StudentProfile for surah range revisions**: Refactored the session logging and student profile interfaces to support selecting and displaying a range of surahs for revision activity.
 - **feat: integrate surah range revisions into session and report services**: Updated backend controllers and reporting logic to correctly process and format multi-surah revision data in API responses and CSV exports.
+
+### Refactored
+- **refactor: extract revision record validation into dedicated utility**: Extracted revision record validation logic from sessionController into a separate revisionValidation utility with better error messages and support for single-surah, surah-range, and page-range revision types. Added comprehensive unit tests for the validation logic. (b0d0603)
+- **refactor: improve school performance report with batch progress calculation**: Refactored getSchoolPerformanceReport to use batch student progress calculation instead of individual queries per student, improving performance. Added error logging to report service functions. Enhanced revision record display with page range support and better surah name handling. (101cc0a)
+
+### Docs
+- **docs: add Quranic verse range validation refactoring plan**: Added documentation for the Quranic verse range validation refactoring plan. (7a632aa)
+
+### Chore
+- **chore: add migration for daily_revision_target column to users table**: Added database migration to add the `daily_revision_target` column to the users table. (74c5223)
 
 ### Style
 - **style: optimize Settings page for mobile devices**: Overhauled the school configuration page with a mobile-first design, featuring collapsible layouts, scrollable tabs, and responsive input controls for smaller screens (425px and below).
@@ -21,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **fix: correct API response parsing in DailySession**: Fixed a bug where student data was not being correctly extracted from the nested API response, resolving "Student not found" errors.
+- **fix: add proper validation for cross-surah revision verse ranges**: Fixed revision record validation to properly enforce ayah limits per surah in cross-surah ranges. Previously, startAyah and endAyah were not validated against their respective surah's ayah counts when using surah range revision (e.g., Al-Fatihah to Al-Baqarah). Now validates that startAyah is within the start surah's bounds and endAyah is within the end surah's bounds.
 
 ### Tests
 - **test: fix foreign key constraint handling in user tests**: Create School (tenant) before user creation in auth_security and user_role tests to satisfy foreign key constraints. Update tenant_id from hardcoded 1 to dynamically created testSchool.id. Increase password validation timeout from 500ms to 1000ms for bcrypt overhead. Increase test timeouts to 10-30s range per project conventions. (6f42f06)

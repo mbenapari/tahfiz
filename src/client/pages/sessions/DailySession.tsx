@@ -17,6 +17,7 @@ import {
 import { useNavigate, useParams } from 'react-router';
 
 interface Student {
+  daily_revision_target: number;
   id: number;
   first_name: string;
   last_name: string;
@@ -859,7 +860,7 @@ export const DailySession: React.FC = () => {
                 ></div>
               </div>
               <p className="text-xs font-medium text-text-muted">
-                {revisionTab === 'page' ? 'Daily target: 20 pages' : 
+                {revisionTab === 'page' ? `Daily target: ${student?.daily_revision_target || 20} pages` : 
                  selectedRevisionSurah && selectedEndRevisionSurah && selectedRevisionSurah.number !== selectedEndRevisionSurah.number
                    ? 'Target: 5 Surahs'
                    : `Target: ${selectedRevisionSurah?.ayah_count || 0} Ayahs`}

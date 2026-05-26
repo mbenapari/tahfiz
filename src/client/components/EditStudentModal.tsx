@@ -5,6 +5,7 @@ import {
   Mail, 
   Phone, 
   IdCard, 
+  Target,
   CheckCircle2,
   Loader2,
   AlertCircle
@@ -17,6 +18,7 @@ interface Student {
   email: string;
   phone: string;
   student_identifier: string;
+  daily_revision_target?: number;
 }
 
 interface EditStudentModalProps {
@@ -31,7 +33,8 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, onC
     lastName: student.last_name || '',
     email: student.email || '',
     phone: student.phone || '',
-    studentIdentifier: student.student_identifier || ''
+    studentIdentifier: student.student_identifier || '',
+    dailyRevisionTarget: student.daily_revision_target || 0
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +60,8 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, onC
           last_name: formData.lastName,
           email: formData.email,
           phone: formData.phone,
-          student_identifier: formData.studentIdentifier
+          student_identifier: formData.studentIdentifier,
+          daily_revision_target: formData.dailyRevisionTarget
         });
         onClose();
       } else {
@@ -159,6 +163,20 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, onC
                 value={formData.studentIdentifier}
                 onChange={(e) => setFormData({ ...formData, studentIdentifier: e.target.value })}
                 placeholder="e.g. ID-2024-001"
+                className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-primary/50 transition-colors"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-text-muted uppercase tracking-wider ml-1">Daily Revision Target (Pages/Surahs)</label>
+            <div className="relative">
+              <Target size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input 
+                type="number" 
+                value={formData.dailyRevisionTarget}
+                onChange={(e) => setFormData({ ...formData, dailyRevisionTarget: parseInt(e.target.value) || 0 })}
+                min="0"
                 className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-primary/50 transition-colors"
               />
             </div>

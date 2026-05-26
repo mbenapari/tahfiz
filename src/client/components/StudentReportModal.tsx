@@ -102,13 +102,15 @@ export const StudentReportModal: React.FC<StudentReportModalProps> = ({ studentI
                 </div>
               </div>
 
-              {/* Session History Table */}
+              {/* Session History */}
               <div>
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                   <Clock size={20} className="text-primary" />
                   Detailed History
                 </h3>
-                <div className="border border-border-green/20 rounded-xl overflow-hidden">
+
+                {/* Desktop Table */}
+                <div className="hidden md:block border border-border-green/20 rounded-xl overflow-hidden">
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-background-dark/50">
                       <tr>
@@ -139,6 +141,39 @@ export const StudentReportModal: React.FC<StudentReportModalProps> = ({ studentI
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden space-y-3">
+                  {reportData.sessions.map((session: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="bg-background-dark/50 border border-border-green/20 rounded-xl p-4 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-white">{session.date}</span>
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${
+                          session.attendance === 'present' ? 'bg-primary/10 text-primary' : 'bg-red-400/10 text-red-400'
+                        }`}>
+                          {session.attendance}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <span className="text-[10px] font-bold text-text-muted uppercase block mb-1">Memorization</span>
+                          <span className="text-xs text-text-muted leading-relaxed">
+                            {session.memorization || '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-text-muted uppercase block mb-1">Revision</span>
+                          <span className="text-xs text-text-muted leading-relaxed">
+                            {session.revision || '-'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

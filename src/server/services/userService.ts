@@ -19,6 +19,7 @@ export interface CreateUserDTO {
   phone?: string;
   role: UserRole;
   student_identifier?: string;
+  daily_revision_target?: number;
   is_onboarded?: boolean;
 }
 
@@ -32,6 +33,7 @@ export interface UpdateUserDTO {
   role?: UserRole;
   role_id?: number;
   student_identifier?: string;
+  daily_revision_target?: number;
   is_onboarded?: boolean;
 }
 
@@ -266,6 +268,7 @@ const mapStudentWithProgress = async (user: any, tenantId: number, preCalculated
   return {
     ...userJSON,
     lastSession,
+    daily_revision_target: userJSON.daily_revision_target || 20,
     currentLevel: calculatedProgress.currentLevel,
     progress: {
       percentage: calculatedProgress.percentage,
@@ -423,7 +426,11 @@ export const getStudentProfile = async (id: number, tenantId: number) => {
             { 
               model: RevisionRecord, 
               as: 'revision_records',
-              include: [{ model: Surah, as: 'surah', attributes: ['name', 'number'] }]
+              include: [
+                { model: Surah, as: 'surah', attributes: ['name', 'number'] },
+                { model: Surah, as: 'start_surah', attributes: ['name', 'number'] },
+                { model: Surah, as: 'end_surah', attributes: ['name', 'number'] }
+              ]
             }
           ],
           order: [['session_date', 'DESC']],
@@ -448,7 +455,7 @@ export const getStudentProfile = async (id: number, tenantId: number) => {
       }),
       RevisionRecord.findAll({
         where: { student_id: id, tenant_id: tenantId },
-        attributes: ['surah_number', 'start_surah_number', 'end_surah_number', 'start_ayah', 'end_ayah']
+        attributes: ['surah_number', 'start_surah_number', 'end_surah_number', 'start_ayah', 'end_ayah', 'start_page', 'end_page']
       })
     ]);
 
@@ -473,24 +480,40 @@ export const getStudentProfile = async (id: number, tenantId: number) => {
       }
 
       session.memorization_records?.forEach((m: any) => {
+        const surahName = m.surah?.name || (m.surah_number ? `Surah ${m.surah_number}` : 'Surah');
+        const range = m.is_full_surah ? 'Full' : `${m.start_ayah}-${m.end_ayah}`;
         activities.push({
           id: `mem-${m.id}`,
           type: 'completed',
-          title: `Memorized ${m.surah?.name || 'Surah'}`,
+          title: `Memorized ${surahName}`,
           time: session.session_date,
-          meta: `Ayahs ${m.start_ayah}-${m.end_ayah}`,
+          meta: `Ayahs ${range}`,
           icon: 'CheckCircle2',
           color: 'text-primary'
         });
       });
 
       session.revision_records?.forEach((r: any) => {
+        let title = 'Revised';
+        let meta = r.notes || '';
+
+        if (r.start_surah_number && r.end_surah_number && r.start_surah_number !== r.end_surah_number) {
+          title = `Revised Surahs ${r.start_surah?.name || r.start_surah_number} - ${r.end_surah?.name || r.end_surah_number}`;
+        } else if (r.start_page && r.end_page) {
+          title = `Revised Pages ${r.start_page} - ${r.end_page}`;
+        } else {
+          const surahName = r.surah?.name || (r.surah_number ? `Surah ${r.surah_number}` : 'Surah');
+          title = `Revised ${surahName}`;
+          const range = r.is_full_surah ? 'Full Surah' : `Ayahs ${r.start_ayah || 1}-${r.end_ayah || 'Full'}`;
+          meta = meta ? `${range} | ${meta}` : range;
+        }
+
         activities.push({
           id: `rev-${r.id}`,
           type: 'revised',
-          title: `Revised ${r.surah?.name || 'Surah'}`,
+          title: title,
           time: session.session_date,
-          meta: r.notes || '',
+          meta: meta,
           icon: 'Clock',
           color: 'text-blue-400'
         });
@@ -538,6 +561,7 @@ export const getStudentProfile = async (id: number, tenantId: number) => {
 
     return {
        ...userJSON,
+       daily_revision_target: userJSON.daily_revision_target || 20,
        stats: {
          juzs: { current: Math.floor(totalAyahsMemorized / 200), total: 30 }, // Approximation
          completion: completionPercentage,

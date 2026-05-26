@@ -1,8 +1,11 @@
-import { Session, MemorizationRecord, RevisionRecord, Attendance, Surah, User, AttendanceStatus } from '../model';
+import { Session, MemorizationRecord, RevisionRecord, Attendance, Surah, User, AttendanceStatus, RecordType } from '../model';
 import { Op, fn, col, literal } from 'sequelize';
 import * as progressService from './progressService';
 import { analyticsService } from './analyticsService';
 import { getPaginationOptions, formatPaginationResult } from '../helper/paginationHelper';
+import logger from '../utils/logger';
+
+const AYAHS_PER_JUZ = 208;
 
 export interface StudentReportData {
   student: {
@@ -75,17 +78,32 @@ export const getStudentReport = async (studentId: number, tenantId: number) => {
       sessions: sessions.map((s: any) => ({
         date: s.session_date,
         attendance: s.attendance?.status || 'N/A',
-        memorization: s.memorization_records.map((m: any) => `${m.surah?.name} (${m.start_ayah}-${m.end_ayah})`).join(', '),
+        memorization: s.memorization_records.map((m: any) => {
+          const surahName = m.surah?.name || (m.surah_number ? `Surah ${m.surah_number}` : 'Unknown Surah');
+          const range = m.is_full_surah ? 'Full' : `${m.start_ayah}-${m.end_ayah}`;
+          return `${surahName} (${range})`;
+        }).join(', '),
         revision: s.revision_records.map((r: any) => {
           if (r.start_surah_number && r.end_surah_number && r.start_surah_number !== r.end_surah_number) {
             return `Surahs ${r.start_surah?.name || r.start_surah_number} - ${r.end_surah?.name || r.end_surah_number}`;
           }
-          return `${r.surah?.name || 'Surah ' + r.surah_number} (${r.start_ayah || 1}-${r.end_ayah || 'Full'})`;
+          if (r.start_page && r.end_page) {
+            return `Pages ${r.start_page} - ${r.end_page}`;
+          }
+          const surahName = r.surah?.name || (r.surah_number ? `Surah ${r.surah_number}` : null);
+          const range = r.is_full_surah ? 'Full' : `${r.start_ayah || 1}-${r.end_ayah || 'Full'}`;
+          
+          if (surahName) {
+            return `${surahName} (${range})`;
+          }
+          return `Revision (${range})`;
         }).join(', '),
         notes: s.notes
       }))
     };
   } catch (error) {
+    logger.error('getStudentReport: Error fetching student report studentId=%d tenantId=%d error=%s',
+      studentId, tenantId, (error as Error).message);
     throw error;
   }
 };
@@ -95,85 +113,71 @@ export const getStudentReport = async (studentId: number, tenantId: number) => {
  */
 export const getSchoolPerformanceReport = async (tenantId: number, startDate: string, endDate: string) => {
   try {
-    // 1. Get basic stats
     const attendanceMetrics = await analyticsService.getAttendanceMetrics(tenantId, startDate, endDate);
     const memorizationProgress = await analyticsService.getMemorizationProgress(tenantId, startDate, endDate);
     const activeStudents = await analyticsService.getActiveStudents(tenantId);
 
-    // 2. Get top performers (students with highest memorization activity in the period)
-    const topPerformersData = await User.findAll({
-      where: { tenant_id: tenantId, role: 'student' },
-      include: [
-        {
-          model: MemorizationRecord,
-          as: 'student_memorization_records',
-          required: false,
-          attributes: [],
-          include: [
-            {
-              model: Session,
-              as: 'session',
-              required: true,
-              where: {
-                session_date: { [Op.between]: [startDate, endDate] }
-              },
-              attributes: []
-            }
-          ]
-        }
-      ],
-      attributes: [
-        'id', 'first_name', 'last_name', 'class_name', 'grade_level',
-        [fn('COUNT', col('student_memorization_records.id')), 'record_count']
-      ],
-      group: ['User.id', 'User.first_name', 'User.last_name', 'User.class_name', 'User.grade_level'],
-      order: [[literal('record_count'), 'DESC']],
-      subQuery: false,
-      limit: 5
-    });
-
-    const topPerformers = await Promise.all(topPerformersData.map(async (u: any) => {
-      const progress = await progressService.calculateStudentProgress(u.id, tenantId);
-      return {
-        id: u.id,
-        name: `${u.first_name} ${u.last_name}`,
-        class: u.class_name || 'Unassigned',
-        memorized: `${Math.floor(progress.totalAyahs / 100)} Juz`, // Rough conversion
-        accuracy: '95%', // Placeholder
-        status: 'Advancing',
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.first_name}`
-      };
-    }));
-
-    // 3. Trend data (using memorization progress trend)
-    const trendData = memorizationProgress.trend.map(t => ({
+    const trendData = (memorizationProgress.trend || []).map(t => ({
       name: t.date,
       current: t.pages,
-      target: t.pages * 0.9 // Placeholder target
+      target: t.pages * 0.9
     }));
+
+    const activeStudentsTrend = activeStudents.monthly > activeStudents.weekly
+      ? `+${activeStudents.monthly - activeStudents.weekly} from last week`
+      : 'Across multiple levels';
+
+    // Get top performers
+    const students = await User.findAll({
+      where: { tenant_id: tenantId, role: 'student' },
+      attributes: ['id', 'first_name', 'last_name', 'class_name', 'student_identifier'],
+      limit: 100 // Limit to avoid performance issues
+    });
+
+    const studentProgressMap = await progressService.calculateBatchStudentProgress(
+      students.map(s => s.id),
+      tenantId
+    );
+
+    const topPerformers = students
+      .map(s => {
+        const progress = studentProgressMap[s.id];
+        return {
+          id: s.id,
+          name: `${s.first_name} ${s.last_name}`,
+          class: s.class_name || 'N/A',
+          memorized: `${progress.totalAyahs} Ayahs`,
+          accuracy: `${progress.percentage}%`,
+          status: progress.status,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(s.first_name + ' ' + s.last_name)}&background=random`,
+          percentage: progress.percentage
+        };
+      })
+      .sort((a, b) => b.percentage - a.percentage)
+      .slice(0, 5);
 
     return {
       stats: [
         {
           label: 'AVERAGE ATTENDANCE',
           value: `${attendanceMetrics.percentage.toFixed(1)}%`,
-          trend: '+1.5% from last month', // Placeholder trend calculation
+          trend: `Based on ${attendanceMetrics.total} sessions`,
           icon: 'Calendar',
           iconColor: 'text-primary',
           bgIcon: 'bg-primary/10'
         },
-        {
-          label: 'MEMORIZATION PROGRESS',
-          value: `${Math.round(memorizationProgress.pages_memorized)} Pages`,
-          trend: '+24% velocity increase', // Placeholder
-          icon: 'BookOpen',
-          iconColor: 'text-blue-400',
-          bgIcon: 'bg-blue-400/10'
-        },
+        // {
+        //   label: 'MEMORIZATION PROGRESS',
+        //   value: `${Math.round(memorizationProgress.pages_memorized)} Pages`,
+        //   trend: `${memorizationProgress.records_count} records this period`,
+        //   icon: 'BookOpen',
+        //   iconColor: 'text-blue-400',
+        //   bgIcon: 'bg-blue-400/10'
+        // },
         {
           label: 'ACTIVE STUDENTS',
           value: activeStudents.monthly.toString(),
-          trend: 'Across multiple levels',
+          trend: activeStudentsTrend,
           icon: 'Users',
           iconColor: 'text-primary',
           bgIcon: 'bg-primary/10'
@@ -193,6 +197,8 @@ export const getSchoolPerformanceReport = async (tenantId: number, startDate: st
       ]
     };
   } catch (error) {
+    logger.error('getSchoolPerformanceReport: Error fetching school performance report tenantId=%d startDate=%s endDate=%s error=%s',
+      tenantId, startDate, endDate, (error as Error).message);
     throw error;
   }
 };
@@ -230,6 +236,8 @@ export const getPaginatedStudentsReport = async (tenantId: number, page: number,
 
     return formatPaginationResult(studentsReport, count, page, limit);
   } catch (error) {
+    logger.error('getPaginatedStudentsReport: Error fetching paginated students report tenantId=%d page=%d limit=%d error=%s',
+      tenantId, page, limit, (error as Error).message);
     throw error;
   }
 };
