@@ -5,17 +5,20 @@ export interface CreateSessionDTO {
   student_id: number;
   instructor_id?: number;
   session_date: string;
+  recording_date?: string;
   notes?: string;
 }
 
 export interface UpdateSessionDTO {
   instructor_id?: number;
   session_date?: string;
+  recording_date?: string;
   notes?: string;
 }
 
 export const createSession = async (data: CreateSessionDTO) => {
   try {
+    const recording_date = data.recording_date || data.session_date;
     // A student can only have one session per date according to 'ux_student_date' index
     // So we try to find it first, if it exists, return it instead of throwing Validation error
     let session = await Session.findOne({
@@ -27,11 +30,24 @@ export const createSession = async (data: CreateSessionDTO) => {
     });
 
     if (!session) {
-      session = await Session.create(data);
-    } else if (data.notes && data.notes !== session.notes) {
-      // Append notes if updating an existing session for the day
-      const newNotes = session.notes ? `${session.notes}\n${data.notes}` : data.notes;
-      await session.update({ notes: newNotes, instructor_id: data.instructor_id });
+      session = await Session.create({
+        ...data,
+        recording_date
+      });
+    } else {
+      const updatePayload: any = { instructor_id: data.instructor_id };
+      
+      if (data.notes && data.notes !== session.notes) {
+        // Append notes if updating an existing session for the day
+        updatePayload.notes = session.notes ? `${session.notes}\n${data.notes}` : data.notes;
+      }
+
+      // Always update recording_date if provided, to keep it in sync with latest record
+      if (data.recording_date) {
+        updatePayload.recording_date = data.recording_date;
+      }
+
+      await session.update(updatePayload);
     }
     
     return session;
@@ -121,6 +137,24 @@ export const deleteSession = async (id: number, tenant_id: number) => {
     const session = await getSessionById(id, tenant_id);
     await session.destroy();
     return true;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Check if an instructor has logged any sessions within a tenant.
+ * Used to determine whether to show first-time "attention" UI.
+ */
+export const hasInstructorSessions = async (
+  instructorId: number,
+  tenantId: number
+): Promise<boolean> => {
+  try {
+    const count = await Session.count({
+      where: { instructor_id: instructorId, tenant_id: tenantId },
+    });
+    return count > 0;
   } catch (error) {
     throw error;
   }

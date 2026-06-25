@@ -10,6 +10,7 @@ import schoolRoutes from "./routes/schoolRoutes";
 import statsRoutes from "./routes/statsRoutes";
 import surahRoutes from "./routes/surahRoutes";
 import sessionRoutes from "./routes/sessionRoutes";
+import revisionRoutes from "./routes/revisionRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import analyticsRoutes from "./routes/analyticsRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
@@ -29,9 +30,10 @@ app.use(cookieParser());
 // CSRF Token endpoint - MUST be before doubleCsrfProtection
 app.get("/api/csrf-token", csrfTokenMiddleware);
 
-// Apply CSRF protection to all /api routes except the token endpoint
+// Apply CSRF protection to all /api routes except the token endpoint and analytics events
+// (sendBeacon can't set custom headers, so analytics events must bypass CSRF)
 app.use("/api", (req, res, next) => {
-  if (req.path === "/csrf-token") return next();
+  if (req.path === "/csrf-token" || req.path === "/analytics/events") return next();
   doubleCsrfProtection(req, res, next);
 });
 
@@ -50,6 +52,7 @@ app.use("/api/schools", schoolRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/surahs", surahRoutes);
 app.use("/api/sessions", sessionRoutes);
+app.use("/api/revision", revisionRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/metrics", analyticsRoutes);
 app.use("/api/notifications", notificationRoutes);
