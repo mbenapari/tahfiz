@@ -165,30 +165,27 @@ export const EnrollStudent: React.FC = () => {
           
           {/* Section 1: Student Identity */}
           <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10 text-primary">
                   <Users size={20} />
                 </div>
                 <h2 className="text-lg font-bold text-white">Student Identity</h2>
               </div>
-              {!isOnboarding && (
-                <button 
-                  onClick={() => {
-                    setShowCreateForm(!showCreateForm);
-                    setSelectedUser(null);
-                  }}
-                  className="text-sm font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-                >
-                  {showCreateForm ? '← Back to Search' : '+ Create New Student User '}
-                </button>
-              )}
-            </div>
 
             {!showCreateForm ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Search Student */}
                 <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => {
+                      setShowCreateForm(true);
+                      setSelectedUser(null);
+                    }}
+                    className="w-full mb-3 px-4 py-3 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-xl text-sm font-bold text-primary hover:text-primary-hover transition-all flex items-center justify-center gap-2"
+                  >
+                    <UserPlus size={18} />
+                    New Student? Create one →
+                  </button>
                   <label className="text-sm font-medium text-text-muted">Search Student</label>
                   <div className="relative">
                     <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -222,6 +219,22 @@ export const EnrollStudent: React.FC = () => {
                       ))}
                     </div>
                   )}
+                  {searchQuery.length >= 2 && !isSearching && searchResults.length === 0 && (
+                    <div className="mt-2 bg-background-dark border border-border-green/30 rounded-xl p-4 text-center">
+                      <p className="text-sm text-text-muted mb-3">
+                        No students found matching &quot;<span className="text-white font-medium">{searchQuery}</span>&quot;
+                      </p>
+                      <button
+                        onClick={() => {
+                          setShowCreateForm(true);
+                          setSelectedUser(null);
+                        }}
+                        className="px-4 py-2 bg-primary hover:bg-primary-hover text-background-dark rounded-xl text-sm font-bold transition-all"
+                      >
+                        Create New Student →
+                      </button>
+                    </div>
+                  )}
                   <p className="text-xs text-text-muted/60 mt-1">Search for an existing user account to enroll.</p>
                 </div>
 
@@ -247,14 +260,28 @@ export const EnrollStudent: React.FC = () => {
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center p-4 bg-background-dark/30 border border-dashed border-border-green/30 rounded-xl text-text-muted text-sm italic">
-                      No user selected
+                    <div className="flex flex-col items-center justify-center p-4 bg-background-dark/30 border border-dashed border-border-green/30 rounded-xl text-text-muted text-sm text-center">
+                      <p className="italic">No user selected</p>
+                      <p className="text-xs mt-1">Search for an existing student or create a new one</p>
                     </div>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/5 p-6 rounded-2xl border border-border-green/20">
+              <div className="bg-white/5 p-6 rounded-2xl border border-border-green/20">
+                <div className="flex items-center justify-between mb-6">
+                  <span className="text-sm font-medium text-text-muted">Create New Student User</span>
+                  <button
+                    onClick={() => {
+                      setShowCreateForm(false);
+                      setNewUserData({ firstName: '', lastName: '', email: '', phone: '', studentIdentifier: '' });
+                    }}
+                    className="text-sm font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                  >
+                    ← Back to Search
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium text-text-muted">First Name</label>
                   <input 
@@ -305,6 +332,7 @@ export const EnrollStudent: React.FC = () => {
                     className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary/50 transition-colors"
                   />
                 </div>
+              </div>
               </div>
             )}
           </div>
@@ -398,7 +426,13 @@ export const EnrollStudent: React.FC = () => {
             ) : (
               <CheckCircle2 size={18} />
             )}
-            {isSubmitting ? 'Processing...' : 'Confirm Enrollment'}
+            {isSubmitting ? (
+              'Processing...'
+            ) : !selectedUser && !showCreateForm ? (
+              'Select or create a student to continue'
+            ) : (
+              'Confirm Enrollment'
+            )}
           </button>
         </div>
 
