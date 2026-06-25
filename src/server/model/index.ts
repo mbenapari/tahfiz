@@ -20,6 +20,7 @@ import ClassStudent from './ClassStudent';
 import BlacklistedToken from './BlacklistedToken';
 import SystemOwner from './SystemOwner';
 import Feedback from './Feedback';
+import InstructorNote, { NoteVisibility, NoteTargetType } from './InstructorNote';
 
 // Associations
 
@@ -113,6 +114,14 @@ Feedback.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 School.hasMany(Feedback, { foreignKey: 'tenant_id', as: 'feedbacks' });
 Feedback.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
+
+// InstructorNote Associations
+School.hasMany(InstructorNote, { foreignKey: 'tenant_id', as: 'instructor_notes' });
+InstructorNote.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
+User.hasMany(InstructorNote, { foreignKey: 'instructor_id', as: 'authored_notes' });
+InstructorNote.belongsTo(User, { foreignKey: 'instructor_id', as: 'author' });
+User.hasMany(InstructorNote, { foreignKey: 'student_id', as: 'student_notes' });
+InstructorNote.belongsTo(User, { foreignKey: 'student_id', as: 'student' });
 
 // SurahProgress Associations
 School.hasMany(SurahProgress, { foreignKey: 'tenant_id', as: 'surah_progress_records' });
@@ -215,6 +224,9 @@ export {
   BlacklistedToken,
   SystemOwner,
   Feedback,
+  InstructorNote,
+  NoteVisibility,
+  NoteTargetType,
   AttendanceStatus,
   RecordType
 };
