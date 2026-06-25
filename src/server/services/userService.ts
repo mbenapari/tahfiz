@@ -1,4 +1,4 @@
-import { FindOptions, Op } from 'sequelize';
+import { FindOptions } from 'sequelize';
 import { User, Role, SchoolMember, School, Session, MemorizationRecord, Surah, Attendance, RevisionRecord, JuzMap } from '../model';
 import { UserRole } from '../model/User';
 import * as progressService from './progressService';
@@ -327,16 +327,24 @@ export const getStudentsWithProgress = async (tenantId: number, page: number = 1
   }
 };
 
-export const searchStudentsWithProgress = async (query: string, tenantId: number, page: number = 1, limit: number = DEFAULT_PAGE_SIZE) => {
+export const searchStudentsWithProgress = async (query: string, tenantId: number, page: number = 1, limit: number = DEFAULT_PAGE_SIZE, correlationId?: string) => {
+  const logId = correlationId || 'N/A';
+  logger.info(`searchStudentsWithProgress: Searching students - query="${query}", tenantId=${tenantId}, page=${page}, limit=${limit}, correlationId=${logId}`);
+
   try {
     const offset = (page - 1) * limit;
-
     const fields = ['first_name', 'last_name', 'email', 'student_identifier'];
+
+    // Build WHERE conditions — spread directly (avoid [Op.and] wrapper which can mis-nest Op.or clauses)
     const where: any = {
       role: UserRole.STUDENT,
       tenant_id: tenantId,
       ...queryHelper.buildSearchWhereClause(query, fields)
     };
+
+    if (query && query.trim()) {
+      logger.debug(`searchStudentsWithProgress: Search clause active - query="${query}", correlationId=${logId}`);
+    }
 
     const { count, rows: users } = await User.findAndCountAll({
       where,
@@ -358,6 +366,8 @@ export const searchStudentsWithProgress = async (query: string, tenantId: number
       ]
     });
 
+    logger.info(`searchStudentsWithProgress: Database query complete - matched=${count}, returned=${users.length}, page=${page}, correlationId=${logId}`);
+
     // Batch calculate progress for all students in this page
     const studentIds = users.map(u => u.id);
     const batchProgress = await progressService.calculateBatchStudentProgress(studentIds, tenantId);
@@ -365,6 +375,8 @@ export const searchStudentsWithProgress = async (query: string, tenantId: number
     const studentData = await Promise.all(users.map(user => 
       mapStudentWithProgress(user, tenantId, batchProgress[user.id])
     ));
+
+    logger.info(`searchStudentsWithProgress: Mapped ${studentData.length} students with progress, correlationId=${logId}`);
 
     return {
       students: studentData,
@@ -376,7 +388,7 @@ export const searchStudentsWithProgress = async (query: string, tenantId: number
       }
     };
   } catch (error) {
-    logger.error('userService.searchStudentsWithProgress: Error', { error: (error as Error).message });
+    logger.error(`searchStudentsWithProgress: Failed to search students - query="${query}", tenantId=${tenantId}, error="${(error as Error).message}", correlationId=${logId}`);
     throw error;
   }
 };
@@ -402,7 +414,7 @@ export const searchUsers = async (query: string, tenantId?: number) => {
   }
 };
 
-export const getStudentProfile = async (id: number, tenantId: number) => {
+export const getStudentProfile = async (id: number, tenantId: number, activityLimit: number = RECENT_ACTIVITY_LIMIT) => {
   try {
     const user = await User.findOne({
       where: { id, tenant_id: tenantId, role: UserRole.STUDENT },
@@ -434,7 +446,7 @@ export const getStudentProfile = async (id: number, tenantId: number) => {
             }
           ],
           order: [['session_date', 'DESC']],
-          limit: 10
+          limit: activityLimit
         }
       ]
     });
@@ -520,7 +532,7 @@ export const getStudentProfile = async (id: number, tenantId: number) => {
       });
 
       return activities;
-    }).flat().slice(0, RECENT_ACTIVITY_LIMIT);
+    }).flat().slice(0, activityLimit);
 
     const masteryData = calculateMasteryData(
       allSurahs.map(s => ({ number: s.number, name: s.name, ayah_count: s.ayah_count })),

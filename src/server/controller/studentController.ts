@@ -88,6 +88,7 @@ export const createStudent = async (req: Request, res: Response) => {
 export const getStudentById = async (req: Request, res: Response) => {
   const correlationId = req.correlationId;
   const { id } = req.params;
+  const { limit } = req.query;
   const tenantId = req.user?.tenantId;
 
   if (!tenantId) {
@@ -95,7 +96,8 @@ export const getStudentById = async (req: Request, res: Response) => {
   }
 
   try {
-    const student = await userService.getStudentProfile(Number(id), tenantId);
+    const activityLimit = limit ? Number(limit) : 5;
+    const student = await userService.getStudentProfile(Number(id), tenantId, activityLimit);
     res.json(apiResponse.success({ student }));
   } catch (error: any) {
     logger.error('studentController.getStudentById: Error', { correlationId, error: error.message });
@@ -154,6 +156,7 @@ export const searchStudents = async (req: Request, res: Response) => {
   const tenantId = req.user?.tenantId;
 
   if (!tenantId) {
+    logger.warn(`studentController.searchStudents: Tenant ID required but not found, correlationId=${correlationId || 'N/A'}`);
     return res.status(403).json(apiResponse.fail('FORBIDDEN', 'Tenant ID required'));
   }
 
@@ -161,10 +164,14 @@ export const searchStudents = async (req: Request, res: Response) => {
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || DEFAULT_PAGE_SIZE;
 
-    const result = await userService.searchStudentsWithProgress(query as string, tenantId, pageNum, limitNum);
+    logger.info(`studentController.searchStudents: Request received - query="${query}", tenantId=${tenantId}, page=${pageNum}, limit=${limitNum}, correlationId=${correlationId}`);
+
+    const result = await userService.searchStudentsWithProgress(query as string, tenantId, pageNum, limitNum, correlationId);
+    logger.info(`studentController.searchStudents: Returning ${result.students.length} results (total=${result.pagination.total}), correlationId=${correlationId}`);
+
     res.json(apiResponse.success(result));
   } catch (error: any) {
-    logger.error('studentController.searchStudents: Error', { correlationId, error: error.message });
+    logger.error(`studentController.searchStudents: Search failed - query="${query}", tenantId=${tenantId}, error="${error.message}", correlationId=${correlationId}`);
    return res.status(500).json(apiResponse.fail('SERVER_ERROR', 'Failed to search students'));
   }
 };

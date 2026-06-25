@@ -78,18 +78,25 @@ export const canMoveToNextSurah = async (
  * Builds a search where clause for model queries.
  * Consolidates duplicate logic for searching by name, email, etc.
  * Sanitizes query to prevent performance issues with wildcard prefixes and length limits.
+ * Uses substring matching (%query%) for better user experience.
  */
 export const buildSearchWhereClause = (query: string, fields: string[] = [], maxLength: number = 50) => {
-  if (!query) return {};
+  if (!query || typeof query !== 'string') return {};
+
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return {};
 
   // Length limiting to prevent ReDoS or performance issues
-  const limitedQuery = query.substring(0, maxLength);
+  const limitedQuery = trimmedQuery.substring(0, maxLength);
 
-  // Sanitize query: remove leading wildcards to maintain index performance
-  const sanitizedQuery = limitedQuery.replace(/^[%_]+/, '');
+  // Sanitize query: strip SQL LIKE wildcards to prevent unintended patterns
+  const sanitizedQuery = limitedQuery.replace(/[%_]/g, '');
   if (!sanitizedQuery) return {};
 
+  // Use substring matching (both sides wildcard) for better UX
+  const likePattern = `%${sanitizedQuery}%`;
+
   return {
-    [Op.or]: fields.map(field => ({ [field]: { [Op.like]: `${sanitizedQuery}%` } }))
+    [Op.or]: fields.map(field => ({ [field]: { [Op.iLike]: likePattern } }))
   };
 };
