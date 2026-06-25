@@ -13,6 +13,7 @@ export interface CreateRevisionRecordDTO {
   start_page?: number;
   end_page?: number;
   is_full_surah?: boolean;
+  rating?: number;
   notes?: string;
 }
 
@@ -26,6 +27,7 @@ export interface UpdateRevisionRecordDTO {
   start_page?: number;
   end_page?: number;
   is_full_surah?: boolean;
+  rating?: number;
   notes?: string;
 }
 

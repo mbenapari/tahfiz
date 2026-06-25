@@ -17,13 +17,14 @@ interface MemorizationRecordAttributes {
   start_ayah: number;
   end_ayah: number;
   is_full_surah?: boolean;
+  rating?: number;
   notes?: string;
   created_at?: Date;
   updated_at?: Date;
   deleted_at?: Date;
 }
 
-interface MemorizationRecordCreationAttributes extends Optional<MemorizationRecordAttributes, 'id' | 'instructor_id' | 'is_full_surah' | 'notes' | 'created_at' | 'updated_at' | 'deleted_at'> {}
+interface MemorizationRecordCreationAttributes extends Optional<MemorizationRecordAttributes, 'id' | 'instructor_id' | 'is_full_surah' | 'rating' | 'notes' | 'created_at' | 'updated_at' | 'deleted_at'> {}
 
 class MemorizationRecord extends Model<MemorizationRecordAttributes, MemorizationRecordCreationAttributes> implements MemorizationRecordAttributes {
   declare id: number;
@@ -36,6 +37,7 @@ class MemorizationRecord extends Model<MemorizationRecordAttributes, Memorizatio
   declare start_ayah: number;
   declare end_ayah: number;
   declare is_full_surah: boolean;
+  declare rating: number;
   declare notes: string;
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
@@ -104,6 +106,15 @@ MemorizationRecord.init(
     is_full_surah: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
+    },
+    rating: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 3,
+      validate: {
+        min: 1,
+        max: 5,
+      },
     },
     notes: {
       type: DataTypes.STRING(1024),
