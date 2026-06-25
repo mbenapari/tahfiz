@@ -37,5 +37,10 @@ export const ProtectedRoute: React.FC = () => {
     return <Navigate to="/owner" replace />;
   }
 
+  // Restrict instructor-related pages to admin only
+  if (location.pathname.startsWith('/instructors') && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <Outlet />;
 };

@@ -42,7 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'Students', path: '/students' },
-    { icon: GraduationCap, label: 'Instructors', path: '/instructors' },
+    ...(user?.role === 'admin' ? [{ icon: GraduationCap, label: 'Instructors', path: '/instructors' }] : []),
     // { icon: BookOpen, label: 'Classes', path: '/classes' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
     { icon: MessageSquare, label: 'Feedback', path: '/feedback' },
