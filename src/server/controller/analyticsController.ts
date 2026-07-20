@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { analyticsService } from '../services/analyticsService';
 import logger from '../utils/logger';
+import { getTenantId } from '../utils/schoolContext';
 
 /**
  * Controller for exposing analytics metrics
@@ -11,7 +12,7 @@ export const analyticsController = {
    */
   getActiveStudents: async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).user.tenantId;
+      const tenantId = getTenantId(req);
       const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
       
       const metrics = await analyticsService.getActiveStudents(tenantId, studentId);
@@ -27,7 +28,7 @@ export const analyticsController = {
    */
   getJuzCompleted: async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).user.tenantId;
+      const tenantId = getTenantId(req);
       const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
       
       const metrics = await analyticsService.getJuzCompleted(tenantId, studentId);
@@ -43,7 +44,7 @@ export const analyticsController = {
    */
   getSessionsCount: async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).user.tenantId;
+      const tenantId = getTenantId(req);
       const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
       
       const metrics = await analyticsService.getSessionsCount(tenantId, studentId);
@@ -59,7 +60,7 @@ export const analyticsController = {
    */
   getJuzRevised: async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).user.tenantId;
+      const tenantId = getTenantId(req);
       const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
       
       const metrics = await analyticsService.getJuzRevised(tenantId, studentId);
@@ -75,7 +76,7 @@ export const analyticsController = {
    */
   getAttendanceMetrics: async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).user.tenantId;
+      const tenantId = getTenantId(req);
       const { startDate, endDate, class_name, grade_level, studentId } = req.query;
 
       if (!startDate || !endDate) {
@@ -104,7 +105,7 @@ export const analyticsController = {
    */
   getAttendanceBreakdown: async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).user.tenantId;
+      const tenantId = getTenantId(req);
       const { startDate, endDate } = req.query;
 
       if (!startDate || !endDate) {
@@ -128,7 +129,7 @@ export const analyticsController = {
    */
   getMemorizationProgress: async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).user.tenantId;
+      const tenantId = getTenantId(req);
       const { startDate, endDate, studentId, class_name } = req.query;
 
       if (!startDate || !endDate) {

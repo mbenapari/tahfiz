@@ -38,6 +38,7 @@ const buildOwnerSchoolDto = (payload: any): schoolService.CreateSchoolDTO => {
   return {
     name: payload.name || payload.schoolName,
     slug: payload.slug,
+    owner_id: payload.owner_id || payload.ownerId,
     timezone: payload.timezone,
     study_days: normalizedSchedule.study_days || [],
     schedule_mode: normalizedSchedule.schedule_mode || 'simple',
@@ -81,7 +82,7 @@ export const createSchool = async (req: Request, res: Response) => {
 export const updateSchool = async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    const payload = buildOwnerSchoolDto(req.body);
+    const { owner_id, ...payload } = buildOwnerSchoolDto(req.body);
     const school = await schoolService.updateSchool(id, payload);
     res.json(school);
   } catch (error: any) {

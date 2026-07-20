@@ -4,6 +4,7 @@ import { User } from '../model';
 import * as jwtHelper from '../helper/jwtHelper';
 import { ScheduleService } from '../services/scheduleService';
 import logger from '../utils/logger';
+import { getTenantId } from '../utils/schoolContext';
 
 const DAY_MAP: Record<string, number> = {
   SUN: 0,
@@ -61,9 +62,15 @@ export const createSchool = async (req: Request, res: Response) => {
         .json(createScheduleErrorResponse(scheduleValidation.error || 'Invalid schedule configuration', scheduleValidation.code || 'SCHEDULE_OVERLAP', scheduleValidation.details));
     }
 
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'You must be logged in to create a school' });
+    }
+
     const schoolData: schoolService.CreateSchoolDTO = {
       name: schoolName,
       slug,
+      owner_id: userId,
       timezone,
       study_days: normalizedSchedule.study_days || [],
       ...normalizedSchedule,
@@ -72,22 +79,17 @@ export const createSchool = async (req: Request, res: Response) => {
 
     const newSchool = await schoolService.createSchool(schoolData);
 
-    // If the creator is a user (which they should be), update their tenant_id to the new school
-    if (req.user && req.user.userId) {
-      const user = await User.findByPk(req.user.userId);
-      if (user) {
-        user.tenant_id = newSchool.id;
-        await user.save();
-
-        // Refresh the JWT token with the new tenantId
-        const newToken = jwtHelper.signToken({
-          userId: user.id,
-          roleId: user.role_id,
-          tenantId: user.tenant_id,
-        });
-        
-        jwtHelper.setAuthCookie(res, newToken);
-      }
+    // Set the creator's tenant_id to the new school and refresh their JWT
+    const user = await User.findByPk(userId);
+    if (user) {
+      user.tenant_id = newSchool.id;
+      await user.save();
+      const newToken = jwtHelper.signToken({
+        userId: user.id,
+        roleId: user.role_id,
+        tenantId: user.tenant_id,
+      });
+      jwtHelper.setAuthCookie(res, newToken);
     }
 
     return res.status(201).json({
@@ -109,10 +111,13 @@ export const createSchool = async (req: Request, res: Response) => {
 export const getSchool = async (req: Request, res: Response) => {
   const logId = req.correlationId || 'unknown';
   try {
-    const tenantId = req.user?.tenantId;
-    if (!tenantId) {
-      return res.status(403).json({ error: 'Unauthorized: No school associated with this user' });
-    }
+    const tenantId = getTenantId(req);
+    logger.info(`schoolController: getSchool - Fetching details for tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
 
     const school = await schoolService.getSchoolById(tenantId);
     const schoolData = school.get({ plain: true });
@@ -121,7 +126,8 @@ export const getSchool = async (req: Request, res: Response) => {
       validationMetadata: ScheduleService.getScheduleValidationMetadata(school),
     });
   } catch (error: any) {
-    logger.error(`[${logId}] Get school error: ${error.message}`, { stack: error.stack });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`schoolController: getSchool - Error: ${error.message}`, { logId });
     return res.status(500).json({ error: 'Failed to fetch school details' });
   }
 };
@@ -129,10 +135,13 @@ export const getSchool = async (req: Request, res: Response) => {
 export const updateSchool = async (req: Request, res: Response) => {
   const logId = req.correlationId || 'unknown';
   try {
-    const tenantId = req.user?.tenantId;
-    if (!tenantId) {
-      return res.status(403).json({ error: 'Unauthorized: No school associated with this user' });
-    }
+    const tenantId = getTenantId(req);
+    logger.info(`schoolController: updateSchool - Updating school for tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
 
     const { 
       schoolName, slug, timezone, studyDays, startTime, endTime, email, phone, address,
@@ -190,7 +199,8 @@ export const updateSchool = async (req: Request, res: Response) => {
     const updatedSchool = await schoolService.updateSchool(tenantId, updateData);
 
     logger.info(
-      `[${logId}] School schedule updated for tenantId=${tenantId} oldMode=${currentSchool.schedule_mode} newMode=${updatedSchool.schedule_mode} affectedFutureSessionCount=${retroactiveImpact.affectedSessionCount}`
+      `schoolController: updateSchool - Success: tenantId=${tenantId} oldMode=${currentSchool.schedule_mode} newMode=${updatedSchool.schedule_mode} affectedFutureSessionCount=${retroactiveImpact.affectedSessionCount}`,
+      { logId }
     );
 
     return res.json({
@@ -208,7 +218,8 @@ export const updateSchool = async (req: Request, res: Response) => {
           : [],
     });
   } catch (error: any) {
-    logger.error(`[${logId}] Update school error: ${error.message}`, { stack: error.stack });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`schoolController: updateSchool - Error: ${error.message}`, { logId });
     if (error.code) {
       return res.status(400).json(createScheduleErrorResponse(error.message, error.code, error.details));
     }
@@ -219,10 +230,13 @@ export const updateSchool = async (req: Request, res: Response) => {
 export const validateScheduleDraft = async (req: Request, res: Response) => {
   const logId = req.correlationId || 'unknown';
   try {
-    const tenantId = req.user?.tenantId;
-    if (!tenantId) {
-      return res.status(403).json({ error: 'Unauthorized: No school associated with this user' });
-    }
+    const tenantId = getTenantId(req);
+    logger.info(`schoolController: validateScheduleDraft - Validating draft for tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
 
     const { scheduleMode, studyDays, sessionTypeDayMap, enabledMemorizationSubtypes } = req.body;
     const normalizedSchedule = ScheduleService.normalizeScheduleInput({
@@ -258,7 +272,8 @@ export const validateScheduleDraft = async (req: Request, res: Response) => {
           : [],
     });
   } catch (error: any) {
-    logger.error(`[${logId}] Schedule draft validation error: ${error.message}`, { stack: error.stack });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`schoolController: validateScheduleDraft - Error: ${error.message}`, { logId });
     return res.status(400).json(createScheduleErrorResponse(error.message || 'Failed to validate schedule draft', 'SCHEDULE_VALIDATION_ERROR'));
   }
 };
@@ -266,10 +281,13 @@ export const validateScheduleDraft = async (req: Request, res: Response) => {
 export const getScheduleImpact = async (req: Request, res: Response) => {
   const logId = req.correlationId || 'unknown';
   try {
-    const tenantId = req.user?.tenantId;
-    if (!tenantId) {
-      return res.status(403).json({ error: 'Unauthorized: No school associated with this user' });
-    }
+    const tenantId = getTenantId(req);
+    logger.info(`schoolController: getScheduleImpact - Fetching impact for tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
 
     const rawSchedule = typeof req.query.newSchedule === 'string' ? req.query.newSchedule : '';
     const parsedSchedule = rawSchedule ? JSON.parse(rawSchedule) : {};
@@ -292,7 +310,8 @@ export const getScheduleImpact = async (req: Request, res: Response) => {
 
     return res.json(impact);
   } catch (error: any) {
-    logger.error(`[${logId}] Schedule impact error: ${error.message}`, { stack: error.stack });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`schoolController: getScheduleImpact - Error: ${error.message}`, { logId });
     return res.status(400).json(createScheduleErrorResponse(error.message || 'Failed to evaluate schedule impact', 'SCHEDULE_VALIDATION_ERROR'));
   }
 };

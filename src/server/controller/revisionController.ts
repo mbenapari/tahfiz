@@ -4,47 +4,41 @@ import * as revisionService from '../services/revisionService';
 import * as instructorNoteService from '../services/instructorNoteService';
 import { NoteTargetType, NoteVisibility } from '../model/InstructorNote';
 import logger from '../utils/logger';
+import { getTenantId } from '../utils/schoolContext';
 
 /**
  * Update the performance rating for a revision record.
  * PUT /api/revision/:revisionRecordId/rating
  */
 export const updateRevisionRating = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
-  const tenantId = req.user?.tenantId;
+  const logId = req.correlationId || 'unknown';
   const { revisionRecordId } = req.params;
   const { rating } = req.body;
-
-  if (!tenantId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
 
   if (rating === undefined || rating === null) {
     return res.status(400).json({ error: 'Rating is required' });
   }
 
   try {
+    const tenantId = getTenantId(req);
+    logger.info(`revisionController: updateRevisionRating - Updating rating for revisionRecordId: ${revisionRecordId}, tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId,
+      rating
+    });
     const result = await revisionPerformanceService.updateRevisionRating(
       Number(revisionRecordId),
       tenantId,
       { rating: Number(rating) },
-      correlationId
+      logId
     );
-
-    logger.info('Revision rating updated via API', {
-      correlationId,
-      revisionRecordId: Number(revisionRecordId),
-      rating,
-    });
 
     res.json({ success: true, data: result });
   } catch (error: any) {
-    logger.error('revisionController.updateRevisionRating: Error', {
-      correlationId,
-      error: error.message,
-      stack: error.stack,
-      revisionRecordId,
-    });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`revisionController: updateRevisionRating - Error: ${error.message}`, { logId });
     res.status(error.message.includes('not found') ? 404 : 500).json({
       error: error.message || 'Failed to update revision rating',
     });
@@ -56,28 +50,27 @@ export const updateRevisionRating = async (req: Request, res: Response) => {
  * GET /api/revision/:revisionRecordId/rating
  */
 export const getRevisionRating = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
-  const tenantId = req.user?.tenantId;
+  const logId = req.correlationId || 'unknown';
   const { revisionRecordId } = req.params;
 
-  if (!tenantId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
+    const tenantId = getTenantId(req);
+    logger.info(`revisionController: getRevisionRating - Fetching rating for revisionRecordId: ${revisionRecordId}, tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
     const result = await revisionPerformanceService.getRevisionRating(
       Number(revisionRecordId),
       tenantId,
-      correlationId
+      logId
     );
 
     res.json({ success: true, data: result });
   } catch (error: any) {
-    logger.error('revisionController.getRevisionRating: Error', {
-      correlationId,
-      error: error.message,
-      revisionRecordId,
-    });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`revisionController: getRevisionRating - Error: ${error.message}`, { logId });
     res.status(404).json({ error: error.message });
   }
 };
@@ -87,34 +80,27 @@ export const getRevisionRating = async (req: Request, res: Response) => {
  * GET /api/revision/stats/:studentId
  */
 export const getStudentRevisionStats = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
-  const tenantId = req.user?.tenantId;
+  const logId = req.correlationId || 'unknown';
   const { studentId } = req.params;
 
-  if (!tenantId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
+    const tenantId = getTenantId(req);
+    logger.info(`revisionController: getStudentRevisionStats - Fetching stats for studentId: ${studentId}, tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
     const stats = await revisionPerformanceService.getStudentRevisionStats(
       Number(studentId),
       tenantId,
-      correlationId
+      logId
     );
-
-    logger.info('Revision stats retrieved', {
-      correlationId,
-      studentId,
-      averageRating: stats.averageRating,
-    });
 
     res.json({ success: true, data: stats });
   } catch (error: any) {
-    logger.error('revisionController.getStudentRevisionStats: Error', {
-      correlationId,
-      error: error.message,
-      studentId,
-    });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`revisionController: getStudentRevisionStats - Error: ${error.message}`, { logId });
     res.status(500).json({ error: 'Failed to fetch revision statistics' });
   }
 };
@@ -125,16 +111,18 @@ export const getStudentRevisionStats = async (req: Request, res: Response) => {
  * Query: ?visibility=public|private|all (default: public)
  */
 export const getRevisionNotes = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
-  const tenantId = req.user?.tenantId;
+  const logId = req.correlationId || 'unknown';
   const instructorId = (req.user as any)?.id;
   const { revisionRecordId } = req.params;
 
-  if (!tenantId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
+    const tenantId = getTenantId(req);
+    logger.info(`revisionController: getRevisionNotes - Fetching notes for revisionRecordId: ${revisionRecordId}, tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
     // Verify revision record exists and belongs to tenant
     await revisionService.getRevisionRecordById(Number(revisionRecordId), tenantId);
 
@@ -143,23 +131,13 @@ export const getRevisionNotes = async (req: Request, res: Response) => {
       NoteTargetType.REVISION,
       Number(revisionRecordId),
       instructorId,
-      correlationId
+      logId
     );
-
-    logger.info('Revision notes fetched', {
-      correlationId,
-      revisionRecordId,
-      noteCount: notes.length,
-      requesterId: instructorId,
-    });
 
     res.json({ success: true, data: notes });
   } catch (error: any) {
-    logger.error('revisionController.getRevisionNotes: Error', {
-      correlationId,
-      error: error.message,
-      revisionRecordId,
-    });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`revisionController: getRevisionNotes - Error: ${error.message}`, { logId });
     res.status(error.message.includes('not found') ? 404 : 500).json({
       error: error.message || 'Failed to fetch revision notes',
     });
@@ -171,15 +149,10 @@ export const getRevisionNotes = async (req: Request, res: Response) => {
  * POST /api/revision/:revisionRecordId/notes
  */
 export const createRevisionNote = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
-  const tenantId = req.user?.tenantId;
+  const logId = req.correlationId || 'unknown';
   const instructorId = (req.user as any)?.id;
   const { revisionRecordId } = req.params;
   const { content, visibility, annotationRef } = req.body;
-
-  if (!tenantId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
 
   if (!content || content.trim().length === 0) {
     return res.status(400).json({ error: 'Note content is required' });
@@ -191,6 +164,13 @@ export const createRevisionNote = async (req: Request, res: Response) => {
   }
 
   try {
+    const tenantId = getTenantId(req);
+    logger.info(`revisionController: createRevisionNote - Creating note for revisionRecordId: ${revisionRecordId}, tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
     // Verify revision record exists and belongs to tenant
     const revRecord = await revisionService.getRevisionRecordById(Number(revisionRecordId), tenantId);
 
@@ -203,15 +183,7 @@ export const createRevisionNote = async (req: Request, res: Response) => {
       content,
       visibility: visibility === 'public' ? NoteVisibility.PUBLIC : NoteVisibility.PRIVATE,
       annotation_ref: annotationRef || null,
-    }, correlationId);
-
-    logger.info('Instructor note created via API', {
-      correlationId,
-      noteId: note.id,
-      revisionRecordId,
-      instructorId,
-      visibility: note.visibility,
-    });
+    }, logId);
 
     res.status(201).json({
       success: true,
@@ -223,11 +195,8 @@ export const createRevisionNote = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    logger.error('revisionController.createRevisionNote: Error', {
-      correlationId,
-      error: error.message,
-      revisionRecordId,
-    });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`revisionController: createRevisionNote - Error: ${error.message}`, { logId });
     res.status(500).json({ error: error.message || 'Failed to create note' });
   }
 };
@@ -237,38 +206,31 @@ export const createRevisionNote = async (req: Request, res: Response) => {
  * PUT /api/revision/notes/:noteId
  */
 export const updateRevisionNote = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
-  const tenantId = req.user?.tenantId;
+  const logId = req.correlationId || 'unknown';
   const instructorId = (req.user as any)?.id;
   const { noteId } = req.params;
   const { content, visibility } = req.body;
 
-  if (!tenantId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
+    const tenantId = getTenantId(req);
+    logger.info(`revisionController: updateRevisionNote - Updating noteId: ${noteId}, tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
     await instructorNoteService.updateInstructorNote(
       Number(noteId),
       instructorId!,
       tenantId,
       { content, visibility },
-      correlationId
+      logId
     );
-
-    logger.info('Instructor note updated via API', {
-      correlationId,
-      noteId,
-      instructorId,
-    });
 
     res.json({ success: true, message: 'Note updated successfully' });
   } catch (error: any) {
-    logger.error('revisionController.updateRevisionNote: Error', {
-      correlationId,
-      error: error.message,
-      noteId,
-    });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`revisionController: updateRevisionNote - Error: ${error.message}`, { logId });
     const status = error.message.includes('not found') ? 404 :
       error.message.includes('own notes') ? 403 : 500;
     res.status(status).json({ error: error.message });
@@ -280,37 +242,30 @@ export const updateRevisionNote = async (req: Request, res: Response) => {
  * DELETE /api/revision/notes/:noteId
  */
 export const deleteRevisionNote = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
-  const tenantId = req.user?.tenantId;
+  const logId = req.correlationId || 'unknown';
   const instructorId = (req.user as any)?.id;
   const { noteId } = req.params;
 
-  if (!tenantId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
+    const tenantId = getTenantId(req);
+    logger.info(`revisionController: deleteRevisionNote - Deleting noteId: ${noteId}, tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
     await instructorNoteService.deleteInstructorNote(
       Number(noteId),
       instructorId!,
       tenantId,
       false,
-      correlationId
+      logId
     );
-
-    logger.info('Instructor note deleted via API', {
-      correlationId,
-      noteId,
-      instructorId,
-    });
 
     res.json({ success: true, message: 'Note deleted successfully' });
   } catch (error: any) {
-    logger.error('revisionController.deleteRevisionNote: Error', {
-      correlationId,
-      error: error.message,
-      noteId,
-    });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`revisionController: deleteRevisionNote - Error: ${error.message}`, { logId });
     const status = error.message.includes('not found') ? 404 :
       error.message.includes('own notes') ? 403 : 500;
     res.status(status).json({ error: error.message });
