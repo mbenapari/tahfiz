@@ -38,3 +38,11 @@ export const rateLimit = (windowMs: number, max: number) => {
     // Use default key generator (IP-based) which handles IPv6 normalization correctly
   });
 };
+// Branch creation: 5 per hour per parent school
+export const branchCreationLimiter = rateLimit(60 * 60 * 1000, 5);
+
+// Context switching: 30 per hour per user
+export const contextSwitchLimiter = rateLimit(60 * 60 * 1000, 30);
+
+// Branch admin changes: 20 per hour per parent school
+export const branchAdminChangeLimiter = rateLimit(60 * 60 * 1000, 20);

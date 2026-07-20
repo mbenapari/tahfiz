@@ -15,14 +15,17 @@ import reportRoutes from "./routes/reportRoutes";
 import analyticsRoutes from "./routes/analyticsRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import ownerRoutes from "./routes/ownerRoutes";
+import branchRoutes from "./routes/branchRoutes";
+import schoolContextRoutes from "./routes/schoolContextRoutes";
+import branchAdminRoutes from "./routes/branchAdminRoutes";
 import { requestLogger, globalErrorHandler } from "./middleware/loggingMiddleware";
 import { doubleCsrfProtection, csrfTokenMiddleware } from "./middleware/csrfMiddleware";
 import logger from "./utils/logger";
 
 const app = express();
 
-// Global Request-scoped UUID and logging
-app.use(requestLogger);
+// Global Request-scoped UUID and logging for API only
+app.use("/api", requestLogger);
 
 app.use(express.json());
 app.use(cookieParser());
@@ -57,6 +60,9 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/metrics", analyticsRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/owner", ownerRoutes);
+app.use("/api/branches", branchRoutes);
+app.use("/api/context", schoolContextRoutes);
+app.use("/api/branch-admins", branchAdminRoutes);
 
 // Global Error Handler (must be last)
 app.use(globalErrorHandler);

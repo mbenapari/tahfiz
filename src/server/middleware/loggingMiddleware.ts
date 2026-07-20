@@ -59,8 +59,9 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, next: 
   });
 
   res.status(err.status || 500).json({
-    error: 'Internal Server Error',
+    error: err.name === 'SchoolContextError' ? err.message : 'Internal Server Error',
     correlationId,
+    code: err.code,
     message: process.env.NODE_ENV === 'development' ? err.message : undefined,
   });
 };
