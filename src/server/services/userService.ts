@@ -1,4 +1,4 @@
-import { FindOptions } from 'sequelize';
+import { FindOptions, Op } from 'sequelize';
 import { User, Role, SchoolMember, School, Session, MemorizationRecord, Surah, Attendance, RevisionRecord, JuzMap } from '../model';
 import { UserRole } from '../model/User';
 import * as progressService from './progressService';
@@ -95,6 +95,14 @@ export const getUserById = async (id: number) => {
         model: School,
         as: 'tenant',
         attributes: ['name', 'slug']
+      }, {
+        model: SchoolMember,
+        as: 'schoolMembers',
+        include: [{
+          model: School,
+          as: 'school',
+          attributes: ['id', 'name', 'slug', 'is_branch', 'parent_school_id']
+        }]
       }]
     });
     if (!user) {
@@ -236,9 +244,24 @@ export const getInstructorsByTenant = async (tenantId: number) => {
   try {
     const instructors = await User.findAll({
       where: {
-        tenant_id: tenantId,
-        role: UserRole.INSTRUCTOR
+        [Op.or]: [
+          {
+            tenant_id: tenantId,
+            role: UserRole.INSTRUCTOR
+          },
+          {
+            '$schoolMembers.school_id$': tenantId,
+            '$schoolMembers.role$': { [Op.ne]: UserRole.ADMIN }
+          }
+        ]
       },
+      include: [{
+        model: SchoolMember,
+        as: 'schoolMembers',
+        required: false,
+        attributes: [],
+        where: { school_id: tenantId }
+      }],
       attributes: ['id', 'first_name', 'last_name', 'email', 'phone', 'role'],
       order: [['first_name', 'ASC']]
     });
@@ -393,7 +416,7 @@ export const searchStudentsWithProgress = async (query: string, tenantId: number
   }
 };
 
-export const searchUsers = async (query: string, tenantId?: number) => {
+export const searchUsers = async (query: string, tenantId?: number, excludeRoles?: string[]) => {
   try {
     const fields = ['first_name', 'last_name', 'email', 'phone'];
     const where: any = {
@@ -402,6 +425,10 @@ export const searchUsers = async (query: string, tenantId?: number) => {
 
     if (tenantId) {
       where.tenant_id = tenantId;
+    }
+
+    if (excludeRoles && excludeRoles.length > 0) {
+      where.role = { [Op.notIn]: excludeRoles };
     }
 
     const users = await User.findAll({

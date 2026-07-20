@@ -1,5 +1,6 @@
-import { User, Role, Permission, UserPermission, RolePermission } from '../model';
+import { User, Role, Permission, UserPermission, RolePermission, SchoolMember } from '../model';
 import { PermissionAccess } from '../model/UserPermission';
+import { UserRole } from '../model/User';
 import logger from '../utils/logger';
 
 const PERMISSION_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -35,31 +36,20 @@ const cacheInvalidate = (userId: number): void => {
 };
 
 /**
- * Checks if a user has a specific permission.
- * Resolution logic:
- * 1. Check User Overrides (UserPermission table)
- *    - If DENY, return false.
- *    - If ALLOW, return true.
- * 2. If no override, check Role Defaults (RolePermission table via Role)
- *    - If permission exists for role, return true.
- * 3. Default to false.
- *
- * Results are cached per user+permission for 5 minutes.
+ * Checks if a user has a specific permission, optionally scoped to a school context.
  */
-export const hasPermission = async (userId: number, permissionSlug: string, logId: string = 'N/A'): Promise<boolean> => {
-  const cacheKey = `user:${userId}:perm:${permissionSlug}`;
+export const hasPermission = async (
+  userId: number,
+  permissionSlug: string,
+  logId: string = 'N/A',
+  schoolId?: number
+): Promise<boolean> => {
+  const cacheKey = `perm:${userId}:${permissionSlug}:${schoolId || 'global'}`;
   const cached = cacheGet(cacheKey);
-  
-  if (cached !== null) {
-    logger.debug(`permissionService.hasPermission: Cache HIT userId=${userId} permissionSlug=${permissionSlug} result=${cached} logId=${logId}`);
-    return cached as boolean;
-  }
-
-  logger.debug(`permissionService.hasPermission: Cache MISS userId=${userId} permissionSlug=${permissionSlug} logId=${logId}`);
+  if (cached !== null) return cached as boolean;
 
   try {
-    // 1. Check User Overrides
-    logger.debug(`permissionService.hasPermission: Checking user overrides userId=${userId} permissionSlug=${permissionSlug} logId=${logId}`);
+    // 1. Check User Overrides (Global for now)
     const override = await UserPermission.findOne({
       where: { user_id: userId },
       include: [{
@@ -71,47 +61,70 @@ export const hasPermission = async (userId: number, permissionSlug: string, logI
 
     if (override) {
       const result = override.access_type === PermissionAccess.ALLOW;
-      logger.info(`permissionService.hasPermission: Found user override userId=${userId} permissionSlug=${permissionSlug} accessType=${override.access_type} result=${result} logId=${logId}`);
       cacheSet(cacheKey, result);
       return result;
     }
 
-    // 2. Check Role Defaults
-    logger.debug(`permissionService.hasPermission: Checking role defaults userId=${userId} permissionSlug=${permissionSlug} logId=${logId}`);
-    const user = await User.findByPk(userId, {
+    // 2. Resolve Role for Context
+    let roleSlug: string | undefined;
+
+    if (schoolId) {
+      const membership = await SchoolMember.findOne({
+        where: { user_id: userId, school_id: schoolId }
+      });
+      if (membership) {
+        roleSlug = membership.role;
+      }
+    }
+
+    if (!roleSlug) {
+      const user = await User.findByPk(userId);
+      roleSlug = user?.role;
+    }
+
+    if (!roleSlug) return false;
+
+    // 3. Check Role Defaults
+    const role = await Role.findOne({
+      where: { slug: roleSlug },
       include: [{
-        model: Role,
-        as: 'role_obj',
-        include: [{
-          model: Permission,
-          as: 'permissions',
-          where: { slug: permissionSlug },
-          required: true
-        }]
+        model: Permission,
+        as: 'permissions',
+        where: { slug: permissionSlug },
+        required: true
       }]
     });
 
-    const result = (user as any)?.role_obj ? true : false;
-    logger.info(`permissionService.hasPermission: Role default check complete userId=${userId} permissionSlug=${permissionSlug} hasRolePermission=${result} logId=${logId}`);
-    
+    const result = !!role;
     cacheSet(cacheKey, result);
     return result;
   } catch (error: any) {
-    logger.error(`permissionService.hasPermission: Error checking permission userId=${userId} permissionSlug=${permissionSlug} error=${error.message} logId=${logId}`);
-    if (error.stack) logger.error(`permissionService.hasPermission: Stack trace userId=${userId} logId=${logId} stack=${error.stack}`);
+    logger.error(`permissionService.hasPermission error: userId=${userId} schoolId=${schoolId} slug=${permissionSlug} error=${error.message}`);
     return false;
   }
 };
 
 /**
- * Gets all effective permissions for a user (merged defaults and overrides).
- * Returns a list of permission slugs.
+ * Gets all effective permissions for a user, optionally scoped to a school context.
  */
-export const getEffectivePermissions = async (userId: number, logId: string = 'N/A'): Promise<string[]> => {
-  logger.debug(`permissionService.getEffectivePermissions: Entry userId=${userId} logId=${logId}`);
+export const getEffectivePermissions = async (
+  userId: number,
+  schoolId?: number | string,
+  logId: string = 'N/A'
+): Promise<string[]> => {
+  // Handle case where schoolId might be passed as second arg but meant as logId
+  let actualSchoolId: number | undefined;
+  let actualLogId = logId;
+
+  if (typeof schoolId === 'number') {
+    actualSchoolId = schoolId;
+  } else if (typeof schoolId === 'string') {
+    actualLogId = schoolId;
+  }
+
+  logger.debug(`permissionService.getEffectivePermissions: Entry userId=${userId} schoolId=${actualSchoolId} logId=${actualLogId}`);
   try {
-    // 1. Get User Overrides
-    logger.debug(`permissionService.getEffectivePermissions: Fetching user overrides userId=${userId} logId=${logId}`);
+    // 1. Get User Overrides (Global)
     const overrides = await UserPermission.findAll({
       where: { user_id: userId },
       include: [{
@@ -120,51 +133,56 @@ export const getEffectivePermissions = async (userId: number, logId: string = 'N
       }]
     });
 
-    // 2. Get User's Role Permissions
-    logger.debug(`permissionService.getEffectivePermissions: Fetching role permissions userId=${userId} logId=${logId}`);
-    const user = await User.findByPk(userId, {
-      include: [{
-        model: Role,
-        as: 'role_obj',
+    // 2. Resolve Role for Context
+    let roleSlug: string | undefined;
+    if (actualSchoolId) {
+      const membership = await SchoolMember.findOne({
+        where: { user_id: userId, school_id: actualSchoolId }
+      });
+      if (membership) {
+        roleSlug = membership.role;
+      }
+    }
+
+    if (!roleSlug) {
+      const user = await User.findByPk(userId);
+      roleSlug = user?.role;
+    }
+
+    const effectivePermissions = new Set<string>();
+
+    // 3. Add Role Permissions
+    if (roleSlug) {
+      const role = await Role.findOne({
+        where: { slug: roleSlug },
         include: [{
           model: Permission,
           as: 'permissions',
         }]
-      }]
-    });
-
-    const effectivePermissions = new Set<string>();
-
-    // Add Role Permissions first
-    if ((user as any)?.role_obj?.permissions) {
-      const rolePermissionsCount = (user as any).role_obj.permissions.length;
-      logger.debug(`permissionService.getEffectivePermissions: Adding ${rolePermissionsCount} role permissions userId=${userId} logId=${logId}`);
-      (user as any).role_obj.permissions.forEach((perm: any) => {
-        effectivePermissions.add(perm.slug);
       });
+
+      if ((role as any)?.permissions) {
+        (role as any).permissions.forEach((perm: any) => {
+          effectivePermissions.add(perm.slug);
+        });
+      }
     }
 
-    // Apply Overrides
+    // 4. Apply Overrides
     if (overrides.length > 0) {
-      logger.debug(`permissionService.getEffectivePermissions: Applying ${overrides.length} overrides userId=${userId} logId=${logId}`);
       overrides.forEach((override: any) => {
         const permSlug = override.Permission.slug;
         if (override.access_type === PermissionAccess.DENY) {
-          logger.debug(`permissionService.getEffectivePermissions: Denying permission via override userId=${userId} permissionSlug=${permSlug} logId=${logId}`);
           effectivePermissions.delete(permSlug);
         } else if (override.access_type === PermissionAccess.ALLOW) {
-          logger.debug(`permissionService.getEffectivePermissions: Allowing permission via override userId=${userId} permissionSlug=${permSlug} logId=${logId}`);
           effectivePermissions.add(permSlug);
         }
       });
     }
 
-    const finalCount = effectivePermissions.size;
-    logger.info(`permissionService.getEffectivePermissions: Success userId=${userId} finalPermissionCount=${finalCount} logId=${logId}`);
     return Array.from(effectivePermissions);
   } catch (error: any) {
-    logger.error(`permissionService.getEffectivePermissions: Error getting effective permissions userId=${userId} error=${error.message} logId=${logId}`);
-    if (error.stack) logger.error(`permissionService.getEffectivePermissions: Stack trace userId=${userId} logId=${logId} stack=${error.stack}`);
+    logger.error(`permissionService.getEffectivePermissions error: userId=${userId} schoolId=${actualSchoolId} error=${error.message}`);
     return [];
   }
 };
