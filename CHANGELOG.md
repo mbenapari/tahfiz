@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **feat: add multi-school context infrastructure with RLS middleware**: Introduce Row Level Security (RLS) middleware to enforce school context validation on all protected routes. Add schoolContextRoutes for context management (current, switch, accessible schools). Update jwtHelper to include activeSchoolContext in JWT payload and authMiddleware to extract and attach school context to requests. (e0f7666)
+- **feat: add branch management to schoolService with CRUD operations**: Implement branch creation, updates, and admin management in schoolService. Add branch hierarchy validation (branch can't be its own parent). Refactor permissionService to support branch-level access control with primary and secondary admin roles. Update userService to handle multi-school contexts. (3df1588)
+- **feat: add branch hierarchy migrations for multi-school data model**: Add migrations for: Branch hierarchy fields on School model (is_branch, parent_school_id, branch_code), Branch fields on User model (is_branch_admin, branch_id, primary_branch_id), Scope and audit fields on SchoolMember model, Backfill school owner ID. (5be90ab)
+- **feat: add SchoolContext and branch management components for multi-school UI**: Add SchoolContext for managing school/branch selection state with retry logic for race conditions. Create ActiveSchoolBanner, BranchCard, BranchFormModal, SchoolSwitcherDropdown, and UserSearchSelector components. Add useBranchManagement hook for branch CRUD operations. (d3aa0e9)
+- **feat: add BranchDetail, BranchManagement, and SchoolSwitcher pages**: Add pages for branch management including: BranchManagement for listing/managing branches, BranchDetail for viewing/editing individual branches, SchoolSwitcher for switching between accessible schools/branches. (3f75cc2)
+- **feat: integrate SchoolContext and branch navigation into frontend app**: Update App.tsx to add SchoolProvider and branch routes. Integrate SchoolSwitcherDropdown and ActiveSchoolBanner into Navbar. Update Sidebar and OwnerSidebar with branch management links. Enhance AuthContext with multi-school awareness. Update ProtectedRoute for branch access control. (29c94e5)
+- **feat: add branch routes and update user routes for multi-school**: Add branchRoutes for branch CRUD operations and branchAdminRoutes for branch admin management. Update userRoutes with branch-aware endpoints. (137c9ac)
+- **feat: update models with branch hierarchy fields**: Add branch fields to School model (is_branch, parent_school_id, branch_code). Add branch admin fields to User model (is_branch_admin, branch_id, primary_branch_id). Update SchoolMember with scope and audit fields. Update model associations for branch relationships. (2cc8551)
+
+### Refactored
+- **refactor: update all controllers for multi-school context support**: Refactor all controllers to respect school context from RLS middleware. Add school context validation to protected endpoints. Controllers now use req.rlsFilter or req.userSchoolId for data isolation. Update query scopes to filter by school context. (3323de5)
+
+### Chore
+- **chore: update server entry point and middleware for multi-school support**: Update main.ts to register schoolContextRoutes and apply RLS middleware. Enhance loggingMiddleware, cacheMiddleware, and rateLimitMiddleware with school context awareness. (5957fb8)
+
+### Docs
+- **docs: add planning documentation for multi-school branch management**: Add planning documents covering: Branch management implementation plan, Multi-branch instructor login analysis, Multi-school context data isolation plan. (d1ddff6)
+
+### Tests
+- **test: add multi-school isolation test suite**: Add tests for verifying data isolation between schools and branches. Test RLS middleware enforcement and branch access control. (8f80696)
+
+### Added
 - **feat: implement advanced scheduling engine with business rule enforcement**: Added `ScheduleService` with calendar validation, date format checking, mutual exclusivity between hifz/revision days, retroactive conflict detection, and conflict cache invalidation. School model now supports `schedule_mode` (simple/advanced), `session_type_day_map`, and `enabled_memorization_subtypes`. Session model includes `recording_date` with calendar-alignment hook. Includes 3 DB migrations for schema changes. (7b7d60d)
 - **feat: add 1-5 performance rating scale to memorization and revision records**: Introduced rating field (1-5) on MemorizationRecord and RevisionRecord models with validation, human-readable labels (RevisionRating enum), and detailed grading criteria. Includes DB migrations for both tables. (396358a)
 - **feat: add instructor notes system for revision sessions**: New `InstructorNote` model with public/private visibility, `NoteTargetType` for polymorphic targeting, and `NoteVisibility` enum. Notes are created during revision recording with a 20-note cap and content validation. Includes `revisionController`, `instructorNoteService`, `revisionPerformanceService`, and dedicated routes. (7b7d60d)
