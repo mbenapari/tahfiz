@@ -13,7 +13,8 @@ export const cacheMiddleware = (duration: number) => {
       return next();
     }
 
-    const key = `${req.user?.tenantId}-${req.originalUrl || req.url}`;
+    const tenantId = req.activeSchoolId ?? req.user?.tenantId;
+    const key = `${tenantId}-${req.originalUrl || req.url}`;
     const cachedResponse = cache.get(key);
 
     if (cachedResponse && cachedResponse.expiry > Date.now()) {

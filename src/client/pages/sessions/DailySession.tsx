@@ -7,7 +7,6 @@ import {
   Calendar, 
   ChevronDown, 
   CheckCircle2,
-  X,
   ArrowLeft,
   History,
   Loader2,
@@ -15,6 +14,7 @@ import {
   Search
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
+import { useNotification } from '../../context/NotificationContext';
 
 interface Student {
   daily_revision_target: number;
@@ -31,14 +31,56 @@ interface Surah {
   ayah_count: number;
 }
 
+interface HifzHistoryRecord {
+  id: number;
+  sessionDate: string;
+  surahName: string;
+  surahNumber: number;
+  startAyah: number;
+  endAyah: number;
+  isFullSurah: boolean;
+  rating: number | null;
+  notes: string | null;
+  instructorNotes: string | null;
+}
+
+interface RevisionHistoryRecord {
+  id: number;
+  sessionDate: string;
+  type: string;
+  startSurah: string | null;
+  endSurah: string | null;
+  surahName: string | null;
+  startAyah: number | null;
+  endAyah: number | null;
+  startPage: number | null;
+  endPage: number | null;
+  isFullSurah: boolean;
+  rating: number | null;
+  notes: string | null;
+}
+
 export const DailySession: React.FC = () => {
   const navigate = useNavigate();
   const { studentId } = useParams<{ studentId: string }>();
+  const { showNotification } = useNotification();
   
   const [student, setStudent] = useState<Student | null>(null);
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [schoolSchedule, setSchoolSchedule] = useState<any>(null);
+  const [dateConflict, setDateConflict] = useState<{ hifz: boolean; revision: boolean }>({
+    hifz: false,
+    revision: false,
+  });
+  const [isCheckingConflict, setIsCheckingConflict] = useState<{ hifz: boolean; revision: boolean }>({
+    hifz: false,
+    revision: false,
+  });
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [hifzDate, setHifzDate] = useState(todayStr);
+  const [revisionDate, setRevisionDate] = useState(todayStr);
   
   const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
   const [isSurahDropdownOpen, setIsSurahDropdownOpen] = useState(false);
@@ -94,22 +136,37 @@ export const DailySession: React.FC = () => {
   const [hifzStartAyah, setHifzStartAyah] = useState('1');
   const [hifzEndAyah, setHifzEndAyah] = useState('');
   const [isHifzCompleted, setIsHifzCompleted] = useState(false);
-  const [hifzNotes, setHifzNotes] = useState('');
 
   // Revision states
   const [revisionTab, setRevisionTab] = useState<'page' | 'surah'>('page');
   const [revisionStart, setRevisionStart] = useState('');
   const [revisionEnd, setRevisionEnd] = useState('');
   const [isRevisionCompleted, setIsRevisionCompleted] = useState(false);
+
+  const [revisionRating, setRevisionRating] = useState(3);
+  const [revisionNoteContent, setRevisionNoteContent] = useState('');
   
   // Attendance state
   const [attendanceStatus, setAttendanceStatus] = useState<'present' | 'absent' | 'late'>('present');
   
   const [instructorNotes, setInstructorNotes] = useState('');
-  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // History state
+  const [hifzHistory, setHifzHistory] = useState<HifzHistoryRecord[]>([]);
+  const [revisionHistory, setRevisionHistory] = useState<RevisionHistoryRecord[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [expandedHistory, setExpandedHistory] = useState<'hifz' | 'revision' | null>(null);
+  const [isFirstSession, setIsFirstSession] = useState(false);
+
+  // Pagination state
+  const [hifzPage, setHifzPage] = useState(1);
+  const [revisionPage, setRevisionPage] = useState(1);
+  const [totalHifz, setTotalHifz] = useState(0);
+  const [totalRevision, setTotalRevision] = useState(0);
+  const HISTORY_LIMIT = 5;
 
   useEffect(() => {
-    const fetchStudent = async () => {
+    const fetchStudentAndSchedule = async () => {
       if (!studentId) {
         setError('Missing student ID');
         setIsLoading(false);
@@ -118,11 +175,21 @@ export const DailySession: React.FC = () => {
       
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/users/students/${studentId}`);
-        if (!response.ok) throw new Error('Failed to fetch student details');
-        const data = await response.json();
-        if (!data.success) throw new Error(data.error || 'Failed to fetch student details');
-        setStudent(data.data?.student ?? null);
+        const [studentRes, schoolRes] = await Promise.all([
+          fetch(`/api/users/students/${studentId}`),
+          fetch('/api/schools/me')
+        ]);
+
+        if (!studentRes.ok) throw new Error('Failed to fetch student details');
+        if (!schoolRes.ok) throw new Error('Failed to fetch school schedule');
+
+        const studentData = await studentRes.json();
+        const schoolData = await schoolRes.json();
+
+        if (!studentData.success) throw new Error(studentData.error || 'Failed to fetch student details');
+        
+        setStudent(studentData.data?.student ?? null);
+        setSchoolSchedule(schoolData);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -130,7 +197,7 @@ export const DailySession: React.FC = () => {
       }
     };
 
-    fetchStudent();
+    fetchStudentAndSchedule();
   }, [studentId]);
 
   useEffect(() => {
@@ -148,182 +215,323 @@ export const DailySession: React.FC = () => {
     fetchSurahs();
   }, []);
 
-  const handleSaveSession = async () => {
+  // Fetch session history and check if first session
+  const fetchHistory = async (type: 'hifz' | 'revision' | 'all' = 'all', page: number = 1) => {
+    if (!studentId) return;
+    
+    setIsHistoryLoading(true);
+    try {
+      const offset = (page - 1) * HISTORY_LIMIT;
+      const response = await fetch(`/api/sessions/history/${studentId}?type=${type}&limit=${HISTORY_LIMIT}&offset=${offset}`);
+      if (!response.ok) throw new Error('Failed to fetch history');
+      const data = await response.json();
+      
+      if (data.success) {
+        if (type === 'all' || type === 'hifz') {
+          setHifzHistory(data.data.hifzRecords || []);
+          setTotalHifz(data.data.pagination.totalHifz || 0);
+        }
+        if (type === 'all' || type === 'revision') {
+          setRevisionHistory(data.data.revisionRecords || []);
+          setTotalRevision(data.data.pagination.totalRevision || 0);
+        }
+        
+        if (type === 'all') {
+          setIsFirstSession(
+            data.data.pagination.totalHifz === 0 &&
+            data.data.pagination.totalRevision === 0
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error('Error fetching session history:', err);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory('all', 1);
+  }, [studentId]);
+
+  useEffect(() => {
+    if (hifzPage > 1 || totalHifz > HISTORY_LIMIT) {
+      fetchHistory('hifz', hifzPage);
+    }
+  }, [hifzPage]);
+
+  useEffect(() => {
+    if (revisionPage > 1 || totalRevision > HISTORY_LIMIT) {
+      fetchHistory('revision', revisionPage);
+    }
+  }, [revisionPage]);
+
+  const isDateValidForType = (type: 'memorization:default' | 'revision', date: string) => {
+    if (!schoolSchedule) return true;
+    const { schedule_mode, session_type_day_map, study_days } = schoolSchedule;
+    
+    let allowedDays = study_days || [];
+    if (schedule_mode === 'advanced' && session_type_day_map?.[type]) {
+      allowedDays = session_type_day_map[type];
+    }
+
+    const dayOfWeek = new Date(date).getUTCDay();
+    return allowedDays.includes(dayOfWeek);
+  };
+
+  const isValidDateString = (date: string) => /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(new Date(`${date}T00:00:00.000Z`).getTime());
+
+  const checkDateConflicts = async (
+    date: string,
+    type: 'hifz' | 'revision'
+  ) => {
+    if (!studentId || !schoolSchedule || schoolSchedule.schedule_mode !== 'advanced' || !isValidDateString(date)) {
+      setDateConflict((prev) => ({ ...prev, [type]: false }));
+      return;
+    }
+
+    setIsCheckingConflict((prev) => ({ ...prev, [type]: true }));
+
+    try {
+      const response = await fetch(`/api/sessions/check-conflict?studentId=${studentId}&date=${date}`);
+      if (!response.ok) {
+        throw new Error('Failed to check date conflicts');
+      }
+
+      const data = await response.json();
+      setDateConflict((prev) => ({
+        ...prev,
+        [type]: type === 'hifz' ? Boolean(data.hasRevisionOnDate) : Boolean(data.hasMemorizationOnDate),
+      }));
+    } catch {
+      setDateConflict((prev) => ({ ...prev, [type]: false }));
+    } finally {
+      setIsCheckingConflict((prev) => ({ ...prev, [type]: false }));
+    }
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      checkDateConflicts(hifzDate, 'hifz');
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [hifzDate, studentId, schoolSchedule]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      checkDateConflicts(revisionDate, 'revision');
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [revisionDate, studentId, schoolSchedule]);
+  const handleSaveHifz = async () => {
     if (!studentId) {
-      setValidationError('Student ID is missing');
-      return;
-    }
-    
-    const studentIdNum = Number(studentId);
-    if (!Number.isInteger(studentIdNum) || studentIdNum <= 0) {
-      setValidationError('Invalid student ID');
-      return;
-    }
-    
-    setValidationError(null);
-
-    // Validation
-    const isAbsent = attendanceStatus === 'absent';
-    const hasHifz = !isAbsent && !!selectedSurah && hifzStartAyah !== '' && hifzEndAyah !== '';
-    const hasRevision = !isAbsent && ((revisionTab === 'surah' && !!selectedRevisionSurah && !!selectedEndRevisionSurah && revisionStart !== '' && revisionEnd !== '') || 
-                        (revisionTab === 'page' && revisionStart !== '' && revisionEnd !== ''));
-
-    if (!isAbsent && !hasHifz && !hasRevision) {
-      setValidationError('Please provide at least a Hifz or Revision record with all required fields');
+      showNotification('error', 'Action Required', 'Student ID is missing');
       return;
     }
 
-    // Hifz validation
-    if (!isAbsent && hasHifz) {
-      if (!hifzStartAyah || !hifzEndAyah) {
-        setValidationError('Please specify the ayah range for Hifz');
+    // Attendance check
+    if (attendanceStatus === 'absent') {
+      showNotification('error', 'Action Required', 'Cannot save Hifz record for an absent student');
+      return;
+    }
+
+    // Hifz field validation
+    if (!selectedSurah) {
+      showNotification('error', 'Action Required', 'Please select a surah for Hifz');
+      return;
+    }
+    if (!hifzStartAyah || !hifzEndAyah) {
+      showNotification('error', 'Action Required', 'Please specify the ayah range for Hifz');
+      return;
+    }
+    const startAyah = Number(hifzStartAyah);
+    const endAyah = Number(hifzEndAyah);
+    if (!Number.isInteger(startAyah) || !Number.isInteger(endAyah)) {
+      showNotification('error', 'Action Required', 'Ayah numbers must be whole numbers');
+      return;
+    }
+    if (startAyah <= 0 || endAyah <= 0) {
+      showNotification('error', 'Action Required', 'Ayah numbers must be positive');
+      return;
+    }
+    if (startAyah > endAyah) {
+      showNotification('error', 'Action Required', 'Hifz start ayah cannot be greater than end ayah');
+      return;
+    }
+    if (endAyah > selectedSurah.ayah_count) {
+      showNotification('error', 'Action Required', `Hifz end ayah cannot be more than ${selectedSurah.ayah_count} (total ayahs in ${selectedSurah.name})`);
+      return;
+    }
+
+    // Rating validation
+    if (rating < 1 || rating > 5) {
+      showNotification('error', 'Action Required', 'Please provide a valid performance rating');
+      return;
+    }
+
+    if (!isValidDateString(hifzDate)) {
+      showNotification('error', 'Invalid Date', 'Please provide a valid Hifz session date in YYYY-MM-DD format.');
+      return;
+    }
+
+    if (!isDateValidForType('memorization:default', hifzDate)) {
+      showNotification('error', 'Invalid Date', 'The selected date is not available for Hifz sessions.');
+      return;
+    }
+
+    if (dateConflict.hifz) {
+      showNotification('error', 'Date Conflict', 'A Revision session already exists on this date. Hifz and Revision cannot share the same day in Advanced Scheduling mode.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const sessionData = {
+        studentId: Number(studentId),
+        sessionDate: hifzDate,
+        recordingDate: hifzDate,
+        attendance: { status: attendanceStatus },
+        notes: instructorNotes,
+        hifzRecord: {
+          surahNumber: selectedSurah.number,
+          startAyah,
+          endAyah,
+          isFullSurah: isHifzCompleted,
+          notes: instructorNotes,
+        },
+        revisionRecord: null,
+        rating,
+      };
+
+      const response = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sessionData),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.code === 'MUTUAL_EXCLUSIVITY_VIOLATION') {
+          throw new Error('A Revision session already exists on this date. Choose a different Hifz date or update the school schedule.');
+        }
+        if (data.code === 'INVALID_SESSION_DAY' || data.code === 'DATE_OUTSIDE_SCHOOL_CALENDAR') {
+          throw new Error(data.error || 'The selected date is outside the school schedule.');
+        }
+        throw new Error(data.error || 'Failed to save Hifz session');
+      }
+
+      showNotification('success', 'Saved Successfully', `Hifz saved — ${selectedSurah?.name || ''} (${startAyah}-${endAyah})`);
+    } catch (err: any) {
+      showNotification('error', 'Error Saving Hifz', err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * Validate and save only the Revision record.
+   */
+  const handleSaveRevision = async () => {
+    if (!studentId) {
+      showNotification('error', 'Action Required', 'Student ID is missing');
+      return;
+    }
+
+    // Attendance check
+    if (attendanceStatus === 'absent') {
+      showNotification('error', 'Action Required', 'Cannot save Revision record for an absent student');
+      return;
+    }
+
+    // Revision field validation
+    if (revisionTab === 'surah') {
+      if (!selectedRevisionSurah || !selectedEndRevisionSurah) {
+        showNotification('error', 'Action Required', 'Please select both start and end surahs for revision');
         return;
       }
-      const startAyah = Number(hifzStartAyah);
-      const endAyah = Number(hifzEndAyah);
-      
+      if (selectedRevisionSurah.number > selectedEndRevisionSurah.number) {
+        showNotification('error', 'Action Required', 'Start surah cannot be after end surah');
+        return;
+      }
+      if (!revisionStart || !revisionEnd) {
+        showNotification('error', 'Action Required', 'Please specify the ayah range for Revision');
+        return;
+      }
+      const startAyah = Number(revisionStart);
+      const endAyah = Number(revisionEnd);
       if (!Number.isInteger(startAyah) || !Number.isInteger(endAyah)) {
-        setValidationError('Ayah numbers must be whole numbers');
+        showNotification('error', 'Action Required', 'Ayah numbers must be whole numbers');
         return;
       }
       if (startAyah <= 0 || endAyah <= 0) {
-        setValidationError('Ayah numbers must be positive');
+        showNotification('error', 'Action Required', 'Ayah numbers must be positive');
         return;
       }
-      if (startAyah > endAyah) {
-        setValidationError('Hifz start ayah cannot be greater than end ayah');
+      if (selectedRevisionSurah.number === selectedEndRevisionSurah.number) {
+        if (startAyah > endAyah) {
+          showNotification('error', 'Action Required', 'Revision start ayah cannot be greater than end ayah');
+          return;
+        }
+        if (endAyah > selectedRevisionSurah.ayah_count) {
+          showNotification('error', 'Action Required', `Revision end ayah cannot be more than ${selectedRevisionSurah.ayah_count} (total ayahs in ${selectedRevisionSurah.name})`);
+          return;
+        }
+      }
+    } else if (revisionTab === 'page') {
+      if (!revisionStart || !revisionEnd) {
+        showNotification('error', 'Action Required', 'Please specify the page range for Revision');
         return;
       }
-      if (endAyah > selectedSurah.ayah_count) {
-        setValidationError(`Hifz end ayah cannot be more than ${selectedSurah.ayah_count} (total ayahs in ${selectedSurah.name})`);
+      const startPage = Number(revisionStart);
+      const endPage = Number(revisionEnd);
+      if (!Number.isInteger(startPage) || !Number.isInteger(endPage)) {
+        showNotification('error', 'Action Required', 'Page numbers must be whole numbers');
         return;
       }
-      // Validate Hifz notes length if provided
-      if (hifzNotes.trim() !== '' && hifzNotes.trim().length < 3) {
-        setValidationError('Hifz notes should be at least 3 characters long');
+      if (startPage <= 0 || endPage <= 0) {
+        showNotification('error', 'Action Required', 'Page numbers must be positive');
+        return;
+      }
+      if (startPage > endPage) {
+        showNotification('error', 'Action Required', 'Revision start page cannot be greater than end page');
         return;
       }
     }
 
-    // Revision validation
-    if (hasRevision) {
-      if (revisionTab === 'surah') {
-        if (!selectedRevisionSurah || !selectedEndRevisionSurah) {
-          setValidationError('Please select both start and end surahs for revision');
-          return;
-        }
-        if (selectedRevisionSurah.number > selectedEndRevisionSurah.number) {
-          setValidationError('Start surah cannot be after end surah');
-          return;
-        }
-        if (!revisionStart || !revisionEnd) {
-          setValidationError('Please specify the ayah range for Revision');
-          return;
-        }
-        const startAyah = Number(revisionStart);
-        const endAyah = Number(revisionEnd);
-        if (!Number.isInteger(startAyah) || !Number.isInteger(endAyah)) {
-          setValidationError('Ayah numbers must be whole numbers');
-          return;
-        }
-        if (startAyah <= 0 || endAyah <= 0) {
-          setValidationError('Ayah numbers must be positive');
-          return;
-        }
-        // If it's a single surah revision, check end ayah
-        if (selectedRevisionSurah.number === selectedEndRevisionSurah.number) {
-          if (startAyah > endAyah) {
-            setValidationError('Revision start ayah cannot be greater than end ayah');
-            return;
-          }
-          if (endAyah > selectedRevisionSurah.ayah_count) {
-            setValidationError(`Revision end ayah cannot be more than ${selectedRevisionSurah.ayah_count} (total ayahs in ${selectedRevisionSurah.name})`);
-            return;
-          }
-        }
-      } else if (revisionTab === 'page') {
-        if (!revisionStart || !revisionEnd) {
-          setValidationError('Please specify the page range for Revision');
-          return;
-        }
-        const startPage = Number(revisionStart);
-        const endPage = Number(revisionEnd);
-        
-        if (!Number.isInteger(startPage) || !Number.isInteger(endPage)) {
-          setValidationError('Page numbers must be whole numbers');
-          return;
-        }
-        // Additional validation for page numbers
-        if (startPage <= 0 || endPage <= 0) {
-          setValidationError('Page numbers must be positive');
-          return;
-        }
-        if (startPage > endPage) {
-          setValidationError('Revision start page cannot be greater than end page');
-          return;
-        }
-      } else if (revisionTab === 'surah') {
-        if (!selectedRevisionSurah) {
-          setValidationError('Please select a revision surah');
-          return;
-        }
-        if (!revisionStart || !revisionEnd) {
-          setValidationError('Please specify the ayah range for Revision');
-          return;
-        }
-        const startAyah = Number(revisionStart);
-        const endAyah = Number(revisionEnd);
-        
-        if (!Number.isInteger(startAyah) || !Number.isInteger(endAyah)) {
-          setValidationError('Ayah numbers must be whole numbers');
-          return;
-        }
-        if (startAyah <= 0 || endAyah <= 0) {
-          setValidationError('Ayah numbers must be positive');
-          return;
-        }
-        if (startAyah > endAyah) {
-          setValidationError('Revision start ayah cannot be greater than end ayah');
-          return;
-        }
-        if (endAyah > selectedRevisionSurah.ayah_count) {
-          setValidationError(`Revision end ayah cannot be more than ${selectedRevisionSurah.ayah_count} (total ayahs in ${selectedRevisionSurah.name})`);
-          return;
-        }
-      }
-    }
-    
-    // Validate rating
-    if (rating < 1 || rating > 5) {
-      setValidationError('Please provide a valid performance rating');
+    // Rating validation (revision-specific)
+    if (revisionRating < 1 || revisionRating > 5) {
+      showNotification('error', 'Action Required', 'Please provide a valid revision performance rating');
       return;
     }
-    
-    // Validate instructor notes (optional but if provided, should not be just whitespace)
-    if (instructorNotes.trim() !== '' && instructorNotes.trim().length < 3) {
-      setValidationError('Instructor notes should be at least 3 characters long');
+
+    if (!isValidDateString(revisionDate)) {
+      showNotification('error', 'Invalid Date', 'Please provide a valid Revision session date in YYYY-MM-DD format.');
       return;
     }
-    
+
+    if (!isDateValidForType('revision', revisionDate)) {
+      showNotification('error', 'Invalid Date', 'The selected date is not available for Revision sessions.');
+      return;
+    }
+
+    if (dateConflict.revision) {
+      showNotification('error', 'Date Conflict', 'A Hifz session already exists on this date. Revision and Hifz cannot share the same day in Advanced Scheduling mode.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const isAbsent = attendanceStatus === 'absent';
       const sessionData = {
         studentId: Number(studentId),
-        sessionDate: new Date().toISOString().split('T')[0],
-        attendance: {
-          status: attendanceStatus
-        },
+        sessionDate: revisionDate,
+        recordingDate: revisionDate,
+        attendance: { status: attendanceStatus },
         notes: instructorNotes,
-        hifzRecord: (!isAbsent && selectedSurah) ? {
-          surahNumber: selectedSurah.number,
-          startAyah: Number(hifzStartAyah),
-          endAyah: Number(hifzEndAyah) || selectedSurah.ayah_count,
-          isFullSurah: isHifzCompleted,
-          notes: hifzNotes
-        } : null,
-        revisionRecord: hasRevision ? {
-          surahNumber: revisionTab === 'surah' ? selectedRevisionSurah?.number : undefined,
+        hifzRecord: null,
+        revisionRecord: {
+          surahNumber: undefined,
           startSurahNumber: revisionTab === 'surah' ? selectedRevisionSurah?.number : undefined,
           endSurahNumber: revisionTab === 'surah' ? selectedEndRevisionSurah?.number : undefined,
           startAyah: revisionTab === 'surah' ? Number(revisionStart) : undefined,
@@ -331,33 +539,35 @@ export const DailySession: React.FC = () => {
           startPage: revisionTab === 'page' ? Number(revisionStart) : undefined,
           endPage: revisionTab === 'page' ? Number(revisionEnd) : undefined,
           isFullSurah: isRevisionCompleted,
-          notes: instructorNotes
-        } : undefined,
-        rating: rating
+          notes: instructorNotes,
+        },
+        rating,
+        revisionRating,
+        revisionInstructorNotes: revisionNoteContent.trim() 
+          ? [{ content: revisionNoteContent.trim() }] 
+          : undefined,
       };
 
       const response = await fetch('/api/sessions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sessionData),
       });
 
       const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to save session');
+        if (data.code === 'MUTUAL_EXCLUSIVITY_VIOLATION') {
+          throw new Error('A Hifz session already exists on this date. Choose a different Revision date or update the school schedule.');
+        }
+        if (data.code === 'INVALID_SESSION_DAY' || data.code === 'DATE_OUTSIDE_SCHOOL_CALENDAR') {
+          throw new Error(data.error || 'The selected date is outside the school schedule.');
+        }
+        throw new Error(data.error || 'Failed to save Revision session');
       }
 
-      // Confirm what was saved from backend
-      const memorizationInfo = data.memorizationRecordId ? `Memorization ID: ${data.memorizationRecordId}` : 'No memorization record created';
-      const revisionInfo = data.revisionRecordId ? `Revision ID: ${data.revisionRecordId}` : 'No revision record created';
-      alert(`Session saved successfully!\n${memorizationInfo}\n${revisionInfo}`);
-
-      navigate('/students');
+      showNotification('success', 'Saved Successfully', 'Revision saved successfully');
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      showNotification('error', 'Error Saving Revision', err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -423,15 +633,16 @@ export const DailySession: React.FC = () => {
             </div>
           </div>
         </div>
-
-        <div className="flex flex-col items-end gap-1">
-          <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Session Date</span>
-          <div className="flex items-center gap-2 px-4 py-2 bg-surface-dark border border-border-green/30 rounded-xl text-white font-bold">
-            <Calendar size={18} className="text-text-muted" />
-            <span>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-          </div>
-        </div>
       </div>
+
+      {/* Welcome Banner for First-Time Users */}
+      {isFirstSession && (
+        <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <p className="text-sm font-medium text-primary">
+            Welcome! Record today&apos;s Hifz progress and any revision work separately using the save buttons in each section.
+          </p>
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -487,15 +698,55 @@ export const DailySession: React.FC = () => {
                 <p className="text-xs font-bold uppercase tracking-wider">Student is marked as absent. Lesson records are disabled.</p>
               </div>
             )}
+
+            {!isDateValidForType('memorization:default', hifzDate) && (
+              <div className="flex items-center gap-2 text-red-400 bg-red-400/10 border border-red-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+                <AlertCircle size={16} />
+                <p className="text-xs font-bold uppercase tracking-wider">The selected date is not available for Hifz sessions.</p>
+              </div>
+            )}
+            {dateConflict.hifz && (
+              <div className="flex items-center gap-2 text-red-400 bg-red-400/10 border border-red-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+                <AlertCircle size={16} />
+                <p className="text-xs font-bold uppercase tracking-wider">A Revision session already exists on this date. Hifz is blocked.</p>
+              </div>
+            )}
+            {isCheckingConflict.hifz && (
+              <div className="flex items-center gap-2 text-blue-300 bg-blue-500/10 border border-blue-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+                <Loader2 size={16} className="animate-spin" />
+                <p className="text-xs font-bold uppercase tracking-wider">Checking Hifz date conflicts...</p>
+              </div>
+            )}
           </div>
 
           {/* New Lesson (Hifz) */}
-          <div className={`bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 transition-all duration-300 ${attendanceStatus === 'absent' ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-                <BookOpen size={24} />
+          <div className={`bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 transition-all duration-300 ${attendanceStatus === 'absent' || !isDateValidForType('memorization:default', hifzDate) ? 'opacity-40 grayscale' : ''}`}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                  <BookOpen size={24} />
+                </div>
+                <h2 className="text-xl font-bold text-white">New Lesson (Hifz)</h2>
               </div>
-              <h2 className="text-xl font-bold text-white">New Lesson (Hifz)</h2>
+            </div>
+
+            {/* Hifz Session Date Picker */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-text-muted">Session Date</label>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-4 py-2 bg-background-dark/50 border border-border-green/30 rounded-xl text-white font-bold focus-within:border-primary/50 transition-colors">
+                  <Calendar size={16} className="text-text-muted" />
+                  <input 
+                    type="date" 
+                    value={hifzDate}
+                    onChange={(e) => setHifzDate(e.target.value)}
+                    className="bg-transparent border-none outline-none text-sm font-bold [color-scheme:dark] cursor-pointer"
+                  />
+                </div>
+                {hifzDate === todayStr && (
+                  <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">Today</span>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col gap-6">
@@ -599,10 +850,107 @@ export const DailySession: React.FC = () => {
                 <span className="text-sm font-medium text-white group-hover:text-primary transition-colors">Mark Surah as Completed?</span>
               </label>
             </div>
+
+            {/* Hifz History Panel */}
+            <div className="border-t border-border-green/20 pt-4">
+              <button
+                onClick={() => setExpandedHistory(expandedHistory === 'hifz' ? null : 'hifz')}
+                className="flex items-center gap-2 text-sm text-text-muted hover:text-white transition-colors"
+              >
+                <History size={16} />
+                <span>View Previous Hifz ({totalHifz})</span>
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${expandedHistory === 'hifz' ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {expandedHistory === 'hifz' && (
+                <div className="mt-3 space-y-2">
+                  {isHistoryLoading ? (
+                    <div className="flex items-center gap-2 text-text-muted py-2">
+                      <Loader2 size={14} className="animate-spin" />
+                      <span className="text-xs">Loading history...</span>
+                    </div>
+                  ) : hifzHistory.length > 0 ? (
+                    <>
+                      {hifzHistory.map((record) => (
+                        <div
+                          key={record.id}
+                          className="p-3 bg-background-dark/30 rounded-lg border border-border-green/10"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-white text-sm">
+                              {record.surahName}
+                            </span>
+                            <span className="text-xs text-text-muted">
+                              {record.sessionDate}
+                            </span>
+                          </div>
+                          <p className="text-xs text-text-muted mt-1">
+                            Ayahs {record.startAyah}-{record.endAyah}
+                            {record.isFullSurah && ' (Full Surah)'}
+                          </p>
+                          {record.rating && (
+                            <div className="flex items-center gap-0.5 mt-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  size={12}
+                                  className={star <= record.rating! ? 'text-primary' : 'text-text-muted/30'}
+                                  fill={star <= record.rating! ? 'currentColor' : 'none'}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          {record.notes && (
+                            <p className="text-xs text-text-muted/70 mt-1 italic">
+                              {record.notes}
+                            </p>
+                          )}
+                          {record.instructorNotes && (
+                            <p className="text-xs text-text-muted/50 mt-0.5">
+                              Instructor: {record.instructorNotes}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Pagination Controls */}
+                      {totalHifz > HISTORY_LIMIT && (
+                        <div className="flex items-center justify-between pt-2 px-1">
+                          <button
+                            disabled={hifzPage === 1 || isHistoryLoading}
+                            onClick={() => setHifzPage(p => p - 1)}
+                            className="text-[10px] font-bold uppercase tracking-wider text-text-muted hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Previous
+                          </button>
+                          <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
+                            Page {hifzPage} of {Math.ceil(totalHifz / HISTORY_LIMIT)}
+                          </span>
+                          <button
+                            disabled={hifzPage >= Math.ceil(totalHifz / HISTORY_LIMIT) || isHistoryLoading}
+                            onClick={() => setHifzPage(p => p + 1)}
+                            className="text-[10px] font-bold uppercase tracking-wider text-text-muted hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-text-muted italic py-2">
+                      No previous Hifz records found.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Grading & Notes */}
-          <div className={`bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 transition-all duration-300 ${attendanceStatus === 'absent' ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
+          <div className={`bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 transition-all duration-300 ${attendanceStatus === 'absent' || !isDateValidForType('memorization:default', hifzDate) ? 'opacity-40 grayscale' : ''}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
@@ -650,15 +998,45 @@ export const DailySession: React.FC = () => {
             </div>
           </div>
 
+          <button
+            onClick={handleSaveHifz}
+            disabled={isSubmitting || !isDateValidForType('memorization:default', hifzDate) || dateConflict.hifz || isCheckingConflict.hifz}
+            className="w-full py-4 bg-primary hover:bg-primary-hover text-background-dark rounded-2xl text-base font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/10 disabled:opacity-50"
+          >
+            {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
+            Save Hifz Record
+          </button>
+
         </div>
 
         {/* Right Column: Revision */}
-        <div className={`bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 h-full transition-all duration-300 ${attendanceStatus === 'absent' ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400">
-              <RotateCcw size={24} />
+        <div className={`bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 h-full transition-all duration-300 ${attendanceStatus === 'absent' || !isDateValidForType('revision', revisionDate) ? 'opacity-40 grayscale' : ''}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400">
+                <RotateCcw size={24} />
+              </div>
+              <h2 className="text-xl font-bold text-white">Revision (Muraja'ah)</h2>
             </div>
-            <h2 className="text-xl font-bold text-white">Revision (Muraja'ah)</h2>
+          </div>
+
+          {/* Revision Session Date Picker */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-text-muted">Session Date</label>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-4 py-2 bg-background-dark/50 border border-border-green/30 rounded-xl text-white font-bold focus-within:border-primary/50 transition-colors">
+                <Calendar size={16} className="text-text-muted" />
+                <input 
+                  type="date" 
+                  value={revisionDate}
+                  onChange={(e) => setRevisionDate(e.target.value)}
+                  className="bg-transparent border-none outline-none text-sm font-bold [color-scheme:dark] cursor-pointer"
+                />
+              </div>
+              {revisionDate === todayStr && (
+                <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">Today</span>
+              )}
+            </div>
           </div>
 
           {/* Tabs */}
@@ -686,151 +1064,189 @@ export const DailySession: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-3">
+            {/* <div className="flex flex-col gap-3">
               <label className="text-sm font-medium text-text-muted">Recent Weak Spots</label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col items-center gap-2 py-3 bg-background-dark/20 rounded-xl border border-border-green/10">
                 <p className="text-xs text-text-muted italic">No weak spots recorded yet.</p>
+                <button className="text-xs text-primary hover:underline">Mark difficult ayahs</button>
               </div>
-            </div>
+            </div> */}
 
             {revisionTab === 'surah' && (
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2 revision-surah-dropdown-container">
-                  <label className="text-sm font-medium text-text-muted">Start Surah</label>
-                  <div className="relative">
-                    <div 
-                      onClick={() => setIsRevisionSurahDropdownOpen(!isRevisionSurahDropdownOpen)}
-                      className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white flex items-center justify-between cursor-pointer hover:border-primary/30 transition-colors"
-                    >
-                      <span className={selectedRevisionSurah ? "font-bold" : "text-text-muted/50 font-medium"}>
-                        {selectedRevisionSurah ? `${selectedRevisionSurah.number}. ${selectedRevisionSurah.name}` : "Select Start Surah..."}
-                      </span>
-                      <ChevronDown size={20} className={`text-text-muted transition-transform ${isRevisionSurahDropdownOpen ? 'rotate-180' : ''}`} />
-                    </div>
+              <div className="flex flex-col gap-6">
+                {/* Start Surah & Ayah Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end revision-surah-dropdown-container">
+                  <div className="sm:col-span-3 flex flex-col gap-2">
+                    <label className="text-sm font-medium text-text-muted">Start Surah</label>
+                    <div className="relative">
+                      <div 
+                        onClick={() => setIsRevisionSurahDropdownOpen(!isRevisionSurahDropdownOpen)}
+                        className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white flex items-center justify-between cursor-pointer hover:border-primary/30 transition-colors"
+                      >
+                        <span className={selectedRevisionSurah ? "font-bold" : "text-text-muted/50 font-medium"}>
+                          {selectedRevisionSurah ? `${selectedRevisionSurah.number}. ${selectedRevisionSurah.name}` : "Select Start Surah..."}
+                        </span>
+                        <ChevronDown size={20} className={`text-text-muted transition-transform ${isRevisionSurahDropdownOpen ? 'rotate-180' : ''}`} />
+                      </div>
 
-                    {isRevisionSurahDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-surface-dark border border-border-green/30 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                        <div className="p-3 border-b border-border-green/20">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
-                            <input 
-                              autoFocus
-                              type="text"
-                              value={revisionSurahSearch}
-                              onChange={(e) => setRevisionSurahSearch(e.target.value)}
-                              placeholder="Search surah..."
-                              className="w-full bg-background-dark/50 border border-border-green/20 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors"
-                            />
+                      {isRevisionSurahDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-surface-dark border border-border-green/30 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="p-3 border-b border-border-green/20">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+                              <input 
+                                autoFocus
+                                type="text"
+                                value={revisionSurahSearch}
+                                onChange={(e) => setRevisionSurahSearch(e.target.value)}
+                                placeholder="Search surah..."
+                                className="w-full bg-background-dark/50 border border-border-green/20 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors"
+                              />
+                            </div>
+                          </div>
+                          <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                            {filteredRevisionSurahs.map((surah) => (
+                              <div 
+                                key={surah.number}
+                                onClick={() => {
+                                  setSelectedRevisionSurah(surah);
+                                  setIsRevisionSurahDropdownOpen(false);
+                                  setRevisionSurahSearch('');
+                                  // Automatically set end surah if not set
+                                  if (!selectedEndRevisionSurah) setSelectedEndRevisionSurah(surah);
+                                  // Reset start ayah to 1 when surah changes
+                                  setRevisionStart('1');
+                                }}
+                                className={`px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-primary/5 transition-colors ${selectedRevisionSurah?.number === surah.number ? 'bg-primary/10 text-primary' : 'text-text-muted hover:text-white'}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xs font-bold w-6 h-6 flex items-center justify-center bg-background-dark/50 rounded-md border border-border-green/20">
+                                    {surah.number}
+                                  </span>
+                                  <span className="font-bold">{surah.name}</span>
+                                </div>
+                                <span className="text-[10px] font-bold opacity-50 uppercase tracking-widest">{surah.ayah_count} Ayahs</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                        <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
-                          {filteredRevisionSurahs.map((surah) => (
-                            <div 
-                              key={surah.number}
-                              onClick={() => {
-                                setSelectedRevisionSurah(surah);
-                                setIsRevisionSurahDropdownOpen(false);
-                                setRevisionSurahSearch('');
-                                // Automatically set end surah if not set
-                                if (!selectedEndRevisionSurah) setSelectedEndRevisionSurah(surah);
-                              }}
-                              className={`px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-primary/5 transition-colors ${selectedRevisionSurah?.number === surah.number ? 'bg-primary/10 text-primary' : 'text-text-muted hover:text-white'}`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="text-xs font-bold w-6 h-6 flex items-center justify-center bg-background-dark/50 rounded-md border border-border-green/20">
-                                  {surah.number}
-                                </span>
-                                <span className="font-bold">{surah.name}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  </div>
+                  <div className="sm:col-span-1 flex flex-col gap-2">
+                    <label className="text-sm font-medium text-text-muted">Start Ayah</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      max={selectedRevisionSurah?.ayah_count}
+                      value={revisionStart}
+                      onChange={(e) => setRevisionStart(e.target.value)}
+                      placeholder="1"
+                      className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white font-bold focus:outline-none focus:border-primary/50 transition-colors placeholder:text-text-muted/20"
+                    />
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 end-revision-surah-dropdown-container">
-                  <label className="text-sm font-medium text-text-muted">End Surah</label>
-                  <div className="relative">
-                    <div 
-                      onClick={() => setIsEndRevisionSurahDropdownOpen(!isEndRevisionSurahDropdownOpen)}
-                      className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white flex items-center justify-between cursor-pointer hover:border-primary/30 transition-colors"
-                    >
-                      <span className={selectedEndRevisionSurah ? "font-bold" : "text-text-muted/50 font-medium"}>
-                        {selectedEndRevisionSurah ? `${selectedEndRevisionSurah.number}. ${selectedEndRevisionSurah.name}` : "Select End Surah..."}
-                      </span>
-                      <ChevronDown size={20} className={`text-text-muted transition-transform ${isEndRevisionSurahDropdownOpen ? 'rotate-180' : ''}`} />
-                    </div>
+                {/* End Surah & Ayah Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end end-revision-surah-dropdown-container">
+                  <div className="sm:col-span-3 flex flex-col gap-2">
+                    <label className="text-sm font-medium text-text-muted">End Surah</label>
+                    <div className="relative">
+                      <div 
+                        onClick={() => setIsEndRevisionSurahDropdownOpen(!isEndRevisionSurahDropdownOpen)}
+                        className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white flex items-center justify-between cursor-pointer hover:border-primary/30 transition-colors"
+                      >
+                        <span className={selectedEndRevisionSurah ? "font-bold" : "text-text-muted/50 font-medium"}>
+                          {selectedEndRevisionSurah ? `${selectedEndRevisionSurah.number}. ${selectedEndRevisionSurah.name}` : "Select End Surah..."}
+                        </span>
+                        <ChevronDown size={20} className={`text-text-muted transition-transform ${isEndRevisionSurahDropdownOpen ? 'rotate-180' : ''}`} />
+                      </div>
 
-                    {isEndRevisionSurahDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-surface-dark border border-border-green/30 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                        <div className="p-3 border-b border-border-green/20">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
-                            <input 
-                              autoFocus
-                              type="text"
-                              value={endRevisionSurahSearch}
-                              onChange={(e) => setEndRevisionSurahSearch(e.target.value)}
-                              placeholder="Search surah..."
-                              className="w-full bg-background-dark/50 border border-border-green/20 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors"
-                            />
+                      {isEndRevisionSurahDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-surface-dark border border-border-green/30 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="p-3 border-b border-border-green/20">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+                              <input 
+                                autoFocus
+                                type="text"
+                                value={endRevisionSurahSearch}
+                                onChange={(e) => setEndRevisionSurahSearch(e.target.value)}
+                                placeholder="Search surah..."
+                                className="w-full bg-background-dark/50 border border-border-green/20 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors"
+                              />
+                            </div>
+                          </div>
+                          <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                            {filteredEndRevisionSurahs.map((surah) => (
+                              <div 
+                                key={surah.number}
+                                onClick={() => {
+                                  setSelectedEndRevisionSurah(surah);
+                                  setIsEndRevisionSurahDropdownOpen(false);
+                                  setEndRevisionSurahSearch('');
+                                  // Set end ayah to total ayah count by default
+                                  setRevisionEnd(surah.ayah_count.toString());
+                                }}
+                                className={`px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-primary/5 transition-colors ${selectedEndRevisionSurah?.number === surah.number ? 'bg-primary/10 text-primary' : 'text-text-muted hover:text-white'}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xs font-bold w-6 h-6 flex items-center justify-center bg-background-dark/50 rounded-md border border-border-green/20">
+                                    {surah.number}
+                                  </span>
+                                  <span className="font-bold">{surah.name}</span>
+                                </div>
+                                <span className="text-[10px] font-bold opacity-50 uppercase tracking-widest">{surah.ayah_count} Ayahs</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                        <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
-                          {filteredEndRevisionSurahs.map((surah) => (
-                            <div 
-                              key={surah.number}
-                              onClick={() => {
-                                setSelectedEndRevisionSurah(surah);
-                                setIsEndRevisionSurahDropdownOpen(false);
-                                setEndRevisionSurahSearch('');
-                              }}
-                              className={`px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-primary/5 transition-colors ${selectedEndRevisionSurah?.number === surah.number ? 'bg-primary/10 text-primary' : 'text-text-muted hover:text-white'}`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="text-xs font-bold w-6 h-6 flex items-center justify-center bg-background-dark/50 rounded-md border border-border-green/20">
-                                  {surah.number}
-                                </span>
-                                <span className="font-bold">{surah.name}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  </div>
+                  <div className="sm:col-span-1 flex flex-col gap-2">
+                    <label className="text-sm font-medium text-text-muted">End Ayah</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      max={selectedEndRevisionSurah?.ayah_count}
+                      value={revisionEnd}
+                      onChange={(e) => setRevisionEnd(e.target.value)}
+                      placeholder={selectedEndRevisionSurah?.ayah_count.toString() || "#"}
+                      className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white font-bold focus:outline-none focus:border-primary/50 transition-colors placeholder:text-text-muted/20"
+                    />
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="flex gap-4">
-              <div className="flex-1 space-y-2">
-                <label className="text-xs font-bold text-text-muted uppercase tracking-wider ml-1">Start {revisionTab === 'page' ? 'Page' : 'Ayah'}</label>
-                <input 
-                  type="number" 
-                  min="1"
-                  max={revisionTab === 'surah' && selectedRevisionSurah ? selectedRevisionSurah.ayah_count : undefined}
-                  value={revisionStart}
-                  onChange={(e) => setRevisionStart(e.target.value)}
-                  placeholder="#"
-                  className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white font-bold focus:outline-none focus:border-primary/50 transition-colors placeholder:text-text-muted/20"
-                />
+            {revisionTab === 'page' && (
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <label className="text-xs font-bold text-text-muted uppercase tracking-wider ml-1">Start Page</label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    value={revisionStart}
+                    onChange={(e) => setRevisionStart(e.target.value)}
+                    placeholder="#"
+                    className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white font-bold focus:outline-none focus:border-primary/50 transition-colors placeholder:text-text-muted/20"
+                  />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <label className="text-xs font-bold text-text-muted uppercase tracking-wider ml-1">End Page</label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    value={revisionEnd}
+                    onChange={(e) => setRevisionEnd(e.target.value)}
+                    placeholder="#"
+                    className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white font-bold focus:outline-none focus:border-primary/50 transition-colors placeholder:text-text-muted/20"
+                  />
+                </div>
               </div>
-              <div className="flex-1 space-y-2">
-                <label className="text-xs font-bold text-text-muted uppercase tracking-wider ml-1">End {revisionTab === 'page' ? 'Page' : 'Ayah'}</label>
-                <input 
-                  type="number" 
-                  min="1"
-                  max={revisionTab === 'surah' && selectedEndRevisionSurah ? selectedEndRevisionSurah.ayah_count : undefined}
-                  value={revisionEnd}
-                  onChange={(e) => setRevisionEnd(e.target.value)}
-                  placeholder={revisionTab === 'surah' && selectedEndRevisionSurah ? selectedEndRevisionSurah.ayah_count.toString() : "#"}
-                  className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3.5 px-4 text-white font-bold focus:outline-none focus:border-primary/50 transition-colors placeholder:text-text-muted/20"
-                />
-              </div>
-            </div>
+            )}
+
 
             {/* Progress Section */}
             <div className="bg-background-dark/30 border border-border-green/20 rounded-2xl p-6 flex flex-col gap-4">
@@ -879,19 +1295,194 @@ export const DailySession: React.FC = () => {
               </div>
               <span className="text-sm font-medium text-white group-hover:text-primary transition-colors">Completed current revision target?</span>
             </label>
+
+            {/* Revision Performance Rating */}
+            <div className="border-t border-border-green/20 pt-4">
+              <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider mb-3">Revision Rating</h3>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-1.5" role="radiogroup" aria-label="Revision performance rating">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      role="radio"
+                      aria-checked={revisionRating === star}
+                      aria-label={`Rate revision ${star} out of 5 — ${star === 1 ? 'Very Poor' : star === 2 ? 'Poor' : star === 3 ? 'Average' : star === 4 ? 'Good' : 'Excellent'}`}
+                      onClick={() => setRevisionRating(star)}
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                        revisionRating >= star
+                          ? 'bg-blue-500/20 text-blue-400 border-2 border-blue-400/50'
+                          : 'bg-background-dark/50 text-text-muted/40 border border-border-green/30 hover:border-blue-400/30 hover:text-blue-400/60'
+                      }`}
+                    >
+                      <Star size={18} fill={revisionRating >= star ? 'currentColor' : 'none'} />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs font-bold text-blue-400" aria-live="polite">
+                  {revisionRating === 1 ? 'Very Poor — Major errors, unable to recall' :
+                   revisionRating === 2 ? 'Poor — Frequent mistakes, needs prompting' :
+                   revisionRating === 3 ? 'Average — Some errors, moderate fluency' :
+                   revisionRating === 4 ? 'Good — Minor errors, good fluency' :
+                   'Excellent — Flawless recitation, perfect tajweed'}
+                </p>
+                <details className="text-[10px] text-text-muted/60 leading-relaxed">
+                  <summary className="cursor-pointer hover:text-text-muted transition-colors">Rating Criteria</summary>
+                  <ul className="mt-1 space-y-0.5 pl-3 list-disc">
+                    <li>1 — 5+ errors per page; needs constant correction</li>
+                    <li>2 — 3-4 errors per page; frequent prompting</li>
+                    <li>3 — 1-2 errors per page; occasional prompting</li>
+                    <li>4 — Minor errors; mostly self-correcting</li>
+                    <li>5 — No errors; perfect fluency and tajweed</li>
+                  </ul>
+                </details>
+              </div>
+            </div>
+
+            <div className="border-t border-border-green/20 pt-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-text-muted">Revision Notes</label>
+                <textarea
+                  value={revisionNoteContent}
+                  onChange={(e) => setRevisionNoteContent(e.target.value)}
+                  placeholder="Enter specific feedback..."
+                  className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl p-4 text-white placeholder:text-text-muted/30 focus:outline-none focus:border-blue-400/50 transition-colors min-h-[100px] resize-none font-medium"
+                  maxLength={5000}
+                ></textarea>
+              </div>
+            </div>
+
+            {/* Revision History Panel */}
+            <div className="border-t border-border-green/20 pt-4">
+              <button
+                onClick={() => setExpandedHistory(expandedHistory === 'revision' ? null : 'revision')}
+                className="flex items-center gap-2 text-sm text-text-muted hover:text-white transition-colors"
+              >
+                <History size={16} />
+                <span>View Previous Revision ({totalRevision})</span>
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${expandedHistory === 'revision' ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {expandedHistory === 'revision' && (
+                <div className="mt-3 space-y-2">
+                  {isHistoryLoading ? (
+                    <div className="flex items-center gap-2 text-text-muted py-2">
+                      <Loader2 size={14} className="animate-spin" />
+                      <span className="text-xs">Loading history...</span>
+                    </div>
+                  ) : revisionHistory.length > 0 ? (
+                    <>
+                      {revisionHistory.map((record) => (
+                        <div
+                          key={record.id}
+                          className="p-3 bg-background-dark/30 rounded-lg border border-border-green/10"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-white text-sm">
+                              {record.type === 'page'
+                                ? `Pages ${record.startPage}-${record.endPage}`
+                                : record.startSurah && record.endSurah
+                                  ? `${record.startSurah} - ${record.endSurah}`
+                                  : record.surahName || `Surah`}
+                            </span>
+                            <span className="text-xs text-text-muted">
+                              {record.sessionDate}
+                            </span>
+                          </div>
+                          {record.type === 'surah' && record.startAyah && record.endAyah && (
+                            <p className="text-xs text-text-muted mt-1">
+                              Ayahs {record.startAyah}-{record.endAyah}
+                            </p>
+                          )}
+                          {record.notes && (
+                            <p className="text-xs text-text-muted/70 mt-1 italic">
+                              {record.notes}
+                            </p>
+                          )}
+                          {record.rating && (
+                            <div className="flex items-center gap-0.5 mt-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  size={10}
+                                  className={star <= record.rating! ? 'text-blue-400' : 'text-text-muted/30'}
+                                  fill={star <= record.rating! ? 'currentColor' : 'none'}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Pagination Controls */}
+                      {totalRevision > HISTORY_LIMIT && (
+                        <div className="flex items-center justify-between pt-2 px-1">
+                          <button
+                            disabled={revisionPage === 1 || isHistoryLoading}
+                            onClick={() => setRevisionPage(p => p - 1)}
+                            className="text-[10px] font-bold uppercase tracking-wider text-text-muted hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Previous
+                          </button>
+                          <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
+                            Page {revisionPage} of {Math.ceil(totalRevision / HISTORY_LIMIT)}
+                          </span>
+                          <button
+                            disabled={revisionPage >= Math.ceil(totalRevision / HISTORY_LIMIT) || isHistoryLoading}
+                            onClick={() => setRevisionPage(p => p + 1)}
+                            className="text-[10px] font-bold uppercase tracking-wider text-text-muted hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-text-muted italic py-2">
+                      No previous Revision records found.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+
+          {!isDateValidForType('revision', revisionDate) && (
+            <div className="flex items-center gap-2 text-red-400 bg-red-400/10 border border-red-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+              <AlertCircle size={16} />
+              <p className="text-xs font-bold uppercase tracking-wider">The selected date is not available for Revision sessions.</p>
+            </div>
+          )}
+          {dateConflict.revision && (
+            <div className="flex items-center gap-2 text-red-400 bg-red-400/10 border border-red-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+              <AlertCircle size={16} />
+              <p className="text-xs font-bold uppercase tracking-wider">A Hifz session already exists on this date. Revision is blocked.</p>
+            </div>
+          )}
+          {isCheckingConflict.revision && (
+            <div className="flex items-center gap-2 text-blue-300 bg-blue-500/10 border border-blue-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+              <Loader2 size={16} className="animate-spin" />
+              <p className="text-xs font-bold uppercase tracking-wider">Checking Revision date conflicts...</p>
+            </div>
+          )}
+
+          <button
+            onClick={handleSaveRevision}
+            disabled={isSubmitting || !isDateValidForType('revision', revisionDate) || dateConflict.revision || isCheckingConflict.revision}
+            className="w-full py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl text-base font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/10 disabled:opacity-50"
+          >
+            {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
+            Save Revision Record
+          </button>
+
         </div>
 
       </div>
 
       {/* Footer Actions */}
       <div className="flex flex-col gap-4 py-6 border-t border-border-green/20">
-        {validationError && (
-          <div className="flex items-center gap-2 text-red-400 bg-red-400/10 border border-red-400/20 px-4 py-3 rounded-xl animate-in fade-in slide-in-from-top-2 duration-300">
-            <AlertCircle size={18} />
-            <p className="text-sm font-medium">{validationError}</p>
-          </div>
-        )}
         <div className="flex items-center justify-between">
           <button 
             onClick={() => navigate('/students')}
@@ -899,46 +1490,21 @@ export const DailySession: React.FC = () => {
           >
             Cancel
           </button>
-          <div className="flex items-center gap-4">
-            <button 
-              disabled={isSubmitting}
-              className="px-8 py-3.5 rounded-xl text-sm font-bold text-white border border-border-green/30 hover:bg-white/5 transition-all disabled:opacity-50"
-            >
-              Save as Draft
-            </button>
-            <button 
-              onClick={handleSaveSession}
-              disabled={isSubmitting}
-              className="px-8 py-3.5 bg-primary hover:bg-primary-hover text-background-dark rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : (
-                <CheckCircle2 size={20} />
-              )}
-              Save Session
-            </button>
-          </div>
+          <button 
+            onClick={() => navigate('/students')}
+            disabled={isSubmitting}
+            className="px-8 py-3.5 bg-primary hover:bg-primary-hover text-background-dark rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+          >
+            {isSubmitting ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : (
+              <CheckCircle2 size={20} />
+            )}
+            Done
+          </button>
         </div>
       </div>
 
     </div>
   );
 };
-
-const Plus: React.FC<{ size?: number, className?: string }> = ({ size = 16, className }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="3" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <line x1="12" y1="5" x2="12" y2="19"></line>
-    <line x1="5" y1="12" x2="19" y2="12"></line>
-  </svg>
-);

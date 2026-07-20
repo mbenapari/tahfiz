@@ -8,35 +8,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **feat: implement surah range revisions and mastery calculation**: Added support for multi-surah revision records (Muraja'ah) across models, services, and UI. Includes a new `masteryHelper` utility for robust student progress calculation and a comprehensive test suite.
-- **feat: add surah range support to RevisionRecord model**: Added `start_surah_number` and `end_surah_number` columns to the `revision_records` table with appropriate database migrations and Sequelize associations.
-- **feat: add configurable daily revision target per student**: Added `daily_revision_target` field to User model allowing students to have individualized daily page targets. Updated studentController to handle the new field during updates, userService to include it in student profiles with a default of 20 pages, and frontend components (EditStudentModal, DailySession) to display and edit this per-student setting. (9859272)
-- **feat: improve Reports page date range picker with separate pending state and Apply button**: Refactored date range selection to use a pending state that only applies when the user clicks Apply, preventing unnecessary API calls on every date change. Added proper date input fields instead of displaying raw date strings. (dffc1e9)
-- **feat: add mobile card view for session history in StudentReportModal**: Added responsive mobile-friendly cards (md:hidden) to display session history on small screens alongside the existing desktop table view (hidden md:block). Each card shows date, attendance status, memorization and revision details. (eec7dab)
+- **feat: add multi-school context infrastructure with RLS middleware**: Introduce Row Level Security (RLS) middleware to enforce school context validation on all protected routes. Add schoolContextRoutes for context management (current, switch, accessible schools). Update jwtHelper to include activeSchoolContext in JWT payload and authMiddleware to extract and attach school context to requests. (e0f7666)
+- **feat: add branch management to schoolService with CRUD operations**: Implement branch creation, updates, and admin management in schoolService. Add branch hierarchy validation (branch can't be its own parent). Refactor permissionService to support branch-level access control with primary and secondary admin roles. Update userService to handle multi-school contexts. (3df1588)
+- **feat: add branch hierarchy migrations for multi-school data model**: Add migrations for: Branch hierarchy fields on School model (is_branch, parent_school_id, branch_code), Branch fields on User model (is_branch_admin, branch_id, primary_branch_id), Scope and audit fields on SchoolMember model, Backfill school owner ID. (5be90ab)
+- **feat: add SchoolContext and branch management components for multi-school UI**: Add SchoolContext for managing school/branch selection state with retry logic for race conditions. Create ActiveSchoolBanner, BranchCard, BranchFormModal, SchoolSwitcherDropdown, and UserSearchSelector components. Add useBranchManagement hook for branch CRUD operations. (d3aa0e9)
+- **feat: add BranchDetail, BranchManagement, and SchoolSwitcher pages**: Add pages for branch management including: BranchManagement for listing/managing branches, BranchDetail for viewing/editing individual branches, SchoolSwitcher for switching between accessible schools/branches. (3f75cc2)
+- **feat: integrate SchoolContext and branch navigation into frontend app**: Update App.tsx to add SchoolProvider and branch routes. Integrate SchoolSwitcherDropdown and ActiveSchoolBanner into Navbar. Update Sidebar and OwnerSidebar with branch management links. Enhance AuthContext with multi-school awareness. Update ProtectedRoute for branch access control. (29c94e5)
+- **feat: add branch routes and update user routes for multi-school**: Add branchRoutes for branch CRUD operations and branchAdminRoutes for branch admin management. Update userRoutes with branch-aware endpoints. (137c9ac)
+- **feat: update models with branch hierarchy fields**: Add branch fields to School model (is_branch, parent_school_id, branch_code). Add branch admin fields to User model (is_branch_admin, branch_id, primary_branch_id). Update SchoolMember with scope and audit fields. Update model associations for branch relationships. (2cc8551)
+
+### Refactored
+- **refactor: update all controllers for multi-school context support**: Refactor all controllers to respect school context from RLS middleware. Add school context validation to protected endpoints. Controllers now use req.rlsFilter or req.userSchoolId for data isolation. Update query scopes to filter by school context. (3323de5)
+
+### Chore
+- **chore: update server entry point and middleware for multi-school support**: Update main.ts to register schoolContextRoutes and apply RLS middleware. Enhance loggingMiddleware, cacheMiddleware, and rateLimitMiddleware with school context awareness. (5957fb8)
+
+### Docs
+- **docs: add planning documentation for multi-school branch management**: Add planning documents covering: Branch management implementation plan, Multi-branch instructor login analysis, Multi-school context data isolation plan. (d1ddff6)
+
+### Tests
+- **test: add multi-school isolation test suite**: Add tests for verifying data isolation between schools and branches. Test RLS middleware enforcement and branch access control. (8f80696)
+
+### Added
+- **feat: implement advanced scheduling engine with business rule enforcement**: Added `ScheduleService` with calendar validation, date format checking, mutual exclusivity between hifz/revision days, retroactive conflict detection, and conflict cache invalidation. School model now supports `schedule_mode` (simple/advanced), `session_type_day_map`, and `enabled_memorization_subtypes`. Session model includes `recording_date` with calendar-alignment hook. Includes 3 DB migrations for schema changes. (7b7d60d)
+- **feat: add 1-5 performance rating scale to memorization and revision records**: Introduced rating field (1-5) on MemorizationRecord and RevisionRecord models with validation, human-readable labels (RevisionRating enum), and detailed grading criteria. Includes DB migrations for both tables. (396358a)
+- **feat: add instructor notes system for revision sessions**: New `InstructorNote` model with public/private visibility, `NoteTargetType` for polymorphic targeting, and `NoteVisibility` enum. Notes are created during revision recording with a 20-note cap and content validation. Includes `revisionController`, `instructorNoteService`, `revisionPerformanceService`, and dedicated routes. (7b7d60d)
+- **feat: enforce scheduling compliance in session recording**: Added schedule validation to `saveDailySession` (absent student guard, date format checks, mutual exclusivity enforcement, full schedule compliance for hifz/revision). New endpoints: `checkDateConflict`, `getInstructorHasActivity`, `getSessionHistory` with combined hifz/revision history. Added `sessionHistoryService` for unified history retrieval. (e6d4214)
+- **feat: add school schedule management with validation, impact analysis and draft preview**: Added `validateScheduleDraft`, `getScheduleImpact` endpoints, schedule validation on school create/update, retroactive conflict impact reporting, and `validationMetadata` in school responses. Owner management controller hardened with DTO normalization for schedule inputs. (02ecd8c)
+- **feat: redesign DailySession with performance ratings, schedule enforcement, and date conflict detection**: Major frontend rewrite (913 insertions) of the daily session recording page. Added 1-5 star ratings for hifz and revision, real-time schedule conflict detection, date validation, recording vs. session date distinction, and instructor notes UI for revision entries. (f6f8e89)
+- **feat: add advanced schedule mode to Settings and CreateSchool pages**: Settings page now includes simple/advanced schedule toggle, per-session-type day selection, overlap detection and prevention, error state with retry button, and disabled save when conflicts exist. CreateSchool page supports schedule mode during initial setup. (2f40034)
+- **feat: enhance student enrollment UX with onboarding flow and animated actions**: Added no-results create-student flow on EnrollStudent, ProgressOnboardingModal for first-time instructors, AnimatedActionButtons with pulse-glow animation, NotificationProvider context for global notifications, and useInstructorProgressFlag hook for tracking instructor activity. (e836177)
+- **feat: add admin-only route guard for instructor management pages**: Restricted `/instructors` route to admin roles only, conditionally showing the Instructors tab in Sidebar based on user role. (a247f9d)
+
+### Fixed
+- **fix: switch search to substring matching with iLike and improve logging**: Changed student search from prefix matching (`LIKE 'query%'`) to substring matching (`iLike '%query%'`) for better user experience. Added structured logging with correlationId throughout student search pipeline in userService and studentController. Made activity limit configurable in student profile endpoint. (70ff649)
 
 ### Changed
 - **feat: update DailySession and StudentProfile for surah range revisions**: Refactored the session logging and student profile interfaces to support selecting and displaying a range of surahs for revision activity.
 - **feat: integrate surah range revisions into session and report services**: Updated backend controllers and reporting logic to correctly process and format multi-surah revision data in API responses and CSV exports.
 
+### Style
+- **style: add global CSS animations with reduced-motion support**: Added pulse-glow, fade-in-up, and progress-shrink keyframe animations. Included `prefers-reduced-motion` media query to disable animations for accessibility. (a247f9d)
+- **style: optimize Settings page for mobile devices**: Overhauled the school configuration page with a mobile-first design, featuring collapsible layouts, scrollable tabs, and responsive input controls for smaller screens (425px and below).
+- **style: refine Navbar for mobile view**: Improved mobile navigation with better spacing and responsive layout adjustments.
+
 ### Refactored
 - **refactor: extract revision record validation into dedicated utility**: Extracted revision record validation logic from sessionController into a separate revisionValidation utility with better error messages and support for single-surah, surah-range, and page-range revision types. Added comprehensive unit tests for the validation logic. (b0d0603)
 - **refactor: improve school performance report with batch progress calculation**: Refactored getSchoolPerformanceReport to use batch student progress calculation instead of individual queries per student, improving performance. Added error logging to report service functions. Enhanced revision record display with page range support and better surah name handling. (101cc0a)
 
-### Docs
-- **docs: add Quranic verse range validation refactoring plan**: Added documentation for the Quranic verse range validation refactoring plan. (7a632aa)
-
 ### Chore
+- **chore: remove deprecated GitHub rules and skills directories**: Removed 67 obsolete performance rules and skills markdown files that were no longer relevant to the project. (418c4db)
 - **chore: add migration for daily_revision_target column to users table**: Added database migration to add the `daily_revision_target` column to the users table. (74c5223)
 
-### Style
-- **style: optimize Settings page for mobile devices**: Overhauled the school configuration page with a mobile-first design, featuring collapsible layouts, scrollable tabs, and responsive input controls for smaller screens (425px and below).
-- **style: refine Navbar for mobile view**: Improved mobile navigation with better spacing and responsive layout adjustments.
-
-### Fixed
-- **fix: correct API response parsing in DailySession**: Fixed a bug where student data was not being correctly extracted from the nested API response, resolving "Student not found" errors.
-- **fix: add proper validation for cross-surah revision verse ranges**: Fixed revision record validation to properly enforce ayah limits per surah in cross-surah ranges. Previously, startAyah and endAyah were not validated against their respective surah's ayah counts when using surah range revision (e.g., Al-Fatihah to Al-Baqarah). Now validates that startAyah is within the start surah's bounds and endAyah is within the end surah's bounds.
+### Docs
+- **docs: add planning documents for scheduling, revision, and UX improvements**: Added 6 planning documents covering daily session enhancements, enroll student UX improvements, extended session type scheduling, and business rules enforcement with validation reports. (7bd453c)
+- **docs: add Quranic verse range validation refactoring plan**: Added documentation for the Quranic verse range validation refactoring plan. (7a632aa)
 
 ### Tests
+- **test: add comprehensive test suites for scheduling, notes, and session validation**: Added 6 new test suites: instructorNote, revisionPerformance, scheduleService, schoolScheduleValidation, sessionSaveValidation, and userServiceLimit. Total 1,237 lines of test coverage across 34+ scheduling enforcement scenarios. (121a9cf)
 - **test: fix foreign key constraint handling in user tests**: Create School (tenant) before user creation in auth_security and user_role tests to satisfy foreign key constraints. Update tenant_id from hardcoded 1 to dynamically created testSchool.id. Increase password validation timeout from 500ms to 1000ms for bcrypt overhead. Increase test timeouts to 10-30s range per project conventions. (6f42f06)
 - **test: implement masteryHelper for surah progress calculation**: Added unit tests in `masteryHelper.test.ts` to verify progress calculation logic for single-surah, multi-surah, and invalid range scenarios.
 

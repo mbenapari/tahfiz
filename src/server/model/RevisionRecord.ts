@@ -1,6 +1,33 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
 
+/** Standardized performance rating levels for revision sessions */
+export enum RevisionRating {
+  VERY_POOR = 1,
+  POOR = 2,
+  AVERAGE = 3,
+  GOOD = 4,
+  EXCELLENT = 5,
+}
+
+/** Human-readable descriptions for each rating level */
+export const REVISION_RATING_LABELS: Record<RevisionRating, string> = {
+  [RevisionRating.VERY_POOR]: 'Very Poor - Major errors, unable to recall',
+  [RevisionRating.POOR]: 'Poor - Frequent mistakes, needs significant prompting',
+  [RevisionRating.AVERAGE]: 'Average - Some errors, moderate fluency',
+  [RevisionRating.GOOD]: 'Good - Minor errors, good fluency',
+  [RevisionRating.EXCELLENT]: 'Excellent - Flawless recitation, perfect tajweed',
+};
+
+/** Detailed criteria for each rating level */
+export const REVISION_RATING_CRITERIA: Record<RevisionRating, string> = {
+  [RevisionRating.VERY_POOR]: '5+ errors per page; cannot continue without constant correction; poor pronunciation',
+  [RevisionRating.POOR]: '3-4 errors per page; requires frequent prompting; inconsistent tajweed',
+  [RevisionRating.AVERAGE]: '1-2 errors per page; needs occasional prompting; acceptable fluency',
+  [RevisionRating.GOOD]: 'Minor errors (1 per 3-5 pages); mostly self-correcting; good fluency and tajweed',
+  [RevisionRating.EXCELLENT]: 'No errors; perfect tajweed and fluency; confident recitation',
+};
+
 interface RevisionRecordAttributes {
   id: number;
   tenant_id: number;
@@ -15,6 +42,7 @@ interface RevisionRecordAttributes {
   start_page?: number;
   end_page?: number;
   is_full_surah?: boolean;
+  rating?: number;
   notes?: string;
   created_at?: Date;
   updated_at?: Date;
@@ -38,6 +66,7 @@ class RevisionRecord extends Model<RevisionRecordAttributes, RevisionRecordCreat
   declare start_page: number;
   declare end_page: number;
   declare is_full_surah: boolean;
+  declare rating: number;
   declare notes: string;
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
@@ -126,6 +155,13 @@ RevisionRecord.init(
     is_full_surah: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
+    },
+    rating: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 3,
+      validate: { min: 1, max: 5 },
+      comment: 'Revision performance rating (1-5 scale)',
     },
     notes: {
       type: DataTypes.STRING(1024),

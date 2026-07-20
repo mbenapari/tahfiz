@@ -29,9 +29,14 @@ interface UserAttributes {
   created_at?: Date;
   updated_at?: Date;
   deleted_at?: Date;
+  // NEW: School context and access tracking
+  active_school_context: number | null;      // Current school ID user is operating in
+  accessible_school_ids: number[];           // All schools user can access (cached)
+  management_parent_school_ids: number[];   // IDs of parent schools this user can manage
+  can_manage_branches: boolean;              // Permission to create/manage branches
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'tenant_id' | 'role_id' | 'last_name' | 'email' | 'password' | 'phone' | 'student_identifier' | 'daily_revision_target' | 'grade_level' | 'class_name' | 'is_onboarded' | 'last_login_at' | 'created_at' | 'updated_at' | 'deleted_at'> {}
+interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'tenant_id' | 'role_id' | 'last_name' | 'email' | 'password' | 'phone' | 'student_identifier' | 'daily_revision_target' | 'grade_level' | 'class_name' | 'is_onboarded' | 'last_login_at' | 'created_at' | 'updated_at' | 'deleted_at' | 'active_school_context' | 'accessible_school_ids' | 'management_parent_school_ids' | 'can_manage_branches'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: number;
@@ -53,6 +58,11 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
   declare readonly deleted_at: Date;
+  // NEW: School context and access tracking
+  declare active_school_context: number | null;
+  declare accessible_school_ids: number[];
+  declare management_parent_school_ids: number[];
+  declare can_manage_branches: boolean;
 
   // Associations
   declare tenant?: any; // Will be School instance
@@ -150,6 +160,26 @@ User.init(
     deleted_at: {
       type: DataTypes.DATE,
     },
+    // NEW: School context and access tracking
+    active_school_context: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+    },
+    accessible_school_ids: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: [],
+    },
+    management_parent_school_ids: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: [],
+    },
+    can_manage_branches: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: false,
+    },
   },
   {
     sequelize,
@@ -164,6 +194,10 @@ User.init(
       {
         name: 'idx_users_role',
         fields: ['role'],
+      },
+      {
+        name: 'idx_user_active_context',
+        fields: ['active_school_context'],
       },
     ],
     hooks: {

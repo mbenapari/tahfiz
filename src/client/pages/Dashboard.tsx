@@ -137,7 +137,7 @@ const getFormattedGregorianDate = (date: Date, timeZone: string) => {
 };
 
 const getFormattedHijriDate = (date: Date, timeZone: string) => {
-  return new Intl.DateTimeFormat('en-US-u-ca-islamic', {
+  return new Intl.DateTimeFormat('islamic-umalqura', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',

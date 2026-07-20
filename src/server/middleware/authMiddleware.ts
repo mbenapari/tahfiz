@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as permissionService from '../services/permissionService';
+import * as schoolService from '../services/schoolService';
 import * as jwtHelper from '../helper/jwtHelper';
 import { BlacklistedToken } from '../model';
 
@@ -41,17 +42,18 @@ export const addToBlacklistCache = (token: string) => {
   blacklistCache.add(token);
 };
 
-// Extend Request type to include user
+// Extend Request type to include user and school context
 declare global {
   namespace Express {
     interface Request {
       user?: jwtHelper.JwtPayload;
+      activeSchoolId?: number;
     }
   }
 }
 
 /**
- * Middleware to authenticate user via HTTP-only cookie.
+ * Middleware to authenticate user via HTTP-only cookie and validate school context.
  */
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -68,6 +70,27 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
     const decoded = jwtHelper.verifyToken(token);
     req.user = decoded;
+
+    // Validate School Context Header if present
+    const schoolContext = req.headers['x-school-context'];
+    if (schoolContext) {
+      const schoolId = parseInt(schoolContext as string, 10);
+      if (isNaN(schoolId)) {
+        return res.status(400).json({ error: 'Invalid X-School-Context header' });
+      }
+
+      const hasAccess = await schoolService.validateSchoolAccess(decoded.userId, schoolId);
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Access denied for the requested school context' });
+      }
+
+      // Set active context on request
+      req.activeSchoolId = schoolId;
+    } else {
+      // Fallback to primary tenant ID if header is missing
+      req.activeSchoolId = decoded.tenantId;
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Unauthorized: Invalid token' });
@@ -86,8 +109,9 @@ export const checkPermission = (permissionSlug: string) => {
 
     const userId = req.user.userId;
     const logId = req.correlationId || 'N/A';
+    const schoolId = req.activeSchoolId;
 
-    const hasAccess = await permissionService.hasPermission(userId, permissionSlug, logId);
+    const hasAccess = await permissionService.hasPermission(userId, permissionSlug, logId, schoolId);
 
     if (!hasAccess) {
       return res.status(403).json({ 

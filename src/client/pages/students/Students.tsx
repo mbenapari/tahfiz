@@ -15,6 +15,10 @@ import {
 import { useNavigate } from 'react-router';
 import { Tooltip } from '../../components/Tooltip';
 import { EditStudentModal } from '../../components/EditStudentModal';
+import { AnimatedActionButtons } from '../../components/AnimatedActionButtons';
+import { ProgressOnboardingModal } from '../../components/ProgressOnboardingModal';
+import { useInstructorProgressFlag } from '../../hooks/useInstructorProgressFlag';
+import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../utils/api';
 
 interface Student {
@@ -49,6 +53,21 @@ export const Students: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const { user } = useAuth();
+  
+  const {
+    shouldAnimate,
+    markProgressCompleted,
+    dismissForSession,
+    isReady,
+  } = useInstructorProgressFlag(user?.id);
+
+  useEffect(() => {
+    if (isReady && shouldAnimate) {
+      setShowOnboarding(true);
+    }
+  }, [isReady, shouldAnimate]);
   
   const fetchStudents = useCallback(async (query: string = '') => {
     setIsLoading(true);
@@ -114,7 +133,7 @@ export const Students: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`/api/users/students/${id}`, {
+      const response = await apiFetch(`/api/users/students/${id}`, {
         method: 'DELETE',
       });
 
@@ -202,7 +221,7 @@ export const Students: React.FC = () => {
       </div>
 
       {/* Students List Container */}
-      <div className="bg-surface-dark border border-border-green/30 rounded-2xl overflow-hidden min-h-[400px] flex flex-col">
+      <div className="bg-surface-dark border border-border-green/30 rounded-2xl min-h-[400px] flex flex-col">
         {isLoading ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-text-muted">
             <Loader2 size={40} className="animate-spin text-primary" />
@@ -303,7 +322,13 @@ export const Students: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <AnimatedActionButtons
+                          shouldAnimate={shouldAnimate && isReady}
+                          onPrimaryAction={markProgressCompleted}
+                          onDismiss={dismissForSession}
+                          layout="inline"
+                          className="justify-end"
+                        >
                           <Tooltip text="Log Progress">
                             <button 
                               onClick={() => navigate(`/sessions/daily/${student.id}`)}
@@ -336,7 +361,7 @@ export const Students: React.FC = () => {
                               <Trash2 size={18} />
                             </button>
                           </Tooltip>
-                        </div>
+                        </AnimatedActionButtons>
                       </td>
                     </tr>
                   ))}
@@ -358,25 +383,33 @@ export const Students: React.FC = () => {
                         <p className="text-[10px] text-text-muted mt-0.5 uppercase tracking-wider">ID: {student.student_identifier || `USR-${student.id}`}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => navigate(`/sessions/daily/${student.id}`)}
-                        className="p-2 text-text-muted hover:text-white"
+                    <div className="flex items-center gap-1 relative">
+                      <AnimatedActionButtons
+                        shouldAnimate={shouldAnimate && isReady}
+                        onPrimaryAction={markProgressCompleted}
+                        onDismiss={dismissForSession}
+                        layout="block"
+                        className="!static"
                       >
-                        <PenTool size={18} />
-                      </button>
-                      <button 
-                        onClick={() => setEditingStudent(student)}
-                        className="p-2 text-text-muted hover:text-primary"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button 
-                        onClick={() => navigate(`/students/${student.id}`)}
-                        className="p-2 text-text-muted hover:text-white"
-                      >
-                        <Eye size={18} />
-                      </button>
+                        <button 
+                          onClick={() => navigate(`/sessions/daily/${student.id}`)}
+                          className="p-2 text-text-muted hover:text-white"
+                        >
+                          <PenTool size={18} />
+                        </button>
+                        <button 
+                          onClick={() => setEditingStudent(student)}
+                          className="p-2 text-text-muted hover:text-primary"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button 
+                          onClick={() => navigate(`/students/${student.id}`)}
+                          className="p-2 text-text-muted hover:text-white"
+                        >
+                          <Eye size={18} />
+                        </button>
+                      </AnimatedActionButtons>
                     </div>
                   </div>
 
@@ -435,6 +468,19 @@ export const Students: React.FC = () => {
           onClose={() => setEditingStudent(null)}
           onSuccess={(updated) => {
             setStudentsList(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s));
+          }}
+        />
+      )}
+
+      {showOnboarding && (
+        <ProgressOnboardingModal 
+          onClose={(dontShowAgain) => {
+            setShowOnboarding(false);
+            if (dontShowAgain) {
+              markProgressCompleted();
+            } else {
+              dismissForSession();
+            }
           }}
         />
       )}

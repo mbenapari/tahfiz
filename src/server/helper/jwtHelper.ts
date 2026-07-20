@@ -12,6 +12,7 @@ export interface JwtPayload {
   userId: number;
   roleId: number;
   tenantId: number;
+  activeSchoolContext?: number | null;
 }
 
 export const signToken = (payload: JwtPayload): string => {

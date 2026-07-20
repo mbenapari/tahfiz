@@ -5,6 +5,7 @@ import { BlacklistedToken } from '../model';
 import bcrypt from 'bcrypt';
 import * as jwtHelper from '../helper/jwtHelper';
 import * as permissionService from '../services/permissionService';
+import * as schoolService from '../services/schoolService';
 import { addToBlacklistCache } from '../middleware/authMiddleware';
 import { bruteForceService } from '../utils/bruteForceService';
 import * as apiResponse from '../utils/apiResponse';
@@ -168,8 +169,14 @@ export const login = async (req: Request, res: Response) => {
     jwtHelper.setAuthCookie(res, token);
     logger.debug('authController.login: Auth cookie set', { correlationId, userId: user.id });
 
-    // Get effective permissions
-    const permissions = await permissionService.getEffectivePermissions(user.id);
+    // Get accessible schools
+    const schools = await schoolService.getAccessibleSchools(user.id);
+    
+    // Default active context to primary tenant if not set
+    const active_school_context = user.active_school_context || user.tenant_id;
+
+    // Get effective permissions for the active context
+    const permissions = await permissionService.getEffectivePermissions(user.id, active_school_context);
 
     logger.info('authController.login: Success', { correlationId, userId: user.id });
     return res.json(apiResponse.success({
@@ -181,6 +188,8 @@ export const login = async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         tenantId: user.tenant_id,
+        active_school_context,
+        schools,
         is_onboarded: Boolean(user.is_onboarded),
         school_name: user.tenant?.name,
         permissions

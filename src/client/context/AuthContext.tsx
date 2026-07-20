@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiFetch, fetchCsrfToken } from '../utils/api';
 
+export interface SchoolMembership {
+  id: number;
+  name: string;
+  role: string;
+  is_primary: boolean;
+}
+
 export interface User {
   id: number;
   first_name: string;
@@ -8,6 +15,8 @@ export interface User {
   email: string;
   role: string;
   tenantId: number | null;
+  active_school_context: number | null;
+  schools: SchoolMembership[];
   is_onboarded?: boolean;
   school_name?: string;
   permissions: string[];
@@ -42,6 +51,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (userData) {
           // Ensure is_onboarded is a boolean
           userData.is_onboarded = !!userData.is_onboarded;
+          
+          // Set active school context in localStorage for apiFetch header
+          if (userData.active_school_context) {
+            localStorage.setItem('active_school_id', userData.active_school_context.toString());
+          } else if (userData.tenantId) {
+            localStorage.setItem('active_school_id', userData.tenantId.toString());
+          }
+          
           setUser(userData);
           return;
         }
@@ -79,6 +96,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(null);
       
       // Clear all client-side storage
+      localStorage.removeItem('active_school_id');
       localStorage.clear();
       sessionStorage.clear();
       

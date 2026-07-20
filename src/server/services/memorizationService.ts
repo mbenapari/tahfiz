@@ -15,6 +15,7 @@ export interface CreateMemorizationRecordDTO {
   start_ayah: number;
   end_ayah: number;
   is_full_surah?: boolean;
+  rating?: number;
   notes?: string;
 }
 
@@ -25,6 +26,7 @@ export interface UpdateMemorizationRecordDTO {
   start_ayah?: number;
   end_ayah?: number;
   is_full_surah?: boolean;
+  rating?: number;
   notes?: string;
 }
 

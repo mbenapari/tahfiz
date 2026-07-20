@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router';
 import OwnerSidebar from '../components/OwnerSidebar';
 import { Navbar } from '../components/Navbar';
+import { ActiveSchoolBanner } from '../components/ActiveSchoolBanner';
 
 export const OwnerLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -21,6 +22,7 @@ export const OwnerLayout: React.FC = () => {
       <div className="flex">
         <OwnerSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
         <div className="flex-1 p-4 md:p-6 max-w-7xl mx-auto overflow-hidden">
+          <ActiveSchoolBanner />
           <Outlet />
         </div>
       </div>

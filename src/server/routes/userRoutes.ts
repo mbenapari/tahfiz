@@ -21,6 +21,11 @@ router.get('/me', authenticate, profileController.getCurrentUser);
 router.put('/me', authenticate, profileController.updateCurrentUser);
 router.post('/onboarding/complete', authenticate, profileController.completeOnboarding);
 
+// General User Search & Admin Creation
+router.get('/search', authenticate, profileController.searchUsers);
+router.get('/role/:role', authenticate, profileController.listUsersByRole);
+router.post('/', authenticate, profileController.createUser);
+
 // Feedback
 router.post('/feedback', authenticate, feedbackController.submitFeedback);
 

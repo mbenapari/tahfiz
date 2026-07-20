@@ -38,9 +38,18 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
   }
 
   const headers = new Headers(fetchOptions.headers || {});
+  
+  // Add CSRF token if state changing
   if (isStateChanging && csrfToken) {
     headers.set('x-csrf-token', csrfToken);
   }
+
+  // Add School Context Header if available in localStorage
+  const activeSchoolId = localStorage.getItem('active_school_id');
+  if (activeSchoolId) {
+    headers.set('x-school-context', activeSchoolId);
+  }
+
   fetchOptions.headers = headers;
 
   let response = await nativeFetch(url, fetchOptions);

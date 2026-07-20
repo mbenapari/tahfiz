@@ -50,7 +50,7 @@ export const Instructors: React.FC = () => {
         throw new Error('Failed to fetch instructors');
       }
       const data = await response.json();
-      setInstructorsList(data.instructors || []);
+      setInstructorsList((data.data?.instructors || []).filter(Boolean));
     } catch (err: any) {
       setError(err.message);
       console.error('Error fetching instructors:', err);
@@ -64,7 +64,7 @@ export const Instructors: React.FC = () => {
   }, [fetchInstructors]);
 
   const filteredInstructors = instructorsList.filter(instructor =>
-    instructor.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    instructor && instructor.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     instructor.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     instructor.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -102,17 +102,17 @@ export const Instructors: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to save instructor');
+        throw new Error(data.error?.message || 'Failed to save instructor');
       }
 
       if (editingInstructor) {
         // Update
         setInstructorsList(prev =>
-          prev.map(i => i.id === editingInstructor.id ? data.instructor : i)
+          prev.map(i => i.id === editingInstructor.id ? data.data.instructor : i)
         );
       } else {
         // Create
-        setInstructorsList(prev => [data.instructor, ...prev]);
+        setInstructorsList(prev => [data.data.instructor, ...prev]);
       }
 
       resetForm();

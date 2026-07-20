@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router';
 import { Logo } from './Logo';
-import { X, LayoutDashboard, School, Users, Shield, MessageSquare } from 'lucide-react';
+import { X, LayoutDashboard, School, Users, Shield, MessageSquare, GitBranch } from 'lucide-react';
 
 interface OwnerSidebarProps {
   isOpen?: boolean;
@@ -74,6 +74,14 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({ isOpen, onClose }) =
         >
           <MessageSquare size={18} />
           User Feedback
+        </Link>
+        <Link
+          to="/branches"
+          onClick={onClose}
+          className={`px-4 py-3 rounded-lg font-medium flex items-center gap-3 transition-all ${isActive('/branches') ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
+        >
+          <GitBranch size={18} />
+          Branches
         </Link>
       </nav>
     </aside>

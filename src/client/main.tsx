@@ -6,6 +6,8 @@ import { BrowserRouter } from "react-router";
 
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
+import { NotificationProvider } from "./context/NotificationContext";
+import { SchoolProvider } from "./context/SchoolContext";
 import { apiFetch, setNativeFetch } from "./utils/api";
 
 // Global fetch interceptor for CSRF protection
@@ -25,9 +27,13 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <AuthProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <SchoolProvider>
+        <NotificationProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </NotificationProvider>
+      </SchoolProvider>
     </AuthProvider>
   </React.StrictMode>,
 );

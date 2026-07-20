@@ -1,12 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router';
 import { 
-  Search, 
   Bell, 
   MessageSquare, 
-  Plus,
   Menu
 } from 'lucide-react';
+import { SchoolSwitcherDropdown } from './SchoolSwitcherDropdown';
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -35,6 +34,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
 
       {/* Right Actions */}
       <div className="flex items-center gap-4">
+        {/* School Switcher */}
+        <SchoolSwitcherDropdown />
         
         {/* Notifications */}
         <button className="relative w-11 h-11 flex items-center justify-center rounded-xl hover:bg-surface-dark transition-colors group">

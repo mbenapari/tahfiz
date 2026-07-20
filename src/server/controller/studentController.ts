@@ -5,36 +5,43 @@ import { UserRole } from '../model/User';
 import * as apiResponse from '../utils/apiResponse';
 import logger from '../utils/logger';
 import { DEFAULT_PAGE_SIZE } from '../constants';
+import { getTenantId } from '../utils/schoolContext';
 
 // Student CRUD
 export const getStudents = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
-  const tenantId = req.user?.tenantId;
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || DEFAULT_PAGE_SIZE;
-
-  if (!tenantId) {
-    return res.status(403).json(apiResponse.fail('FORBIDDEN', 'Tenant ID required'));
-  }
-
+  const logId = req.correlationId || 'unknown';
+  
   try {
+    const tenantId = getTenantId(req);
+    logger.info(`studentController: getStudents - Fetching students for tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || DEFAULT_PAGE_SIZE;
+
     const result = await userService.getStudentsWithProgress(tenantId, page, limit);
     res.json(apiResponse.success(result));
   } catch (error: any) {
-    logger.error('studentController.getStudents: Error', { correlationId, error: error.message });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`studentController: getStudents - Error: ${error.message}`, { logId });
     res.status(500).json(apiResponse.fail('SERVER_ERROR', 'Failed to fetch students'));
   }
 };
 
 export const createStudent = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
-  const tenantId = req.user?.tenantId;
-
-  if (!tenantId) {
-    return res.status(403).json(apiResponse.fail('FORBIDDEN', 'Tenant ID required'));
-  }
+  const logId = req.correlationId || 'unknown';
 
   try {
+    const tenantId = getTenantId(req);
+    logger.info(`studentController: createStudent - Enrolling student for tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
     const { firstName, lastName, email, phone, studentIdentifier, enrolledOn, notes, userId } = req.body;
 
     let student;
@@ -80,36 +87,48 @@ export const createStudent = async (req: Request, res: Response) => {
       student
     }));
   } catch (error: any) {
-    logger.error('studentController.createStudent: Error', { correlationId, error: error.message });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`studentController: createStudent - Error: ${error.message}`, { logId });
     res.status(500).json(apiResponse.fail('SERVER_ERROR', error.message || 'Failed to enroll student'));
   }
 };
 
 export const getStudentById = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
+  const logId = req.correlationId || 'unknown';
   const { id } = req.params;
-  const tenantId = req.user?.tenantId;
-
-  if (!tenantId) {
-    return res.status(403).json(apiResponse.fail('FORBIDDEN', 'Tenant ID required'));
-  }
+  const { limit } = req.query;
 
   try {
-    const student = await userService.getStudentProfile(Number(id), tenantId);
+    const tenantId = getTenantId(req);
+    logger.info(`studentController: getStudentById - Fetching profile for studentId: ${id}, tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
+    const activityLimit = limit ? Number(limit) : 5;
+    const student = await userService.getStudentProfile(Number(id), tenantId, activityLimit);
     res.json(apiResponse.success({ student }));
   } catch (error: any) {
-    logger.error('studentController.getStudentById: Error', { correlationId, error: error.message });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`studentController: getStudentById - Error: ${error.message}`, { logId });
     res.status(404).json(apiResponse.fail('NOT_FOUND', error.message || 'Student not found'));
   }
 };
 
 export const updateStudent = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
+  const logId = req.correlationId || 'unknown';
   const { id } = req.params;
-  const tenantId = req.user?.tenantId;
   const { firstName, lastName, email, phone, studentIdentifier, dailyRevisionTarget } = req.body;
 
   try {
+    const tenantId = getTenantId(req);
+    logger.info(`studentController: updateStudent - Updating studentId: ${id}, tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
     const student = await userService.getUserById(Number(id));
     
     // Security check: ensure student belongs to the same tenant
@@ -129,42 +148,63 @@ export const updateStudent = async (req: Request, res: Response) => {
     const updatedUser = await userService.updateUser(Number(id), updatedData);
     res.json(apiResponse.success({ message: 'Student updated successfully', student: updatedUser }));
   } catch (error: any) {
-    logger.error('studentController.updateStudent: Error', { correlationId, error: error.message });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`studentController: updateStudent - Error: ${error.message}`, { logId });
     res.status(500).json(apiResponse.fail('SERVER_ERROR', 'Failed to update student'));
   }
 };
 
 export const deleteStudent = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
+  const logId = req.correlationId || 'unknown';
   const { id } = req.params;
 
   try {
+    const tenantId = getTenantId(req);
+    logger.info(`studentController: deleteStudent - Deleting studentId: ${id}, tenantId: ${tenantId}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
     const user = await userService.getUserById(Number(id));
+    
+    // Security check: ensure user belongs to the same tenant
+    if (user.tenant_id !== tenantId) {
+      return res.status(403).json(apiResponse.fail('FORBIDDEN', 'Access denied'));
+    }
+
     await user.destroy();
     res.json(apiResponse.success({ message: 'Student deleted successfully' }));
   } catch (error: any) {
-    logger.error('studentController.deleteStudent: Error', { correlationId, error: error.message });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`studentController: deleteStudent - Error: ${error.message}`, { logId });
     res.status(500).json(apiResponse.fail('SERVER_ERROR', 'Failed to delete student'));
   }
 };
 
 export const searchStudents = async (req: Request, res: Response) => {
-  const correlationId = req.correlationId;
+  const logId = req.correlationId || 'unknown';
   const { query, page, limit } = req.query;
-  const tenantId = req.user?.tenantId;
-
-  if (!tenantId) {
-    return res.status(403).json(apiResponse.fail('FORBIDDEN', 'Tenant ID required'));
-  }
 
   try {
+    const tenantId = getTenantId(req);
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || DEFAULT_PAGE_SIZE;
 
-    const result = await userService.searchStudentsWithProgress(query as string, tenantId, pageNum, limitNum);
+    logger.info(`studentController: searchStudents - query="${query}", tenantId=${tenantId}, page=${pageNum}, limit=${limitNum}`, {
+      logId,
+      tenantId,
+      activeSchoolContext: req.activeSchoolId,
+      userId: req.user?.userId
+    });
+
+    const result = await userService.searchStudentsWithProgress(query as string, tenantId, pageNum, limitNum, logId);
+    logger.info(`studentController: searchStudents - Returning ${result.students.length} results (total=${result.pagination.total})`, { logId });
+
     res.json(apiResponse.success(result));
   } catch (error: any) {
-    logger.error('studentController.searchStudents: Error', { correlationId, error: error.message });
+    if (error.name === 'SchoolContextError') throw error;
+    logger.error(`studentController: searchStudents - Search failed - query="${query}", error="${error.message}"`, { logId });
    return res.status(500).json(apiResponse.fail('SERVER_ERROR', 'Failed to search students'));
   }
 };
