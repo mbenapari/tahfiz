@@ -30,6 +30,9 @@ import { Reports } from "./pages/reports/Reports";
 import { Settings } from "./pages/settings/Settings";
 import { Profile } from "./pages/profile/Profile";
 import { Feedback } from "./pages/Feedback";
+import BranchManagement from "./pages/BranchManagement";
+import BranchDetail from "./pages/BranchDetail";
+import SchoolSwitcher from "./pages/SchoolSwitcher";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -60,6 +63,10 @@ function App() {
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/switch-school" element={<SchoolSwitcher />} />
+          {/* Branch management - school-context aware, not owner-specific */}
+          <Route path="/branches" element={<BranchManagement />} />
+          <Route path="/branches/:branchId" element={<BranchDetail />} />
         </Route>
         {/* Owner-specific layout (replaces normal sidebar) */}
         <Route path="/owner" element={<OwnerLayout />}>

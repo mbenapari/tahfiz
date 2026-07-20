@@ -474,9 +474,13 @@ export const Students: React.FC = () => {
 
       {showOnboarding && (
         <ProgressOnboardingModal 
-          onClose={() => {
+          onClose={(dontShowAgain) => {
             setShowOnboarding(false);
-            dismissForSession();
+            if (dontShowAgain) {
+              markProgressCompleted();
+            } else {
+              dismissForSession();
+            }
           }}
         />
       )}

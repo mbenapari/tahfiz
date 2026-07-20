@@ -3,17 +3,18 @@ import { NavLink } from 'react-router';
 import { 
   LayoutDashboard, 
   Users, 
-  BookOpen, 
   BarChart3, 
   GraduationCap, 
   MessageSquare,
   Settings,
   LogOut,
   Loader2,
-  X
+  X,
+  GitBranch
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { useAuth } from '../context/AuthContext';
+import { useSchoolContext } from '../context/SchoolContext';
 import { useNavigate } from 'react-router';
 
 interface SidebarProps {
@@ -22,7 +23,8 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, logout, loading } = useAuth();
+  const { user, logout } = useAuth();
+  const { currentSchool } = useSchoolContext();
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -44,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { icon: Users, label: 'Students', path: '/students' },
     ...(user?.role === 'admin' ? [{ icon: GraduationCap, label: 'Instructors', path: '/instructors' }] : []),
     // { icon: BookOpen, label: 'Classes', path: '/classes' },
+    ...(user?.role === 'admin' && !currentSchool?.is_branch ? [{ icon: GitBranch, label: 'Branches', path: '/branches' }] : []),
     { icon: BarChart3, label: 'Reports', path: '/reports' },
     { icon: MessageSquare, label: 'Feedback', path: '/feedback' },
   ];

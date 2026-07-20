@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router';
 import { Sidebar } from '../components/Sidebar';
 import { Navbar } from '../components/Navbar';
+import { ActiveSchoolBanner } from '../components/ActiveSchoolBanner';
 
 export const DashboardLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -28,6 +29,7 @@ export const DashboardLayout: React.FC = () => {
         
         {/* Page Content - Scrollable Area */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">
+          <ActiveSchoolBanner />
           <Outlet />
         </main>
         

@@ -1,13 +1,14 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext';
+import { useSchoolContext } from '../context/SchoolContext';
 
 export const ProtectedRoute: React.FC = () => {
   const { user, loading } = useAuth();
+  const { currentSchool, loading: schoolLoading } = useSchoolContext();
   const location = useLocation();
 
-  if (loading) {
-    // You can replace this with a proper LoadingSpinner component
+  if (loading || schoolLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background-dark text-white">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -39,6 +40,12 @@ export const ProtectedRoute: React.FC = () => {
 
   // Restrict instructor-related pages to admin only
   if (location.pathname.startsWith('/instructors') && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Restrict branch management to parent (non-branch) schools only
+  // A branch school itself cannot manage branches
+  if (location.pathname.startsWith('/branches') && currentSchool?.is_branch) {
     return <Navigate to="/dashboard" replace />;
   }
 
