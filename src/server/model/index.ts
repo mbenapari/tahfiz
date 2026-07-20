@@ -32,13 +32,17 @@ User.hasMany(School, { foreignKey: 'owner_id', as: 'ownedSchools' });
 User.belongsTo(School, { foreignKey: 'tenant_id', as: 'tenant' });
 School.hasMany(User, { foreignKey: 'tenant_id', as: 'users' });
 
+// School Parent-Child (Branch Hierarchy) - Self-referencing
+School.belongsTo(School, { foreignKey: 'parent_school_id', as: 'parent' });
+School.hasMany(School, { foreignKey: 'parent_school_id', as: 'branches' });
+
 // School <-> User (Many-to-Many via SchoolMember)
 School.belongsToMany(User, { through: SchoolMember, foreignKey: 'school_id', as: 'members' });
 User.belongsToMany(School, { through: SchoolMember, foreignKey: 'user_id', as: 'schools' });
 School.hasMany(SchoolMember, { foreignKey: 'school_id' });
-SchoolMember.belongsTo(School, { foreignKey: 'school_id' });
-User.hasMany(SchoolMember, { foreignKey: 'user_id' });
-SchoolMember.belongsTo(User, { foreignKey: 'user_id' });
+SchoolMember.belongsTo(School, { foreignKey: 'school_id', as: 'school' });
+User.hasMany(SchoolMember, { foreignKey: 'user_id', as: 'schoolMembers' });
+SchoolMember.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 // Enrollment Associations
 School.hasMany(Enrollment, { foreignKey: 'tenant_id', as: 'enrollments' });
