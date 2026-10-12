@@ -5,7 +5,6 @@ import { authenticate } from '../middleware/authMiddleware';
 const router = Router();
 
 router.post('/', authenticate, sessionController.saveDailySession);
-router.get('/check-conflict', authenticate, sessionController.checkDateConflict);
 router.get('/instructor/has-activity', authenticate, sessionController.getInstructorHasActivity);
 router.get('/student/:studentId', authenticate, sessionController.getStudentSessions);
 router.get('/history/:studentId', authenticate, sessionController.getSessionHistory);

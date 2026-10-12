@@ -64,10 +64,10 @@ export const Students: React.FC = () => {
   } = useInstructorProgressFlag(user?.id);
 
   useEffect(() => {
-    if (isReady && shouldAnimate) {
+    if (isReady && shouldAnimate && user?.role !== 'admin') {
       setShowOnboarding(true);
     }
-  }, [isReady, shouldAnimate]);
+  }, [isReady, shouldAnimate, user?.role]);
   
   const fetchStudents = useCallback(async (query: string = '') => {
     setIsLoading(true);

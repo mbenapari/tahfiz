@@ -29,7 +29,7 @@ export const getSurahProgressById = async (id: number, tenant_id: number) => {
     const progress = await SurahProgress.findOne({
       where: { id, tenant_id },
       include: [
-        { model: User, as: 'student' },
+        { model: User, as: 'student', attributes: { exclude: ['password', 'email_blind_index'] } },
         { model: Surah, as: 'surah' },
       ],
     });

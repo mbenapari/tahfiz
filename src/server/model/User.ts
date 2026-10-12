@@ -25,6 +25,7 @@ interface UserAttributes {
   grade_level?: string;
   class_name?: string;
   is_onboarded: boolean;
+  progress_onboarding_dismissed: boolean;
   last_login_at?: Date;
   created_at?: Date;
   updated_at?: Date;
@@ -36,7 +37,7 @@ interface UserAttributes {
   can_manage_branches: boolean;              // Permission to create/manage branches
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'tenant_id' | 'role_id' | 'last_name' | 'email' | 'password' | 'phone' | 'student_identifier' | 'daily_revision_target' | 'grade_level' | 'class_name' | 'is_onboarded' | 'last_login_at' | 'created_at' | 'updated_at' | 'deleted_at' | 'active_school_context' | 'accessible_school_ids' | 'management_parent_school_ids' | 'can_manage_branches'> {}
+interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'tenant_id' | 'role_id' | 'last_name' | 'email' | 'password' | 'phone' | 'student_identifier' | 'daily_revision_target' | 'grade_level' | 'class_name' | 'is_onboarded' | 'progress_onboarding_dismissed' | 'last_login_at' | 'created_at' | 'updated_at' | 'deleted_at' | 'active_school_context' | 'accessible_school_ids' | 'management_parent_school_ids' | 'can_manage_branches'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: number;
@@ -54,6 +55,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare grade_level: string;
   declare class_name: string;
   declare is_onboarded: boolean;
+  declare progress_onboarding_dismissed: boolean;
   declare last_login_at: Date;
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
@@ -68,6 +70,14 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare tenant?: any; // Will be School instance
   declare ownedSchools?: any[];
   declare schools?: any[];
+
+  // Never serialize credentials or the blind index into API responses
+  toJSON() {
+    const values: any = { ...this.get() };
+    delete values.password;
+    delete values.email_blind_index;
+    return values;
+  }
 
   // Instance method to validate password
   public async validatePassword(password: string): Promise<boolean> {
@@ -121,6 +131,10 @@ User.init(
       allowNull: true,
     },
     is_onboarded: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    progress_onboarding_dismissed: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },

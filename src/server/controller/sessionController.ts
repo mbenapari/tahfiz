@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import * as enrollmentService from '../services/enrollmentService';
 import * as sessionService from '../services/sessionService';
 import * as memorizationService from '../services/memorizationService';
 import * as revisionService from '../services/revisionService';
@@ -12,8 +13,6 @@ import { NoteTargetType, NoteVisibility } from '../model/InstructorNote';
 import logger from '../utils/logger';
 import { validateRevisionRecord } from '../utils/revisionValidation';
 import { ScheduleService } from '../services/scheduleService';
-import * as schoolService from '../services/schoolService';
-import { CANONICAL_SESSION_TYPES, MUTUAL_EXCLUSIVITY_VIOLATION_ERROR_CODE } from '../constants';
 import { getTenantId } from '../utils/schoolContext';
 
 /**
@@ -22,7 +21,10 @@ import { getTenantId } from '../utils/schoolContext';
  */
 export const saveDailySession = async (req: Request, res: Response) => {
   const logId = req.correlationId || 'unknown';
-  const instructorId = (req.user as any)?.id;
+  const instructorId = req.user?.userId;
+  if (!instructorId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   const { 
     studentId, sessionDate, recordingDate, notes, 
     hifzRecord, revisionRecord, attendance, 
@@ -39,6 +41,15 @@ export const saveDailySession = async (req: Request, res: Response) => {
     });
     const effectiveDate = recordingDate || sessionDate;
 
+    const studentIdNum = Number(studentId);
+    if (!Number.isInteger(studentIdNum) || studentIdNum <= 0) {
+      return res.status(400).json({ error: 'A valid studentId is required' });
+    }
+    const enrolled = await enrollmentService.checkStudentEnrollment(studentIdNum, tenantId);
+    if (!enrolled) {
+      return res.status(404).json({ error: 'Student not found in this school' });
+    }
+
     // Validate revision rating if provided
     if (revisionRating !== undefined && revisionRating !== null) {
       const parsedRating = Number(revisionRating);
@@ -46,9 +57,6 @@ export const saveDailySession = async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Revision rating must be an integer between 1 and 5' });
       }
     }
-
-    // 0. Load School for schedule validation
-    const school = await schoolService.getSchoolById(tenantId);
 
     // Validation: Ensure at least one record is provided
     const hasHifz = hifzRecord && hifzRecord.surahNumber;
@@ -74,49 +82,6 @@ export const saveDailySession = async (req: Request, res: Response) => {
     const dateValidation = ScheduleService.validateDateFormat(effectiveDate);
     if (!dateValidation.isValid) {
       return res.status(400).json({ error: dateValidation.error, code: dateValidation.code });
-    }
-
-    if (hasHifz && hasRevision && school.schedule_mode === 'advanced' && school.session_type_day_map) {
-      return res.status(409).json({
-        error: 'Hifz and Revision cannot be recorded on the same day in advanced scheduling mode.',
-        code: MUTUAL_EXCLUSIVITY_VIOLATION_ERROR_CODE,
-        details: {
-          sessionType: 'mixed',
-          recordingDate: effectiveDate,
-          conflictingType: 'mixed',
-        },
-      });
-    }
-
-    // Scheduling Validation
-    if (hasHifz) {
-      const fullValidation = await ScheduleService.validateFullScheduleCompliance(
-        school,
-        CANONICAL_SESSION_TYPES.MEMORIZATION_DEFAULT,
-        effectiveDate,
-        tenantId,
-        Number(studentId),
-        logId
-      );
-      if (!fullValidation.isValid) {
-        const statusCode = fullValidation.code === MUTUAL_EXCLUSIVITY_VIOLATION_ERROR_CODE ? 409 : 400;
-        return res.status(statusCode).json({ error: fullValidation.error, code: fullValidation.code, details: fullValidation.details });
-      }
-    }
-
-    if (hasRevision) {
-      const fullValidation = await ScheduleService.validateFullScheduleCompliance(
-        school,
-        CANONICAL_SESSION_TYPES.REVISION,
-        effectiveDate,
-        tenantId,
-        Number(studentId),
-        logId
-      );
-      if (!fullValidation.isValid) {
-        const statusCode = fullValidation.code === MUTUAL_EXCLUSIVITY_VIOLATION_ERROR_CODE ? 409 : 400;
-        return res.status(statusCode).json({ error: fullValidation.error, code: fullValidation.code, details: fullValidation.details });
-      }
     }
 
     // Validation for Hifz record if provided
@@ -308,7 +273,6 @@ export const saveDailySession = async (req: Request, res: Response) => {
     }
 
     if (hasHifz || hasRevision) {
-      ScheduleService.invalidateConflictCache(tenantId, Number(studentId), effectiveDate);
       logger.info(
         `sessionController: saveDailySession - Success: tenantId=${tenantId} studentId=${Number(studentId)} recordingDate=${effectiveDate}`,
         { logId }
@@ -325,45 +289,6 @@ export const saveDailySession = async (req: Request, res: Response) => {
     if (error.name === 'SchoolContextError') throw error;
     logger.error(`sessionController: saveDailySession - Error: ${error.message}`, { logId });
     res.status(500).json({ error: error.message || 'Failed to save session' });
-  }
-};
-
-export const checkDateConflict = async (req: Request, res: Response) => {
-  const logId = req.correlationId || 'unknown';
-  const studentId = Number(req.query.studentId);
-  const date = String(req.query.date || '');
-
-  if (!Number.isInteger(studentId) || studentId <= 0) {
-    return res.status(400).json({ error: 'A valid studentId is required.' });
-  }
-
-  const dateValidation = ScheduleService.validateDateFormat(date);
-  if (!dateValidation.isValid) {
-    return res.status(400).json({ error: dateValidation.error, code: dateValidation.code });
-  }
-
-  try {
-    const tenantId = getTenantId(req);
-    logger.info(`sessionController: checkDateConflict - Checking conflicts for studentId: ${studentId}, date: ${date}, tenantId: ${tenantId}`, {
-      logId,
-      tenantId,
-      activeSchoolContext: req.activeSchoolId,
-      userId: req.user?.userId
-    });
-    const school = await schoolService.getSchoolById(tenantId);
-    if (school.schedule_mode !== 'advanced') {
-      return res.json({
-        hasMemorizationOnDate: false,
-        hasRevisionOnDate: false,
-      });
-    }
-
-    const conflicts = await ScheduleService.getDateConflictSnapshot(tenantId, studentId, date);
-    return res.json(conflicts);
-  } catch (error: any) {
-    if (error.name === 'SchoolContextError') throw error;
-    logger.error(`sessionController: checkDateConflict - Error: ${error.message}`, { logId });
-    return res.status(500).json({ error: 'Failed to check date conflicts' });
   }
 };
 

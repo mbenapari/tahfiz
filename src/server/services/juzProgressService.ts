@@ -28,7 +28,7 @@ export const getJuzProgressById = async (id: number, tenant_id: number) => {
   try {
     const progress = await JuzProgress.findOne({
       where: { id, tenant_id },
-      include: [{ model: User, as: 'student' }],
+      include: [{ model: User, as: 'student', attributes: { exclude: ['password', 'email_blind_index'] } }],
     });
     if (!progress) {
       throw new Error('JuzProgress record not found');

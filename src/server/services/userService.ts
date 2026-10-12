@@ -1,4 +1,4 @@
-import { FindOptions, Op } from 'sequelize';
+import { FindOptions, Op, literal } from 'sequelize';
 import { User, Role, SchoolMember, School, Session, MemorizationRecord, Surah, Attendance, RevisionRecord, JuzMap } from '../model';
 import { UserRole } from '../model/User';
 import * as progressService from './progressService';
@@ -275,6 +275,9 @@ export const getInstructorsByTenant = async (tenantId: number) => {
 
 const mapStudentWithProgress = async (user: any, tenantId: number, preCalculatedProgress?: progressService.ProgressResult) => {
   const userJSON = user.toJSON() as any;
+  // Never expose credentials or lookup hashes to the client
+  delete userJSON.password;
+  delete userJSON.email_blind_index;
   
   // Calculate last session
   let lastSession = { time: 'No sessions yet', detail: '-' };
@@ -302,12 +305,20 @@ const mapStudentWithProgress = async (user: any, tenantId: number, preCalculated
   };
 };
 
+// Students belong to a school either directly (tenant_id) or via an active enrollment
+const studentTenantScope = (tenantId: number) => ({
+  [Op.or]: [
+    { tenant_id: tenantId },
+    { id: { [Op.in]: literal(`(SELECT student_id FROM enrollments WHERE tenant_id = ${Number(tenantId)} AND status = 'active')`) } },
+  ],
+});
+
 export const getStudentsWithProgress = async (tenantId: number, page: number = 1, limit: number = DEFAULT_PAGE_SIZE) => {
   try {
     const offset = (page - 1) * limit;
     
     const { count, rows: users } = await User.findAndCountAll({
-      where: { role: UserRole.STUDENT, tenant_id: tenantId },
+      where: { role: UserRole.STUDENT, [Op.and]: [studentTenantScope(tenantId)] },
       limit,
       offset,
       include: [
@@ -361,7 +372,7 @@ export const searchStudentsWithProgress = async (query: string, tenantId: number
     // Build WHERE conditions — spread directly (avoid [Op.and] wrapper which can mis-nest Op.or clauses)
     const where: any = {
       role: UserRole.STUDENT,
-      tenant_id: tenantId,
+      [Op.and]: [studentTenantScope(tenantId)],
       ...queryHelper.buildSearchWhereClause(query, fields)
     };
 
@@ -483,6 +494,8 @@ export const getStudentProfile = async (id: number, tenantId: number, activityLi
     }
 
     const userJSON = user.toJSON() as any;
+    delete userJSON.password;
+    delete userJSON.email_blind_index;
     
     // 2. Calculate Progress Metrics and Mastery Data concurrently
     const [studentStats, allSurahs, memorizationRecordsAll, revisionRecordsAll] = await Promise.all([

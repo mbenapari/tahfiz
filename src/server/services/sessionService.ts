@@ -16,6 +16,8 @@ export interface UpdateSessionDTO {
   notes?: string;
 }
 
+const USER_SECRET_FIELDS = ['password', 'email_blind_index'];
+
 export const createSession = async (data: CreateSessionDTO) => {
   try {
     const recording_date = data.recording_date || data.session_date;
@@ -61,8 +63,8 @@ export const getSessionById = async (id: number, tenant_id: number) => {
     const session = await Session.findOne({
       where: { id, tenant_id },
       include: [
-        { model: User, as: 'student' },
-        { model: User, as: 'instructor' },
+        { model: User, as: 'student', attributes: { exclude: USER_SECRET_FIELDS } },
+        { model: User, as: 'instructor', attributes: { exclude: USER_SECRET_FIELDS } },
       ],
     });
     if (!session) {
@@ -91,7 +93,7 @@ export const getStudentSessions = async (
 
     const sessions = await Session.findAll({
       where: whereClause,
-      include: [{ model: User, as: 'instructor' }],
+      include: [{ model: User, as: 'instructor', attributes: ['id', 'first_name', 'last_name'] }],
       order: [['session_date', 'DESC']],
     });
     return sessions;
@@ -108,8 +110,8 @@ export const getSessionsByDate = async (
     const sessions = await Session.findAll({
       where: { tenant_id, session_date: date },
       include: [
-        { model: User, as: 'student' },
-        { model: User, as: 'instructor' },
+        { model: User, as: 'student', attributes: { exclude: USER_SECRET_FIELDS } },
+        { model: User, as: 'instructor', attributes: { exclude: USER_SECRET_FIELDS } },
       ],
     });
     return sessions;

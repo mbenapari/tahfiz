@@ -59,6 +59,11 @@ const Login: React.FC = () => {
         throw new Error('Login successful but user data is missing');
       }
 
+      // Drop any stale school context left by a previous session
+      const schoolId = userData.active_school_context || userData.tenantId;
+      if (schoolId) localStorage.setItem('active_school_id', String(schoolId));
+      else localStorage.removeItem('active_school_id');
+
       // Update global auth state
       setUser(userData);
 

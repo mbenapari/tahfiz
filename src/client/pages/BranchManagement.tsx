@@ -114,11 +114,11 @@ const BranchManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Branch Management</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Branch Management</h1>
           <p className="text-text-muted text-sm mt-1">
             Manage your school branches and their configurations
           </p>
@@ -128,7 +128,7 @@ const BranchManagement: React.FC = () => {
             setEditBranch(null);
             setShowModal(true);
           }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors text-sm font-medium"
+          className="inline-flex w-full md:w-auto items-center justify-center gap-2 px-4 py-3 md:py-2.5 rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors text-sm font-medium"
         >
           <Plus size={18} />
           Create New Branch
@@ -136,22 +136,22 @@ const BranchManagement: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-surface-dark border border-border-green/20 rounded-xl p-4">
-          <div className="text-2xl font-bold text-white">{branches.length}</div>
-          <div className="text-text-muted text-sm">Total Branches</div>
+      <div className="grid grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-surface-dark border border-border-green/20 rounded-xl p-3 sm:p-4">
+          <div className="text-xl sm:text-2xl font-bold text-white">{branches.length}</div>
+          <div className="text-text-muted text-xs sm:text-sm">Total</div>
         </div>
-        <div className="bg-surface-dark border border-border-green/20 rounded-xl p-4">
-          <div className="text-2xl font-bold text-green-400">{activeCount}</div>
-          <div className="text-text-muted text-sm">Active</div>
+        <div className="bg-surface-dark border border-border-green/20 rounded-xl p-3 sm:p-4">
+          <div className="text-xl sm:text-2xl font-bold text-green-400">{activeCount}</div>
+          <div className="text-text-muted text-xs sm:text-sm">Active</div>
         </div>
-        <div className="bg-surface-dark border border-border-green/20 rounded-xl p-4">
-          <div className="text-2xl font-bold text-red-400">{inactiveCount}</div>
-          <div className="text-text-muted text-sm">Inactive</div>
+        <div className="bg-surface-dark border border-border-green/20 rounded-xl p-3 sm:p-4">
+          <div className="text-xl sm:text-2xl font-bold text-red-400">{inactiveCount}</div>
+          <div className="text-text-muted text-xs sm:text-sm">Inactive</div>
         </div>
-        <div className="bg-surface-dark border border-border-green/20 rounded-xl p-4">
-          <div className="text-2xl font-bold text-primary">{currentSchool?.name || 'N/A'}</div>
-          <div className="text-text-muted text-sm">Parent School</div>
+        <div className="col-span-3 md:col-span-1 bg-surface-dark border border-border-green/20 rounded-xl p-3 sm:p-4 min-w-0">
+          <div className="text-base sm:text-2xl font-bold text-primary truncate">{currentSchool?.name || 'N/A'}</div>
+          <div className="text-text-muted text-xs sm:text-sm">Parent School</div>
         </div>
       </div>
 
@@ -163,8 +163,8 @@ const BranchManagement: React.FC = () => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search branches by name or code..."
-            className="w-full bg-surface-dark border border-border-green/20 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder:text-text-muted/50 focus:outline-none focus:border-primary/50"
+            placeholder="Search by name or code..."
+            className="w-full bg-surface-dark border border-border-green/20 rounded-xl pl-10 pr-4 py-3 sm:py-2.5 text-white text-base sm:text-sm placeholder:text-text-muted/50 focus:outline-none focus:border-primary/50"
           />
         </div>
         <div className="flex gap-1 bg-surface-dark border border-border-green/20 rounded-xl p-1">
@@ -172,7 +172,7 @@ const BranchManagement: React.FC = () => {
             <button
               key={tab}
               onClick={() => setFilterTab(tab)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
+              className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
                 filterTab === tab
                   ? 'bg-primary/10 text-primary'
                   : 'text-text-muted hover:text-white'
@@ -229,7 +229,7 @@ const BranchManagement: React.FC = () => {
       )}
 
       {/* Branch Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
         {filteredBranches.map((branch) => (
           <BranchCard
             key={branch.id}
@@ -242,9 +242,9 @@ const BranchManagement: React.FC = () => {
 
       {/* Delete Confirmation */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)} />
-          <div className="relative bg-surface-dark border border-border-green/20 rounded-2xl p-6 max-w-sm w-full mx-4 z-10">
+          <div className="relative bg-surface-dark border border-border-green/20 rounded-t-2xl sm:rounded-2xl p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:max-w-sm w-full sm:mx-4 z-10">
             <h3 className="text-white font-semibold text-lg mb-2">Delete Branch?</h3>
             <p className="text-text-muted text-sm mb-6">
               This action cannot be undone. All branch data will be preserved but the branch will be deactivated.
@@ -252,13 +252,13 @@ const BranchManagement: React.FC = () => {
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 px-4 py-2 rounded-lg border border-border-green/20 text-text-muted hover:text-white hover:bg-white/5 transition-colors text-sm"
+                className="flex-1 px-4 py-3 sm:py-2 rounded-lg border border-border-green/20 text-text-muted hover:text-white hover:bg-white/5 transition-colors text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(deleteConfirm)}
-                className="flex-1 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors text-sm font-medium"
+                className="flex-1 px-4 py-3 sm:py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors text-sm font-medium"
               >
                 Delete
               </button>

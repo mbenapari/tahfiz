@@ -48,8 +48,8 @@ export const getRevisionRecordById = async (id: number, tenant_id: number) => {
         { model: Surah, as: 'surah' },
         { model: Surah, as: 'start_surah' },
         { model: Surah, as: 'end_surah' },
-        { model: User, as: 'student' },
-        { model: User, as: 'instructor' },
+        { model: User, as: 'student', attributes: { exclude: ['password', 'email_blind_index'] } },
+        { model: User, as: 'instructor', attributes: { exclude: ['password', 'email_blind_index'] } },
         { model: Session, as: 'session' },
       ],
     });
@@ -86,7 +86,7 @@ export const getStudentRevisionRecords = async (
         { model: Surah, as: 'surah' },
         { model: Surah, as: 'start_surah' },
         { model: Surah, as: 'end_surah' },
-        { model: User, as: 'instructor' },
+        { model: User, as: 'instructor', attributes: { exclude: ['password', 'email_blind_index'] } },
       ],
       order: [['created_at', 'DESC']],
     });
@@ -101,7 +101,7 @@ export const getSessionRevisionRecords = async (session_id: number, tenant_id: n
     const records = await RevisionRecord.findAll({
       where: { session_id, tenant_id },
       include: [
-        { model: User, as: 'student' },
+        { model: User, as: 'student', attributes: { exclude: ['password', 'email_blind_index'] } },
         { model: Surah, as: 'surah' },
         { model: Surah, as: 'start_surah' },
         { model: Surah, as: 'end_surah' },

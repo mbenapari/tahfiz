@@ -50,48 +50,9 @@ const BranchDetail: React.FC = () => {
   const [memberError, setMemberError] = useState<string | null>(null);
   // Schedule edit state
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
-  const [scheduleForm, setScheduleForm] = useState<{
-    schedule_mode: 'simple' | 'advanced';
-    timezone: string;
-    study_days: number[];
-    session_type_day_map: Record<string, number[]>;
-  }>({
-    schedule_mode: 'simple',
-    timezone: 'UTC',
-    study_days: [],
-    session_type_day_map: {
-      'memorization:default': [],
-      'revision': []
-    }
-  });
+  const [scheduleForm, setScheduleForm] = useState<{ timezone: string }>({ timezone: 'UTC' });
   const [savingSchedule, setSavingSchedule] = useState(false);
 
-  // Advanced schedule overlap detection
-  const getOverlappingDays = () => {
-    const hifzDays = scheduleForm.session_type_day_map['memorization:default'] || [];
-    const revisionDays = scheduleForm.session_type_day_map['revision'] || [];
-    return hifzDays.filter(day => revisionDays.includes(day));
-  };
-
-  const overlappingDays = getOverlappingDays();
-  const hasOverlap = overlappingDays.length > 0;
-
-  const toggleTypeDay = (type: string, dayIndex: number) => {
-    setScheduleForm(prev => {
-      const currentDays = prev.session_type_day_map[type] || [];
-      const newDays = currentDays.includes(dayIndex)
-        ? currentDays.filter(d => d !== dayIndex)
-        : [...currentDays, dayIndex];
-
-      return {
-        ...prev,
-        session_type_day_map: {
-          ...prev.session_type_day_map,
-          [type]: newDays
-        }
-      };
-    });
-  };
   // Dropdown user list
   const [dropdownUsers, setDropdownUsers] = useState<Array<{ id: number; first_name: string; last_name: string; email: string; phone?: string; role: string }>>([]);
   const [loadingDropdown, setLoadingDropdown] = useState(false);
@@ -104,15 +65,7 @@ const BranchDetail: React.FC = () => {
       if (result) {
         setBranch(result.branch);
         setParentSchool(result.parentSchool);
-        setScheduleForm({
-          schedule_mode: result.branch.schedule_mode || 'simple',
-          timezone: result.branch.timezone || 'UTC',
-          study_days: result.branch.study_days || [],
-          session_type_day_map: result.branch.session_type_day_map || {
-            'memorization:default': [],
-            'revision': []
-          },
-        });
+        setScheduleForm({ timezone: result.branch.timezone || 'UTC' });
 
         // Load members and admins
         const [membersData, adminsData] = await Promise.all([
@@ -349,24 +302,12 @@ const BranchDetail: React.FC = () => {
   // Save schedule configuration
   const handleSaveSchedule = async () => {
     if (!branch) return;
-    if (scheduleForm.schedule_mode === 'advanced' && hasOverlap) {
-      return;
-    }
     setSavingSchedule(true);
     const success = await updateBranch(branch.id, {
-      scheduleMode: scheduleForm.schedule_mode,
       timezone: scheduleForm.timezone,
-      studyDays: scheduleForm.study_days,
-      sessionTypeDayMap: scheduleForm.session_type_day_map,
     });
     if (success) {
-      setBranch(prev => prev ? { 
-        ...prev, 
-        schedule_mode: scheduleForm.schedule_mode, 
-        timezone: scheduleForm.timezone, 
-        study_days: scheduleForm.study_days,
-        session_type_day_map: scheduleForm.session_type_day_map
-      } : null);
+      setBranch(prev => prev ? { ...prev, timezone: scheduleForm.timezone } : null);
       setIsEditingSchedule(false);
     }
     setSavingSchedule(false);
@@ -501,10 +442,6 @@ const BranchDetail: React.FC = () => {
                     <span className="text-white">{branch.timezone}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-text-muted">Schedule Mode</span>
-                    <span className="text-white capitalize">{branch.schedule_mode}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
                     <span className="text-text-muted">Status</span>
                     <span className={branch.is_active ? 'text-green-400' : 'text-red-400'}>
                       {branch.is_active ? 'Active' : 'Inactive'}
@@ -534,23 +471,6 @@ const BranchDetail: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <h3 className="text-white font-semibold mb-3">Study Days</h3>
-              <div className="flex flex-wrap gap-2">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
-                  <span
-                    key={day}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                      branch.study_days?.includes(index)
-                        ? 'bg-primary/10 text-primary border border-primary/20'
-                        : 'bg-background-dark text-text-muted/50 border border-border-green/10'
-                    }`}
-                  >
-                    {day}
-                  </span>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
@@ -823,15 +743,7 @@ const BranchDetail: React.FC = () => {
               {!isEditingSchedule ? (
                 <button
                   onClick={() => {
-                    setScheduleForm({
-                      schedule_mode: branch.schedule_mode || 'simple',
-                      timezone: branch.timezone || 'UTC',
-                      study_days: branch.study_days || [],
-                      session_type_day_map: branch.session_type_day_map || {
-                        'memorization:default': [],
-                        'revision': []
-                      },
-                    });
+                    setScheduleForm({ timezone: branch.timezone || 'UTC' });
                     setIsEditingSchedule(true);
                   }}
                   className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium"
@@ -848,7 +760,7 @@ const BranchDetail: React.FC = () => {
                   </button>
                   <button
                     onClick={handleSaveSchedule}
-                    disabled={savingSchedule || (scheduleForm.schedule_mode === 'advanced' && hasOverlap)}
+                    disabled={savingSchedule}
                     className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
                   >
                     {savingSchedule && <Loader2 size={14} className="animate-spin" />}
@@ -861,30 +773,6 @@ const BranchDetail: React.FC = () => {
             {isEditingSchedule ? (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-text-muted text-sm mb-2">Schedule Mode</label>
-                    <select
-                      value={scheduleForm.schedule_mode}
-                      onChange={(e) => {
-                        const newMode = e.target.value as 'simple' | 'advanced';
-                        setScheduleForm(prev => {
-                          const newForm = { ...prev, schedule_mode: newMode };
-                          // If switching to advanced and map is empty, initialize it with current study days
-                          if (newMode === 'advanced' && (!prev.session_type_day_map['memorization:default']?.length)) {
-                            newForm.session_type_day_map = {
-                              ...prev.session_type_day_map,
-                              'memorization:default': [...prev.study_days]
-                            };
-                          }
-                          return newForm;
-                        });
-                      }}
-                      className="w-full bg-background-dark border border-border-green/20 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-primary/50"
-                    >
-                      <option value="simple">Simple</option>
-                      <option value="advanced">Advanced</option>
-                    </select>
-                  </div>
                   <div>
                     <label className="block text-text-muted text-sm mb-2">Timezone</label>
                     <select
@@ -907,182 +795,19 @@ const BranchDetail: React.FC = () => {
                     </select>
                   </div>
                 </div>
-
-                <div>
-                  <span className="text-text-muted text-sm block mb-2">
-                    {scheduleForm.schedule_mode === 'simple' ? 'Study Days' : 'Global Study Days (Fallback)'}
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => {
-                      const isSelected = scheduleForm.study_days.includes(index);
-                      return (
-                        <button
-                          key={day}
-                          onClick={() => {
-                            setScheduleForm(prev => ({
-                              ...prev,
-                              study_days: isSelected
-                                ? prev.study_days.filter(d => d !== index)
-                                : [...prev.study_days, index],
-                            }));
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                            isSelected
-                              ? 'bg-primary/10 text-primary border border-primary/20'
-                              : 'bg-background-dark text-text-muted/50 border border-border-green/10 hover:border-primary/30'
-                          }`}
-                        >
-                          {day}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {scheduleForm.schedule_mode === 'advanced' && (
-                  <div className="space-y-6 pt-4 border-t border-border-green/10">
-                    <div className="flex items-center gap-3">
-                      <CalendarDays size={18} className="text-primary" />
-                      <div>
-                        <h4 className="text-white font-medium text-sm">Session Type Schedules</h4>
-                        <p className="text-xs text-text-muted">Configure available days per educational activity.</p>
-                      </div>
-                    </div>
-
-                    {hasOverlap && (
-                      <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300">
-                        <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                        <p className="text-xs font-medium">
-                          Memorization and Revision share {overlappingDays.length} day(s). Resolve the overlap before saving.
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="space-y-6">
-                      {/* Memorization */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h5 className="text-xs font-bold text-white uppercase tracking-wider">Memorization (Hifz)</h5>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => {
-                            const isActive = (scheduleForm.session_type_day_map['memorization:default'] || []).includes(index);
-                            const isConflicting = overlappingDays.includes(index);
-                            return (
-                              <button
-                                key={`hifz-${day}`}
-                                onClick={() => toggleTypeDay('memorization:default', index)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                                  isConflicting
-                                    ? 'bg-red-500/20 border-red-500 text-red-300 animate-pulse'
-                                    : isActive 
-                                    ? 'bg-primary/20 border-primary text-primary' 
-                                    : 'bg-white/5 border-white/10 text-text-muted'
-                                }`}
-                              >
-                                {day}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Revision */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h5 className="text-xs font-bold text-white uppercase tracking-wider">Revision (Muraja'ah)</h5>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => {
-                            const isActive = (scheduleForm.session_type_day_map['revision'] || []).includes(index);
-                            const isConflicting = overlappingDays.includes(index);
-                            return (
-                              <button
-                                key={`revision-${day}`}
-                                onClick={() => toggleTypeDay('revision', index)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                                  isConflicting
-                                    ? 'bg-red-500/20 border-red-500 text-red-300 animate-pulse'
-                                    : isActive 
-                                    ? 'bg-blue-500/20 border-blue-400 text-blue-300' 
-                                    : 'bg-white/5 border-white/10 text-text-muted'
-                                }`}
-                              >
-                                {day}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex justify-between text-sm">
-                    <span className="text-text-muted">Schedule Mode</span>
-                    <span className="text-white capitalize">{branch.schedule_mode}</span>
+                    <span className="text-text-muted">Session Days</span>
+                    <span className="text-white">Every day</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-text-muted">Timezone</span>
                     <span className="text-white">{branch.timezone}</span>
                   </div>
                 </div>
-
-                <div>
-                  <span className="text-text-muted text-sm block mb-2">
-                    {branch.schedule_mode === 'simple' ? 'Study Days' : 'Global Study Days (Fallback)'}
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
-                      <span
-                        key={day}
-                        className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                          branch.study_days?.includes(index)
-                            ? 'bg-primary/10 text-primary border border-primary/20'
-                            : 'bg-background-dark text-text-muted/50 border border-border-green/10'
-                        }`}
-                      >
-                        {day}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {branch.schedule_mode === 'advanced' && branch.session_type_day_map && (
-                  <div className="space-y-6 pt-4 border-t border-border-green/10">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <span className="text-xs font-bold text-white uppercase tracking-wider">Memorization (Hifz)</span>
-                        <div className="flex flex-wrap gap-2">
-                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => {
-                            const isActive = (branch.session_type_day_map?.['memorization:default'] || []).includes(index);
-                            return isActive ? (
-                              <span key={day} className="px-3 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                                {day}
-                              </span>
-                            ) : null;
-                          })}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <span className="text-xs font-bold text-white uppercase tracking-wider">Revision (Muraja'ah)</span>
-                        <div className="flex flex-wrap gap-2">
-                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => {
-                            const isActive = (branch.session_type_day_map?.['revision'] || []).includes(index);
-                            return isActive ? (
-                              <span key={day} className="px-3 py-1 rounded-lg text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                                {day}
-                              </span>
-                            ) : null;
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>

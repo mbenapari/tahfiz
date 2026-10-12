@@ -75,6 +75,8 @@ const Register: React.FC = () => {
 
       setStatus({ type: 'success', message: 'User registered successfully!' });
       
+      localStorage.removeItem('active_school_id');
+
       // Update global auth state
       setUser(userData);
 

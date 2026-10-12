@@ -11,6 +11,7 @@ import {
   Phone,
   User
 } from 'lucide-react';
+import { useSearchParams } from 'react-router';
 import { Tooltip } from '../../components/Tooltip';
 
 interface Instructor {
@@ -29,7 +30,8 @@ export const Instructors: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showCreateForm, setShowCreateForm] = useState(searchParams.get('add') === '1');
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -40,6 +42,12 @@ export const Instructors: React.FC = () => {
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('add') === '1') {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const fetchInstructors = useCallback(async () => {
     setIsLoading(true);

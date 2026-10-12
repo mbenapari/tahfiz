@@ -50,8 +50,8 @@ export const getMemorizationRecordById = async (id: number, tenant_id: number) =
       where: { id, tenant_id },
       include: [
         { model: Surah, as: 'surah' },
-        { model: User, as: 'student' },
-        { model: User, as: 'instructor' },
+        { model: User, as: 'student', attributes: { exclude: ['password', 'email_blind_index'] } },
+        { model: User, as: 'instructor', attributes: { exclude: ['password', 'email_blind_index'] } },
         { model: Session, as: 'session' },
       ],
     });
@@ -90,7 +90,7 @@ export const getStudentMemorizationRecords = async (
       where: whereClause,
       include: [
         { model: Surah, as: 'surah' },
-        { model: User, as: 'instructor' },
+        { model: User, as: 'instructor', attributes: { exclude: ['password', 'email_blind_index'] } },
       ],
       order: [['created_at', 'DESC']],
     });
@@ -105,7 +105,7 @@ export const getSessionMemorizationRecords = async (session_id: number, tenant_i
     const records = await MemorizationRecord.findAll({
       where: { session_id, tenant_id },
       include: [
-        { model: User, as: 'student' },
+        { model: User, as: 'student', attributes: { exclude: ['password', 'email_blind_index'] } },
         { model: Surah, as: 'surah' },
       ],
     });

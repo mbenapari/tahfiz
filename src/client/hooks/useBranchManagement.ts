@@ -50,9 +50,6 @@ export interface CreateBranchData {
   slug: string;
   branchCode: string;
   timezone?: string;
-  studyDays?: number[];
-  scheduleMode?: 'simple' | 'advanced';
-  sessionTypeDayMap?: Record<string, number[]>;
   enabledMemorizationSubtypes?: Array<{ key: string; label: string; active: boolean }>;
   address?: string;
   email?: string;
@@ -62,9 +59,6 @@ export interface CreateBranchData {
 export interface UpdateBranchData {
   name?: string;
   timezone?: string;
-  studyDays?: number[];
-  scheduleMode?: 'simple' | 'advanced';
-  sessionTypeDayMap?: Record<string, number[]>;
   enabledMemorizationSubtypes?: Array<{ key: string; label: string; active: boolean }>;
   address?: string;
   email?: string;

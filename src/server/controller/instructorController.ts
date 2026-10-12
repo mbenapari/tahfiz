@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import * as userService from '../services/userService';
 import * as permissionService from '../services/permissionService';
+import { notificationService } from '../services/notificationService';
 import { UserRole } from '../model/User';
-import { SchoolMember } from '../model';
+import { SchoolMember, User } from '../model';
 import sequelize from '../db';
 import * as apiResponse from '../utils/apiResponse';
 import logger from '../utils/logger';
@@ -95,15 +96,26 @@ export const createInstructor = async (req: Request, res: Response) => {
 
       await t.commit();
 
+      await notificationService.notifyTenantAdmins(
+        tenantId,
+        {
+          title: 'New instructor added',
+          message: `${instructor.first_name} ${instructor.last_name || ''}`.trim() + ' was added as an instructor.',
+          type: 'success',
+        },
+        req.user?.userId
+      );
+
       logger.info(`instructorController: createInstructor - Success: instructorId: ${instructor.id}`, { logId });
+      const fresh = (await User.findByPk(instructor.id)) || instructor;
       res.status(201).json(apiResponse.success({
         message: 'Instructor created successfully',
         instructor: {
           id: instructor.id,
           first_name: instructor.first_name,
           last_name: instructor.last_name,
-          email: instructor.email,
-          phone: instructor.phone,
+          email: fresh.email,
+          phone: fresh.phone,
           role: instructor.role,
           tenantId: instructor.tenant_id,
         }

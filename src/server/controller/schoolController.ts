@@ -28,6 +28,8 @@ const mapStudyDaysToNumbers = (studyDays?: Array<string | number>) => {
     : [];
 };
 
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
 const createScheduleErrorResponse = (error: string, code: string, details?: Record<string, unknown>) => ({
   error,
   code,
@@ -39,11 +41,11 @@ export const createSchool = async (req: Request, res: Response) => {
   try {
     const { schoolName, slug, timezone, studyDays, address, scheduleMode, sessionTypeDayMap, enabledMemorizationSubtypes } = req.body;
 
-    if (!schoolName || !slug || !studyDays) {
-      return res.status(400).json({ error: 'School name, slug, and study days are required' });
+    if (!schoolName || !slug) {
+      return res.status(400).json({ error: 'School name and slug are required' });
     }
 
-    const studyDayNumbers = mapStudyDaysToNumbers(studyDays) || [];
+    const studyDayNumbers = mapStudyDaysToNumbers(studyDays) || ALL_DAYS;
 
     const normalizedSchedule = ScheduleService.normalizeScheduleInput({
       scheduleMode,
@@ -51,16 +53,6 @@ export const createSchool = async (req: Request, res: Response) => {
       sessionTypeDayMap,
       enabledMemorizationSubtypes
     });
-
-    const scheduleValidation = ScheduleService.validateScheduleConfiguration(normalizedSchedule);
-    if (!scheduleValidation.isValid) {
-      logger.warn(
-        `[${logId}] Schedule overlap rejected during school creation for slug=${slug} overlappingDays=${(scheduleValidation.details?.overlappingDays || []).join(',')}`
-      );
-      return res
-        .status(400)
-        .json(createScheduleErrorResponse(scheduleValidation.error || 'Invalid schedule configuration', scheduleValidation.code || 'SCHEDULE_OVERLAP', scheduleValidation.details));
-    }
 
     const userId = req.user?.userId;
     if (!userId) {
@@ -123,7 +115,6 @@ export const getSchool = async (req: Request, res: Response) => {
     const schoolData = school.get({ plain: true });
     return res.json({
       ...schoolData,
-      validationMetadata: ScheduleService.getScheduleValidationMetadata(school),
     });
   } catch (error: any) {
     if (error.name === 'SchoolContextError') throw error;
@@ -143,52 +134,18 @@ export const updateSchool = async (req: Request, res: Response) => {
       userId: req.user?.userId
     });
 
-    const { 
-      schoolName, slug, timezone, studyDays, startTime, endTime, email, phone, address,
-      scheduleMode, sessionTypeDayMap, enabledMemorizationSubtypes 
+    const {
+      schoolName, slug, timezone, startTime, endTime, email, phone, address,
+      enabledMemorizationSubtypes
     } = req.body;
 
-    const currentSchool = await schoolService.getSchoolById(tenantId);
-    const studyDayNumbers = mapStudyDaysToNumbers(studyDays);
-
-    const normalizedSchedule = ScheduleService.normalizeScheduleInput({
-      scheduleMode,
-      studyDays: studyDayNumbers,
-      sessionTypeDayMap,
-      enabledMemorizationSubtypes
-    });
-
-    const effectiveSchedule = {
-      schedule_mode: normalizedSchedule.schedule_mode ?? currentSchool.schedule_mode,
-      study_days: normalizedSchedule.study_days ?? currentSchool.study_days,
-      session_type_day_map:
-        normalizedSchedule.session_type_day_map === undefined
-          ? currentSchool.session_type_day_map
-          : normalizedSchedule.session_type_day_map,
-    };
-
-    const scheduleValidation = ScheduleService.validateScheduleConfiguration(effectiveSchedule);
-    if (!scheduleValidation.isValid) {
-      logger.warn(
-        `[${logId}] Schedule overlap rejected during school update for tenantId=${tenantId} overlappingDays=${(scheduleValidation.details?.overlappingDays || []).join(',')}`
-      );
-      return res
-        .status(400)
-        .json(createScheduleErrorResponse(scheduleValidation.error || 'Invalid schedule configuration', scheduleValidation.code || 'SCHEDULE_OVERLAP', scheduleValidation.details));
-    }
-
-    const retroactiveImpact = await ScheduleService.detectRetroactiveConflicts(
-      currentSchool,
-      effectiveSchedule,
-      tenantId,
-      logId
-    );
+    const normalizedSettings = ScheduleService.normalizeScheduleInput({ enabledMemorizationSubtypes });
 
     const updateData: schoolService.UpdateSchoolDTO = {
       name: schoolName,
       slug,
       timezone,
-      ...normalizedSchedule,
+      ...normalizedSettings,
       start_time: startTime,
       end_time: endTime,
       email,
@@ -198,24 +155,11 @@ export const updateSchool = async (req: Request, res: Response) => {
 
     const updatedSchool = await schoolService.updateSchool(tenantId, updateData);
 
-    logger.info(
-      `schoolController: updateSchool - Success: tenantId=${tenantId} oldMode=${currentSchool.schedule_mode} newMode=${updatedSchool.schedule_mode} affectedFutureSessionCount=${retroactiveImpact.affectedSessionCount}`,
-      { logId }
-    );
+    logger.info(`schoolController: updateSchool - Success: tenantId=${tenantId}`, { logId });
 
     return res.json({
       message: 'School updated successfully',
       school: updatedSchool,
-      warnings:
-        retroactiveImpact.affectedSessionCount > 0
-          ? [
-              {
-                code: 'RETROACTIVE_SCHEDULE_IMPACT',
-                message: `Updating this schedule affects ${retroactiveImpact.affectedSessionCount} future session(s).`,
-                details: retroactiveImpact,
-              },
-            ]
-          : [],
     });
   } catch (error: any) {
     if (error.name === 'SchoolContextError') throw error;
@@ -224,94 +168,5 @@ export const updateSchool = async (req: Request, res: Response) => {
       return res.status(400).json(createScheduleErrorResponse(error.message, error.code, error.details));
     }
     return res.status(500).json({ error: 'Failed to update school details' });
-  }
-};
-
-export const validateScheduleDraft = async (req: Request, res: Response) => {
-  const logId = req.correlationId || 'unknown';
-  try {
-    const tenantId = getTenantId(req);
-    logger.info(`schoolController: validateScheduleDraft - Validating draft for tenantId: ${tenantId}`, {
-      logId,
-      tenantId,
-      activeSchoolContext: req.activeSchoolId,
-      userId: req.user?.userId
-    });
-
-    const { scheduleMode, studyDays, sessionTypeDayMap, enabledMemorizationSubtypes } = req.body;
-    const normalizedSchedule = ScheduleService.normalizeScheduleInput({
-      scheduleMode,
-      studyDays: mapStudyDaysToNumbers(studyDays),
-      sessionTypeDayMap,
-      enabledMemorizationSubtypes,
-    });
-    const currentSchool = await schoolService.getSchoolById(tenantId);
-    const effectiveSchedule = {
-      schedule_mode: normalizedSchedule.schedule_mode ?? currentSchool.schedule_mode,
-      study_days: normalizedSchedule.study_days ?? currentSchool.study_days,
-      session_type_day_map:
-        normalizedSchedule.session_type_day_map === undefined
-          ? currentSchool.session_type_day_map
-          : normalizedSchedule.session_type_day_map,
-    };
-    const validation = ScheduleService.validateScheduleConfiguration(effectiveSchedule);
-    const impact = await ScheduleService.detectRetroactiveConflicts(currentSchool, effectiveSchedule, tenantId, logId);
-
-    return res.json({
-      isValid: validation.isValid,
-      errors: validation.isValid ? [] : [createScheduleErrorResponse(validation.error || 'Invalid schedule configuration', validation.code || 'SCHEDULE_OVERLAP', validation.details)],
-      warnings:
-        impact.affectedSessionCount > 0
-          ? [
-              {
-                code: 'RETROACTIVE_SCHEDULE_IMPACT',
-                message: `Updating this schedule affects ${impact.affectedSessionCount} future session(s).`,
-                details: impact,
-              },
-            ]
-          : [],
-    });
-  } catch (error: any) {
-    if (error.name === 'SchoolContextError') throw error;
-    logger.error(`schoolController: validateScheduleDraft - Error: ${error.message}`, { logId });
-    return res.status(400).json(createScheduleErrorResponse(error.message || 'Failed to validate schedule draft', 'SCHEDULE_VALIDATION_ERROR'));
-  }
-};
-
-export const getScheduleImpact = async (req: Request, res: Response) => {
-  const logId = req.correlationId || 'unknown';
-  try {
-    const tenantId = getTenantId(req);
-    logger.info(`schoolController: getScheduleImpact - Fetching impact for tenantId: ${tenantId}`, {
-      logId,
-      tenantId,
-      activeSchoolContext: req.activeSchoolId,
-      userId: req.user?.userId
-    });
-
-    const rawSchedule = typeof req.query.newSchedule === 'string' ? req.query.newSchedule : '';
-    const parsedSchedule = rawSchedule ? JSON.parse(rawSchedule) : {};
-    const normalizedSchedule = ScheduleService.normalizeScheduleInput({
-      scheduleMode: parsedSchedule.scheduleMode,
-      studyDays: mapStudyDaysToNumbers(parsedSchedule.studyDays),
-      sessionTypeDayMap: parsedSchedule.sessionTypeDayMap,
-      enabledMemorizationSubtypes: parsedSchedule.enabledMemorizationSubtypes,
-    });
-    const currentSchool = await schoolService.getSchoolById(tenantId);
-    const effectiveSchedule = {
-      schedule_mode: normalizedSchedule.schedule_mode ?? currentSchool.schedule_mode,
-      study_days: normalizedSchedule.study_days ?? currentSchool.study_days,
-      session_type_day_map:
-        normalizedSchedule.session_type_day_map === undefined
-          ? currentSchool.session_type_day_map
-          : normalizedSchedule.session_type_day_map,
-    };
-    const impact = await ScheduleService.detectRetroactiveConflicts(currentSchool, effectiveSchedule, tenantId, logId);
-
-    return res.json(impact);
-  } catch (error: any) {
-    if (error.name === 'SchoolContextError') throw error;
-    logger.error(`schoolController: getScheduleImpact - Error: ${error.message}`, { logId });
-    return res.status(400).json(createScheduleErrorResponse(error.message || 'Failed to evaluate schedule impact', 'SCHEDULE_VALIDATION_ERROR'));
   }
 };

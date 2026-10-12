@@ -20,7 +20,7 @@ export const register = async (req: Request, res: Response) => {
   logger.info('authController.register: Entry', { correlationId, email: req.body.email });
   
   try {
-    const { firstName, lastName, email, password, phone, role, tenantId } = req.body;
+    const { firstName, lastName, email, password, phone, role } = req.body;
 
     // Comprehensive Input Validation
     if (!firstName || !email || !password || !role) {
@@ -63,7 +63,8 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const userData: userService.CreateUserDTO = {
-      tenant_id: tenantId,
+      // tenant_id is intentionally never taken from the request body; users are
+      // attached to a school only via school creation or invitation.
       first_name: firstName,
       last_name: lastName,
       email,
@@ -101,6 +102,7 @@ export const register = async (req: Request, res: Response) => {
         role: userWithTenant.role,
         tenantId: userWithTenant.tenant_id,
         is_onboarded: Boolean(userWithTenant.is_onboarded),
+        progress_onboarding_dismissed: Boolean(userWithTenant.progress_onboarding_dismissed),
         school_name: userWithTenant.tenant?.name,
         permissions
       }
@@ -191,6 +193,7 @@ export const login = async (req: Request, res: Response) => {
         active_school_context,
         schools,
         is_onboarded: Boolean(user.is_onboarded),
+        progress_onboarding_dismissed: Boolean(user.progress_onboarding_dismissed),
         school_name: user.tenant?.name,
         permissions
       }

@@ -1,5 +1,4 @@
 import { School, User, SchoolMember } from '../model';
-import { ScheduleService } from './scheduleService';
 import { UserRole } from '../model/User';
 import logger from '../utils/logger';
 
@@ -72,19 +71,6 @@ export interface BranchAdminGrantDTO {
 
 export const createSchool = async (data: CreateSchoolDTO) => {
   try {
-    const validation = ScheduleService.validateScheduleConfiguration({
-      schedule_mode: data.schedule_mode,
-      study_days: data.study_days,
-      session_type_day_map: data.session_type_day_map,
-    });
-
-    if (!validation.isValid) {
-      const error = new Error(validation.error || 'Invalid schedule configuration');
-      (error as any).code = validation.code;
-      (error as any).details = validation.details;
-      throw error;
-    }
-
     const school = await School.create({
       ...data,
       timezone: data.timezone || 'UTC',
@@ -130,21 +116,6 @@ export const getAllSchools = async () => {
 export const updateSchool = async (id: number, data: UpdateSchoolDTO) => {
   try {
     const school = await getSchoolById(id);
-    const mergedSchedule = {
-      schedule_mode: data.schedule_mode ?? school.schedule_mode,
-      study_days: data.study_days ?? school.study_days,
-      session_type_day_map:
-        data.session_type_day_map === undefined ? school.session_type_day_map : data.session_type_day_map,
-    };
-
-    const validation = ScheduleService.validateScheduleConfiguration(mergedSchedule);
-    if (!validation.isValid) {
-      const error = new Error(validation.error || 'Invalid schedule configuration');
-      (error as any).code = validation.code;
-      (error as any).details = validation.details;
-      throw error;
-    }
-
     await school.update(data);
     return school;
   } catch (error) {
@@ -277,22 +248,6 @@ export const updateBranchSettings = async (
 ): Promise<School> => {
   try {
     const branch = await getBranchById(branchId);
-
-    // Validate schedule if provided
-    if (data.study_days || data.schedule_mode || data.session_type_day_map) {
-      const mergedSchedule = {
-        schedule_mode: data.schedule_mode ?? branch.override_schedule_mode ?? branch.schedule_mode,
-        study_days: data.study_days ?? branch.override_study_days ?? branch.study_days,
-        session_type_day_map: data.session_type_day_map ?? branch.session_type_day_map,
-      };
-
-      const validation = ScheduleService.validateScheduleConfiguration(mergedSchedule);
-      if (!validation.isValid) {
-        const error = new Error(validation.error || 'Invalid schedule configuration');
-        (error as any).code = validation.code;
-        throw error;
-      }
-    }
 
     // Update override fields if new values provided
     const updateData: any = { ...data };
@@ -695,7 +650,7 @@ export const getBranchAdmins = async (branchId: number): Promise<User[]> => {
   try {
     const memberships = await SchoolMember.findAll({
       where: { school_id: branchId, role: UserRole.ADMIN },
-      include: [{ model: User, as: 'user' }],
+      include: [{ model: User, as: 'user', attributes: { exclude: ['password', 'email_blind_index'] } }],
     });
 
     return memberships.map(m => m.get('user') as User).filter(Boolean);
@@ -715,7 +670,7 @@ export const getSchoolMembers = async (schoolId: number): Promise<SchoolMember[]
   try {
     const members = await SchoolMember.findAll({
       where: { school_id: schoolId },
-      include: [{ model: User, as: 'user' }],
+      include: [{ model: User, as: 'user', attributes: { exclude: ['password', 'email_blind_index'] } }],
     });
     return members;
   } catch (error) {

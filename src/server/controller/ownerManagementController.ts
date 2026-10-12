@@ -40,7 +40,7 @@ const buildOwnerSchoolDto = (payload: any): schoolService.CreateSchoolDTO => {
     slug: payload.slug,
     owner_id: payload.owner_id || payload.ownerId,
     timezone: payload.timezone,
-    study_days: normalizedSchedule.study_days || [],
+    study_days: normalizedSchedule.study_days || [0, 1, 2, 3, 4, 5, 6],
     schedule_mode: normalizedSchedule.schedule_mode || 'simple',
     session_type_day_map:
       normalizedSchedule.session_type_day_map === undefined ? null : normalizedSchedule.session_type_day_map,

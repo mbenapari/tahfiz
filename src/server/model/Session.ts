@@ -1,6 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
-import School from './School';
 
 interface SessionAttributes {
   id: number;
@@ -29,31 +28,6 @@ class Session extends Model<SessionAttributes, SessionCreationAttributes> implem
   declare readonly updated_at: Date;
   declare readonly deleted_at: Date;
 }
-
-const validateSessionCalendarAlignment = async (session: Session, options?: unknown) => {
-  if (!(options as { validateScheduleAlignment?: boolean } | undefined)?.validateScheduleAlignment) {
-    return;
-  }
-
-  const recordingDate = session.recording_date || session.session_date;
-  if (!recordingDate || !session.tenant_id) {
-    return;
-  }
-
-  const school = await School.findByPk(session.tenant_id);
-  if (!school) {
-    throw new Error('School not found for schedule validation.');
-  }
-
-  const { ScheduleService } = await import('../services/scheduleService');
-  const validation = ScheduleService.validateSchoolCalendarDate(school, recordingDate, 'session-model-hook');
-  if (!validation.isValid) {
-    const error = new Error(validation.error || 'Session date is outside the school calendar.');
-    (error as any).code = validation.code;
-    (error as any).details = validation.details;
-    throw error;
-  }
-};
 
 Session.init(
   {
@@ -142,10 +116,6 @@ Session.init(
         fields: ['session_date'],
       },
     ],
-    hooks: {
-      beforeCreate: validateSessionCalendarAlignment,
-      beforeUpdate: validateSessionCalendarAlignment,
-    },
   }
 );
 
