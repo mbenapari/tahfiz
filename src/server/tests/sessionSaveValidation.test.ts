@@ -7,6 +7,7 @@ const mockGetSurahByNumber = jest.fn();
 const mockMarkAttendance = jest.fn();
 const mockUpdateAggregatedProgress = jest.fn();
 const mockValidateDateFormat = jest.fn();
+const mockCheckStudentEnrollment = jest.fn();
 
 await jest.unstable_mockModule('../services/sessionService', () => ({
   createSession: mockCreateSession,
@@ -30,6 +31,10 @@ await jest.unstable_mockModule('../services/attendanceService', () => ({
 
 await jest.unstable_mockModule('../services/progressService', () => ({
   updateAggregatedProgress: mockUpdateAggregatedProgress,
+}));
+
+await jest.unstable_mockModule('../services/enrollmentService', () => ({
+  checkStudentEnrollment: mockCheckStudentEnrollment,
 }));
 
 await jest.unstable_mockModule('../services/scheduleService', () => ({
@@ -73,6 +78,7 @@ describe('sessionController.saveDailySession', () => {
     });
     (mockUpdateAggregatedProgress as any).mockResolvedValue(undefined);
     (mockValidateDateFormat as any).mockReturnValue({ isValid: true });
+    (mockCheckStudentEnrollment as any).mockResolvedValue(true);
   });
 
   // 2026-06-21 is a Sunday, 2026-06-22 a Monday, 2026-06-27 a Saturday.
@@ -147,5 +153,16 @@ describe('sessionController.saveDailySession', () => {
     await saveDailySession(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('returns 404 when the student is not enrolled in the school', async () => {
+    (mockCheckStudentEnrollment as any).mockResolvedValue(false);
+    const req = buildReq({ hifzRecord: { surahNumber: 1, startAyah: 1, endAyah: 7 } });
+    const res = createMockRes();
+
+    await saveDailySession(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(mockCreateSession).not.toHaveBeenCalled();
   });
 });

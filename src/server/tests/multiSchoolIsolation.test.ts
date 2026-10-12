@@ -12,6 +12,15 @@ jest.unstable_mockModule('../services/statsService', () => ({
   getAttendanceTrends: jest.fn(),
 }));
 
+// The controller also imports these; mock them so no DB connection is created
+jest.unstable_mockModule('../services/platformMetricsService', () => ({
+  getPlatformMetrics: jest.fn(),
+}));
+
+jest.unstable_mockModule('../utils/logger', () => ({
+  default: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+}));
+
 // Import after mocking
 const statsController = await import('../controller/statsController');
 const statsService: any = await import('../services/statsService');
