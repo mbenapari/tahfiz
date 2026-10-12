@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **feat: server-backed notification bell and Messages page**: Replace the static navbar bell with `NotificationBell` backed by the new `useNotifications` hook (60s unread-count polling). Add a `/messages` page for contacting students' parents, linked from the navbar. Add `notificationService.notifyTenantAdmins` to notify school admins of events without ever failing the originating request.
+- **feat: persist progress-onboarding dismissal per user**: Add `users.progress_onboarding_dismissed` (migration `20260701000000`), exposed via `GET /users/me` and set through the new `POST /users/progress-onboarding/dismiss` endpoint. `useInstructorProgressFlag` now reads the server flag instead of encrypted localStorage state.
+
+### Security
+- **fix: never serialize credentials in User JSON**: `User.toJSON()` strips `password` and `email_blind_index` from all API responses.
+- **fix: harden `saveDailySession`**: Require an authenticated instructor (`req.user.userId`), validate `studentId`, and verify the student is enrolled in the active school before saving (404 otherwise).
+
+### Removed
+- **refactor: remove the advanced scheduling engine**: Remove `ScheduleService`, the `Session` calendar-alignment hooks, schedule draft/impact endpoints, the `checkDateConflict` endpoint, related error-code constants, and the advanced schedule UI in Settings, CreateSchool, BranchDetail and DailySession. Delete the associated schedule test suites and trim `sessionSaveValidation.test.ts`. Existing `schedule_mode` columns are left in place.
+
+### Chore
+- Ignore `.claude`, `.trae` and `docs` in `.gitignore`.
+- Simplify `AnimatedActionButtons`, `BranchCard`, `BranchFormModal` and branch management hooks; minor controller/service cleanups for school-context handling.
+- Add `progressOnboarding.test.ts`.
+
+### Added
 - **feat: add multi-school context infrastructure with RLS middleware**: Introduce Row Level Security (RLS) middleware to enforce school context validation on all protected routes. Add schoolContextRoutes for context management (current, switch, accessible schools). Update jwtHelper to include activeSchoolContext in JWT payload and authMiddleware to extract and attach school context to requests. (e0f7666)
 - **feat: add branch management to schoolService with CRUD operations**: Implement branch creation, updates, and admin management in schoolService. Add branch hierarchy validation (branch can't be its own parent). Refactor permissionService to support branch-level access control with primary and secondary admin roles. Update userService to handle multi-school contexts. (3df1588)
 - **feat: add branch hierarchy migrations for multi-school data model**: Add migrations for: Branch hierarchy fields on School model (is_branch, parent_school_id, branch_code), Branch fields on User model (is_branch_admin, branch_id, primary_branch_id), Scope and audit fields on SchoolMember model, Backfill school owner ID. (5be90ab)

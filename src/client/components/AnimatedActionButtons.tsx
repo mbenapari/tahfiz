@@ -49,9 +49,6 @@ export const AnimatedActionButtons: React.FC<AnimatedActionButtonsProps> = ({
       setEntranceDone(true);
     });
 
-    // Log analytics: animation rendered (anonymized)
-    logAnimationEvent('render');
-
     return () => {
       cancelAnimationFrame(raf);
     };
@@ -59,7 +56,6 @@ export const AnimatedActionButtons: React.FC<AnimatedActionButtonsProps> = ({
 
   const handlePrimaryAction = () => {
     onPrimaryAction();
-    logAnimationEvent('action');
   };
 
   // Wrap children to intercept the primary action button (PenTool / Log Progress)
@@ -107,24 +103,3 @@ export const AnimatedActionButtons: React.FC<AnimatedActionButtonsProps> = ({
     </div>
   );
 };
-
-/**
- * Logs anonymized analytics events for the animated UI.
- * Only tracks aggregated counts — no PII, no user IDs, no student data.
- */
-function logAnimationEvent(event: 'render' | 'dismiss' | 'action'): void {
-  try {
-    // Use sendBeacon for fire-and-forget analytics (doesn't block page unload)
-    const payload = JSON.stringify({
-      event: `animated_buttons_${event}`,
-      timestamp: Date.now(),
-      // No PII — only the event type and timestamp
-    });
-
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon('/api/analytics/events', new Blob([payload], { type: 'application/json' }));
-    }
-  } catch {
-    // Analytics failure must never affect UX
-  }
-}

@@ -1,4 +1,5 @@
-import { Notification } from '../model';
+import { Notification, User } from '../model';
+import { UserRole } from '../model/User';
 import { NotificationCreationAttributes } from '../model/Notification';
 import logger from '../utils/logger';
 
@@ -106,6 +107,37 @@ export const notificationService = {
     } catch (error) {
       logger.error('notificationService.deleteNotification: Error', { error: (error as Error).message });
       throw error;
+    }
+  },
+
+  /**
+   * Notify every admin of a school, except the user who triggered the event.
+   * Never throws: a failed notification must not break the request that caused it.
+   */
+  notifyTenantAdmins: async (
+    tenantId: number,
+    payload: { title: string; message: string; type?: string },
+    excludeUserId?: number
+  ) => {
+    try {
+      const admins = await User.findAll({
+        where: { tenant_id: tenantId, role: UserRole.ADMIN },
+        attributes: ['id'],
+      });
+      const recipients = admins.filter((admin) => admin.id !== excludeUserId);
+      await Promise.all(
+        recipients.map((admin) =>
+          Notification.create({
+            tenant_id: tenantId,
+            user_id: admin.id,
+            title: payload.title,
+            message: payload.message,
+            type: payload.type ?? 'info',
+          })
+        )
+      );
+    } catch (error) {
+      logger.error('notificationService.notifyTenantAdmins: Error', { error: (error as Error).message });
     }
   },
 

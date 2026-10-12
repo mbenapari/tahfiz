@@ -18,6 +18,7 @@ export interface User {
   active_school_context: number | null;
   schools: SchoolMembership[];
   is_onboarded?: boolean;
+  progress_onboarding_dismissed?: boolean;
   school_name?: string;
   permissions: string[];
 }
@@ -51,6 +52,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (userData) {
           // Ensure is_onboarded is a boolean
           userData.is_onboarded = !!userData.is_onboarded;
+          userData.progress_onboarding_dismissed = !!userData.progress_onboarding_dismissed;
           
           // Set active school context in localStorage for apiFetch header
           if (userData.active_school_context) {

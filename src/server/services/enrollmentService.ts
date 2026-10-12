@@ -29,7 +29,7 @@ export const getEnrollmentById = async (id: number, tenant_id: number) => {
     const enrollment = await Enrollment.findOne({
       where: { id, tenant_id },
       include: [
-        { model: User, as: 'student' },
+        { model: User, as: 'student', attributes: { exclude: ['password', 'email_blind_index'] } },
         { model: School, as: 'tenant' }
       ]
     });
@@ -63,7 +63,7 @@ export const getEnrollmentsByTenant = async (tenant_id: number, status?: Enrollm
 
     const enrollments = await Enrollment.findAll({
       where: whereClause,
-      include: [{ model: User, as: 'student' }]
+      include: [{ model: User, as: 'student', attributes: { exclude: ['password', 'email_blind_index'] } }]
     });
     return enrollments;
   } catch (error) {

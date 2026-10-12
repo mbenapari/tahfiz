@@ -156,11 +156,12 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import { Navigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { WelcomeOnboarding } from '../components/WelcomeOnboarding';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Redirect system owners away from user dashboard if they somehow land here
   if (user?.role === 'owner') {
@@ -523,19 +524,21 @@ export const Dashboard: React.FC = () => {
           <div className="bg-primary rounded-2xl p-6 text-background-dark">
             <h2 className="text-lg font-bold mb-6">Quick Actions</h2>
             <div className="grid grid-cols-2 gap-4">
-              <button className="flex flex-col items-center justify-center gap-2 bg-black/10 hover:bg-black/20 transition-colors rounded-xl p-4 aspect-square">
+              <button onClick={() => navigate('/students/enrollment')} className="flex flex-col items-center justify-center gap-2 bg-black/10 hover:bg-black/20 transition-colors rounded-xl p-4 aspect-square">
                 <UserPlus size={24} />
                 <span className="font-bold text-sm">Add Student</span>
               </button>
-              <button className="flex flex-col items-center justify-center gap-2 bg-black/10 hover:bg-black/20 transition-colors rounded-xl p-4 aspect-square">
-                <PenTool size={24} />
-                <span className="font-bold text-sm">Add Instructor</span>
-              </button>
-              <button className="flex flex-col items-center justify-center gap-2 bg-black/10 hover:bg-black/20 transition-colors rounded-xl p-4 aspect-square">
+              {user?.role === 'admin' && (
+                <button onClick={() => navigate('/instructors?add=1')} className="flex flex-col items-center justify-center gap-2 bg-black/10 hover:bg-black/20 transition-colors rounded-xl p-4 aspect-square">
+                  <PenTool size={24} />
+                  <span className="font-bold text-sm">Add Instructor</span>
+                </button>
+              )}
+              <button onClick={() => navigate('/students')} className="flex flex-col items-center justify-center gap-2 bg-black/10 hover:bg-black/20 transition-colors rounded-xl p-4 aspect-square">
                 <Calendar size={24} />
-                <span className="font-bold text-sm">Schedule</span>
+                <span className="font-bold text-sm">Sessions</span>
               </button>
-              <button className="flex flex-col items-center justify-center gap-2 bg-black/10 hover:bg-black/20 transition-colors rounded-xl p-4 aspect-square">
+              <button onClick={() => navigate('/messages')} className="flex flex-col items-center justify-center gap-2 bg-black/10 hover:bg-black/20 transition-colors rounded-xl p-4 aspect-square">
                 <MessageSquare size={24} />
                 <span className="font-bold text-sm">Message</span>
               </button>

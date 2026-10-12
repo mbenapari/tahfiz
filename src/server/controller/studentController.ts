@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
+import { User } from '../model';
 import * as userService from '../services/userService';
 import * as enrollmentService from '../services/enrollmentService';
+import { notificationService } from '../services/notificationService';
 import { UserRole } from '../model/User';
 import * as apiResponse from '../utils/apiResponse';
 import logger from '../utils/logger';
@@ -48,11 +50,21 @@ export const createStudent = async (req: Request, res: Response) => {
 
     if (userId) {
       // Enroll existing user
-      student = await userService.getUserById(userId);
+      // Only users already visible in this school can be enrolled by id
+      student = await userService.getUserInTenant(Number(userId), tenantId).catch(() => null);
+      if (!student) {
+        return res.status(404).json(apiResponse.fail('NOT_FOUND', 'Student not found in this school'));
+      }
     } else if (email) {
       // Check if user exists with this email
       student = await userService.getUserByEmail(email);
     }
+
+    if (student && student.role !== UserRole.STUDENT) {
+      return res.status(400).json(apiResponse.fail('INVALID_USER', 'Only student accounts can be enrolled'));
+    }
+
+    const existingAccount = !!student;
 
     if (!student) {
       // Create new User
@@ -82,9 +94,33 @@ export const createStudent = async (req: Request, res: Response) => {
       notes
     });
 
+    await notificationService.notifyTenantAdmins(
+      tenantId,
+      {
+        title: 'New student enrolled',
+        message: `${student.first_name} ${student.last_name || ''}`.trim() + ' was enrolled.',
+        type: 'success',
+      },
+      req.user?.userId
+    );
+
+    // Re-read so PII fields come back decrypted, matching the GET endpoints
+    student = (await User.findByPk(student.id)) || student;
+
     res.status(201).json(apiResponse.success({
       message: 'Student enrolled successfully',
-      student
+      student: {
+        id: student.id,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        // Contact details are only echoed for accounts created in this request;
+        // an existing account (possibly from another school) is not disclosed.
+        ...(existingAccount ? {} : {
+          email: student.email,
+          phone: student.phone,
+          student_identifier: student.student_identifier,
+        }),
+      }
     }));
   } catch (error: any) {
     if (error.name === 'SchoolContextError') throw error;

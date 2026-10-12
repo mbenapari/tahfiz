@@ -19,13 +19,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-const getOverlappingDays = (sessionTypeDayMap?: Record<string, number[]> | null): number[] => {
-  const map = sessionTypeDayMap || {};
-  const memDays = Array.isArray(map['memorization:default']) ? map['memorization:default'] : [];
-  const revDays = Array.isArray(map['revision']) ? map['revision'] : [];
-  return memDays.filter((day, index) => revDays.includes(day) && memDays.indexOf(day) === index);
-};
-
 export const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'general' | 'schedule' | 'instructors' | 'billing'>('general');
   const [isLoading, setIsLoading] = useState(true);
@@ -33,8 +26,6 @@ export const Settings: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [schoolData, setSchoolData] = useState<any>(null);
   const [instructors, setInstructors] = useState<any[]>([]);
-  const overlappingDays = getOverlappingDays(schoolData?.session_type_day_map);
-  const hasOverlap = (schoolData?.schedule_mode || 'simple') === 'advanced' && overlappingDays.length > 0;
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -69,11 +60,6 @@ export const Settings: React.FC = () => {
   }, [fetchData]);
 
   const handleSaveChanges = async () => {
-    if (hasOverlap) {
-      setError('Memorization and Revision days cannot overlap in advanced scheduling mode.');
-      return;
-    }
-
     setIsSaving(true);
     setError(null);
     try {
@@ -84,9 +70,6 @@ export const Settings: React.FC = () => {
           schoolName: schoolData.name,
           slug: schoolData.slug,
           timezone: schoolData.timezone,
-          studyDays: schoolData.study_days,
-          scheduleMode: schoolData.schedule_mode,
-          sessionTypeDayMap: schoolData.session_type_day_map,
           enabledMemorizationSubtypes: schoolData.enabled_memorization_subtypes,
           startTime: schoolData.start_time,
           endTime: schoolData.end_time,
@@ -160,7 +143,7 @@ export const Settings: React.FC = () => {
             <div className="flex flex-col gap-1">
               <h1 className="text-xl sm:text-3xl font-bold text-white leading-tight">School Configuration</h1>
               <p className="text-xs sm:text-base text-text-muted leading-relaxed max-w-2xl">
-                Manage school details, study schedules, and instructor permissions from a central dashboard.
+                Manage school details, operating hours, and instructor permissions from a central dashboard.
               </p>
             </div>
             
@@ -174,7 +157,7 @@ export const Settings: React.FC = () => {
               </button>
               <button 
                 onClick={handleSaveChanges}
-                disabled={isSaving || hasOverlap}
+                disabled={isSaving}
                 className="flex-[2] sm:flex-none px-4 sm:px-6 py-2.5 bg-primary hover:bg-primary-hover text-background-dark rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
               >
                 {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -249,211 +232,12 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; icon: React.El
 
 const StudyScheduleTab: React.FC<{ data: any; setData: (d: any) => void }> = ({ data, setData }) => {
   if (!data) return null;
-  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const activeDayNumbers = data.study_days || [];
-  const scheduleMode = data.schedule_mode || 'simple';
-
-  const toggleDay = (dayIndex: number) => {
-    const newDays = activeDayNumbers.includes(dayIndex)
-      ? activeDayNumbers.filter((d: number) => d !== dayIndex)
-      : [...activeDayNumbers, dayIndex];
-    setData({ study_days: newDays });
-  };
-
-  const toggleMode = () => {
-    const newMode = scheduleMode === 'simple' ? 'advanced' : 'simple';
-    
-    if (newMode === 'advanced' && !data.session_type_day_map) {
-      // Start from a valid advanced schedule instead of creating an automatic overlap.
-      setData({ 
-        schedule_mode: newMode,
-        session_type_day_map: {
-          'memorization:default': [...activeDayNumbers],
-          'revision': []
-        }
-      });
-    } else {
-      setData({ schedule_mode: newMode });
-    }
-  };
-
-  const toggleTypeDay = (type: string, dayIndex: number) => {
-    const currentMap = data.session_type_day_map || {};
-    const currentDays = currentMap[type] || [];
-    const newDays = currentDays.includes(dayIndex)
-      ? currentDays.filter((d: number) => d !== dayIndex)
-      : [...currentDays, dayIndex];
-    
-    setData({ 
-      session_type_day_map: {
-        ...currentMap,
-        [type]: newDays
-      }
-    });
-  };
-
-  const overlappingDays = getOverlappingDays(data.session_type_day_map);
-  const hasOverlap = overlappingDays.length > 0;
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
       
       {/* Left Column: Schedule Controls */}
       <div className="lg:col-span-2 flex flex-col gap-5 sm:gap-6">
         
-        {/* Schedule Mode Toggle */}
-        <div className="bg-surface-dark border border-border-green/30 rounded-2xl p-4 sm:p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="p-2 sm:p-3 bg-primary/10 rounded-xl text-primary">
-              <Shield size={18} className="sm:w-6 sm:h-6" />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base text-white font-bold">Advanced Scheduling</h3>
-              <p className="text-[10px] sm:text-sm text-text-muted">Set different days for Memorization and Revision.</p>
-            </div>
-          </div>
-          <button 
-            onClick={toggleMode}
-            className={`w-12 sm:w-14 h-6 sm:h-8 rounded-full relative transition-colors ${
-              scheduleMode === 'advanced' ? 'bg-primary' : 'bg-white/10'
-            }`}
-          >
-            <div className={`absolute top-1 w-4 sm:w-6 h-4 sm:h-6 bg-white rounded-full shadow-sm transition-all ${
-              scheduleMode === 'advanced' ? 'right-1' : 'left-1'
-            }`}></div>
-          </button>
-        </div>
-
-        {/* Active Study Days (Simple Mode or Fallback) */}
-        <div className="bg-surface-dark border border-border-green/30 rounded-2xl p-4 sm:p-8">
-          <div className="flex items-start justify-between mb-5 sm:mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg text-primary sm:hidden">
-                <CalendarDays size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold text-white leading-tight">
-                  {scheduleMode === 'simple' ? 'Active Study Days' : 'Global Study Days (Fallback)'}
-                </h2>
-                <p className="text-[10px] sm:text-sm text-text-muted mt-1">
-                  {scheduleMode === 'simple' 
-                    ? 'Select the days when on-site classes are held.' 
-                    : 'These days apply if a specific session type is not configured below.'}
-                </p>
-              </div>
-            </div>
-            <CalendarDays className="text-text-muted/50 hidden sm:block" size={24} />
-          </div>
-
-          <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-2 sm:gap-4">
-            {days.map((day, index) => {
-              const isActive = activeDayNumbers.includes(index);
-              return (
-                <div 
-                  key={day}
-                  onClick={() => toggleDay(index)}
-                  className={`
-                    h-14 sm:w-16 sm:h-20 rounded-xl flex flex-col items-center justify-center gap-1 sm:gap-2 border-2 cursor-pointer transition-all active:scale-95
-                    ${isActive 
-                      ? 'bg-primary border-primary text-background-dark shadow-lg shadow-primary/10' 
-                      : 'bg-background-dark/30 border-border-green/10 text-text-muted hover:border-primary/30'
-                    }
-                  `}
-                >
-                  <span className="text-[10px] sm:text-xs font-bold">{day}</span>
-                  {isActive && <CheckCircle2 size={14} className="sm:w-5 sm:h-5" />}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Advanced Per-Type Scheduling */}
-        {scheduleMode === 'advanced' && (
-          <div className="bg-surface-dark border border-border-green/30 rounded-2xl p-4 sm:p-8 flex flex-col gap-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg text-primary sm:hidden">
-                <CalendarDays size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold text-white leading-tight">Session Type Schedules</h2>
-                <p className="text-[10px] sm:text-sm text-text-muted mt-1">Configure available days per educational activity.</p>
-              </div>
-            </div>
-
-            {hasOverlap && (
-              <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300">
-                <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                <p className="text-xs sm:text-sm font-medium">
-                  Memorization and Revision share {overlappingDays.length} day(s). In Advanced mode, each day can only be assigned to one session type. Resolve the overlap before saving.
-                </p>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-10">
-              {/* Memorization */}
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm sm:text-base font-bold text-white">Memorization (Hifz)</h3>
-                  <span className="text-[10px] sm:text-xs text-text-muted">Standard daily hifz recording</span>
-                </div>
-                <div className="flex flex-wrap gap-2 sm:gap-3">
-                  {days.map((day, index) => {
-                    const typeDays = data.session_type_day_map?.['memorization:default'] || [];
-                    const isActive = typeDays.includes(index);
-                    const isConflicting = overlappingDays.includes(index);
-                    return (
-                      <button
-                        key={`hifz-${day}`}
-                        onClick={() => toggleTypeDay('memorization:default', index)}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold border transition-all ${
-                          isConflicting
-                            ? 'bg-red-500/20 border-red-500 text-red-300 animate-pulse'
-                            : isActive 
-                            ? 'bg-primary/20 border-primary text-primary' 
-                            : 'bg-white/5 border-white/10 text-text-muted'
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Revision */}
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm sm:text-base font-bold text-white">Revision (Muraja'ah)</h3>
-                  <span className="text-[10px] sm:text-xs text-text-muted">Page or Surah-based revision</span>
-                </div>
-                <div className="flex flex-wrap gap-2 sm:gap-3">
-                  {days.map((day, index) => {
-                    const typeDays = data.session_type_day_map?.['revision'] || [];
-                    const isActive = typeDays.includes(index);
-                    const isConflicting = overlappingDays.includes(index);
-                    return (
-                      <button
-                        key={`revision-${day}`}
-                        onClick={() => toggleTypeDay('revision', index)}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold border transition-all ${
-                          isConflicting
-                            ? 'bg-red-500/20 border-red-500 text-red-300 animate-pulse'
-                            : isActive 
-                            ? 'bg-blue-500/20 border-blue-400 text-blue-300' 
-                            : 'bg-white/5 border-white/10 text-text-muted'
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Daily Operations */}
         <div className="bg-surface-dark border border-border-green/30 rounded-2xl p-4 sm:p-8">
           <div className="flex items-center gap-3 mb-6 sm:mb-8">
@@ -520,8 +304,8 @@ const StudyScheduleTab: React.FC<{ data: any; setData: (d: any) => void }> = ({ 
           <h3 className="text-base sm:text-lg font-bold text-white mb-5 sm:mb-6">Schedule Summary</h3>
           <div className="flex flex-col gap-4 text-xs sm:text-base">
             <div className="flex justify-between items-center pb-4 border-b border-border-green/10">
-              <span className="text-text-muted font-medium">Active Days</span>
-              <span className="text-white font-bold text-right">{activeDayNumbers.length} Days</span>
+              <span className="text-text-muted font-medium">Session Days</span>
+              <span className="text-white font-bold text-right">Every day</span>
             </div>
             <div className="flex justify-between items-center pb-4 border-b border-border-green/10">
               <span className="text-text-muted font-medium">Daily Window</span>
@@ -535,14 +319,6 @@ const StudyScheduleTab: React.FC<{ data: any; setData: (d: any) => void }> = ({ 
                 {data.timezone} <Globe size={12} className="sm:w-[14px] sm:h-[14px]" />
               </span>
             </div>
-            {scheduleMode === 'advanced' && (
-              <div className="flex justify-between items-center pt-4 border-t border-border-green/10">
-                <span className="text-text-muted font-medium">Overlap Status</span>
-                <span className={`font-bold text-right ${hasOverlap ? 'text-red-400' : 'text-green-400'}`}>
-                  {hasOverlap ? `${overlappingDays.length} conflicting day(s)` : 'No conflicts'}
-                </span>
-              </div>
-            )}
           </div>
         </div>
 

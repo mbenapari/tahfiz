@@ -9,8 +9,6 @@ const router = Router();
 router.post('/create', authenticate, schoolController.createSchool);
 
 router.get('/me', authenticate, schoolController.getSchool);
-router.get('/schedule-impact', authenticate, schoolController.getScheduleImpact);
 router.put('/update', authenticate, schoolController.updateSchool);
-router.post('/schedule-validation', authenticate, schoolController.validateScheduleDraft);
 
 export default router;

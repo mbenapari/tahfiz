@@ -20,6 +20,7 @@ router.post('/logout', authController.logout);
 router.get('/me', authenticate, profileController.getCurrentUser);
 router.put('/me', authenticate, profileController.updateCurrentUser);
 router.post('/onboarding/complete', authenticate, profileController.completeOnboarding);
+router.post('/progress-onboarding/dismiss', authenticate, profileController.dismissProgressOnboarding);
 
 // General User Search & Admin Creation
 router.get('/search', authenticate, profileController.searchUsers);

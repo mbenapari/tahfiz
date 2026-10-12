@@ -6,41 +6,22 @@ import {
   Lock, 
   Store,
   ChevronRight,
-  LayoutDashboard,
-  AlertCircle
+  LayoutDashboard
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { apiFetch } from '../utils/api';
 
 const CreateSchool: React.FC = () => {
-  const DAY_INDEX: Record<string, number> = {
-    SUN: 0,
-    MON: 1,
-    TUE: 2,
-    WED: 3,
-    THU: 4,
-    FRI: 5,
-    SAT: 6,
-  };
-
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     schoolName: '',
     slug: '',
     timezone: 'Asia/Riyadh',
     address: '',
-    studyDays: ['MON', 'TUE', 'WED'] as string[],
-    scheduleMode: 'simple' as 'simple' | 'advanced',
-    sessionTypeDayMap: {
-      'memorization:default': ['MON', 'TUE', 'WED'] as string[],
-      'revision': [] as string[],
-    },
   });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
-  const weekDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-  
   const timezones = [
     { value: 'Asia/Riyadh', label: 'Asia/Riyadh (GMT+3)' },
     { value: 'Asia/Dubai', label: 'Asia/Dubai (GMT+4)' },
@@ -83,62 +64,13 @@ const CreateSchool: React.FC = () => {
     }));
   };
 
-  const toggleDay = (day: string) => {
-    setFormData(prev => {
-      const currentDays = prev.studyDays;
-      if (currentDays.includes(day)) {
-        return { ...prev, studyDays: currentDays.filter(d => d !== day) };
-      } else {
-        return { ...prev, studyDays: [...currentDays, day] };
-      }
-    });
-  };
-
-  const toggleTypeDay = (type: 'memorization:default' | 'revision', day: string) => {
-    setFormData((prev) => {
-      const currentDays = prev.sessionTypeDayMap[type];
-      return {
-        ...prev,
-        sessionTypeDayMap: {
-          ...prev.sessionTypeDayMap,
-          [type]: currentDays.includes(day)
-            ? currentDays.filter((value) => value !== day)
-            : [...currentDays, day],
-        },
-      };
-    });
-  };
-
-  const overlappingDays = formData.sessionTypeDayMap['memorization:default'].filter((day, index) => {
-    return formData.sessionTypeDayMap.revision.includes(day)
-      && formData.sessionTypeDayMap['memorization:default'].indexOf(day) === index;
-  });
-  const hasOverlap = formData.scheduleMode === 'advanced' && overlappingDays.length > 0;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (hasOverlap) {
-      setStatus({
-        type: 'error',
-        message: 'Memorization and Revision days cannot overlap in advanced scheduling mode.',
-      });
-      return;
-    }
-
     setLoading(true);
     setStatus(null);
 
     try {
-      const payload = {
-        ...formData,
-        sessionTypeDayMap:
-          formData.scheduleMode === 'advanced'
-            ? {
-                'memorization:default': formData.sessionTypeDayMap['memorization:default'].map((day) => DAY_INDEX[day]),
-                revision: formData.sessionTypeDayMap.revision.map((day) => DAY_INDEX[day]),
-              }
-            : null,
-      };
+      const payload = { ...formData };
 
       const response = await apiFetch('/api/schools/create', {
         method: 'POST',
@@ -263,114 +195,6 @@ const CreateSchool: React.FC = () => {
                 <p className="text-xs text-text-muted mt-1">Used for prayer times and class scheduling.</p>
               </label>
               
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-bold text-white">Active Study Days</span>
-                <div className="flex flex-wrap gap-2">
-                  {weekDays.map(day => {
-                    const isSelected = formData.studyDays.includes(day);
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => toggleDay(day)}
-                        className={`
-                          h-10 w-14 rounded-lg text-sm font-bold transition-all border
-                          ${isSelected 
-                            ? 'bg-primary text-background-dark border-primary hover:bg-opacity-90' 
-                            : 'bg-transparent text-text-muted border-border-green hover:border-text-muted hover:text-white'
-                          }
-                        `}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between rounded-xl border border-border-green/20 bg-background-dark/30 px-4 py-3">
-                <div>
-                  <p className="text-sm font-bold text-white">Enable Advanced Scheduling</p>
-                  <p className="text-xs text-text-muted">Assign different days for Hifz and Revision during school creation.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      scheduleMode: prev.scheduleMode === 'simple' ? 'advanced' : 'simple',
-                    }))
-                  }
-                  className={`h-8 w-14 rounded-full transition-colors ${formData.scheduleMode === 'advanced' ? 'bg-primary' : 'bg-white/10'}`}
-                >
-                  <div className={`mt-1 h-6 w-6 rounded-full bg-white transition-all ${formData.scheduleMode === 'advanced' ? 'translate-x-7' : 'translate-x-1'}`} />
-                </button>
-              </div>
-
-              {formData.scheduleMode === 'advanced' && (
-                <div className="flex flex-col gap-5 rounded-xl border border-border-green/20 bg-background-dark/30 p-4">
-                  {hasOverlap && (
-                    <div className="flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300">
-                      <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                      <p className="text-xs font-medium">
-                        Memorization and Revision overlap on {overlappingDays.join(', ')}. Assign each day to only one session type before creating the school.
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-3">
-                    <span className="text-sm font-bold text-white">Memorization (Hifz)</span>
-                    <div className="flex flex-wrap gap-2">
-                      {weekDays.map((day) => {
-                        const isSelected = formData.sessionTypeDayMap['memorization:default'].includes(day);
-                        const isConflicting = overlappingDays.includes(day);
-                        return (
-                          <button
-                            key={`mem-${day}`}
-                            type="button"
-                            onClick={() => toggleTypeDay('memorization:default', day)}
-                            className={`h-10 w-14 rounded-lg text-sm font-bold transition-all border ${
-                              isConflicting
-                                ? 'bg-red-500/20 text-red-300 border-red-500'
-                                : isSelected
-                                ? 'bg-primary/20 text-primary border-primary'
-                                : 'bg-transparent text-text-muted border-border-green hover:border-text-muted hover:text-white'
-                            }`}
-                          >
-                            {day}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-3">
-                    <span className="text-sm font-bold text-white">Revision (Muraja&apos;ah)</span>
-                    <div className="flex flex-wrap gap-2">
-                      {weekDays.map((day) => {
-                        const isSelected = formData.sessionTypeDayMap.revision.includes(day);
-                        const isConflicting = overlappingDays.includes(day);
-                        return (
-                          <button
-                            key={`rev-${day}`}
-                            type="button"
-                            onClick={() => toggleTypeDay('revision', day)}
-                            className={`h-10 w-14 rounded-lg text-sm font-bold transition-all border ${
-                              isConflicting
-                                ? 'bg-red-500/20 text-red-300 border-red-500'
-                                : isSelected
-                                ? 'bg-blue-500/20 text-blue-300 border-blue-400'
-                                : 'bg-transparent text-text-muted border-border-green hover:border-text-muted hover:text-white'
-                            }`}
-                          >
-                            {day}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -406,7 +230,7 @@ const CreateSchool: React.FC = () => {
             </button>
             <button 
               type="submit" 
-              disabled={loading || hasOverlap}
+              disabled={loading}
               className="flex items-center gap-2 px-6 py-3 bg-primary text-background-dark rounded-lg font-bold hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (

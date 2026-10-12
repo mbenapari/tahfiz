@@ -13,7 +13,7 @@ export const notificationController = {
   getUserNotifications: async (req: Request, res: Response) => {
     const logId = req.correlationId || 'unknown';
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.userId;
       const tenantId = getTenantId(req);
       logger.info(`notificationController: getUserNotifications - Fetching notifications for userId: ${userId}, tenantId: ${tenantId}`, {
         logId,
@@ -21,8 +21,10 @@ export const notificationController = {
         activeSchoolContext: req.activeSchoolId,
         userId
       });
-      const page = req.query.page ? parseInt(req.query.page as string) : 1;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+      const rawPage = parseInt(req.query.page as string, 10);
+      const rawLimit = parseInt(req.query.limit as string, 10);
+      const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
+      const limit = Number.isFinite(rawLimit) && rawLimit >= 1 ? Math.min(rawLimit, 100) : 20;
       const isRead = req.query.isRead === 'true' ? true : req.query.isRead === 'false' ? false : undefined;
 
       const result = await notificationService.getUserNotifications(userId, tenantId, { page, limit, isRead });
@@ -40,7 +42,7 @@ export const notificationController = {
   getUnreadCount: async (req: Request, res: Response) => {
     const logId = req.correlationId || 'unknown';
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.userId;
       const tenantId = getTenantId(req);
       logger.info(`notificationController: getUnreadCount - Fetching count for userId: ${userId}, tenantId: ${tenantId}`, {
         logId,
@@ -64,7 +66,7 @@ export const notificationController = {
   markAsRead: async (req: Request, res: Response) => {
     const logId = req.correlationId || 'unknown';
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.userId;
       const tenantId = getTenantId(req);
       const id = parseInt(req.params.id);
 
@@ -95,7 +97,7 @@ export const notificationController = {
   markAllAsRead: async (req: Request, res: Response) => {
     const logId = req.correlationId || 'unknown';
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.userId;
       const tenantId = getTenantId(req);
 
       logger.info(`notificationController: markAllAsRead - Marking all for userId: ${userId}, tenantId: ${tenantId}`, {
@@ -120,7 +122,7 @@ export const notificationController = {
   deleteNotification: async (req: Request, res: Response) => {
     const logId = req.correlationId || 'unknown';
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.userId;
       const tenantId = getTenantId(req);
       const id = parseInt(req.params.id);
 

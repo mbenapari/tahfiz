@@ -6,6 +6,7 @@ import {
   BarChart3, 
   GraduationCap, 
   MessageSquare,
+  Mail,
   Settings,
   LogOut,
   Loader2,
@@ -48,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     // { icon: BookOpen, label: 'Classes', path: '/classes' },
     ...(user?.role === 'admin' && !currentSchool?.is_branch ? [{ icon: GitBranch, label: 'Branches', path: '/branches' }] : []),
     { icon: BarChart3, label: 'Reports', path: '/reports' },
+    { icon: Mail, label: 'Messages', path: '/messages' },
     { icon: MessageSquare, label: 'Feedback', path: '/feedback' },
   ];
 
@@ -67,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <h1 className="text-white font-bold text-lg leading-tight">
               {user?.school_name || 'Tahfiz'}<br/>Academy
             </h1>
-            <span className="text-text-muted text-xs font-medium mt-0.5">Admin Portal</span>
+            <span className="text-text-muted text-xs font-medium mt-0.5">{user?.role === 'admin' ? 'Admin Portal' : 'Instructor Portal'}</span>
           </div>
         </div>
         

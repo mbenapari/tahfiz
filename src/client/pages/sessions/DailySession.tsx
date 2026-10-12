@@ -13,7 +13,7 @@ import {
   AlertCircle,
   Search
 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useNotification } from '../../context/NotificationContext';
 
 interface Student {
@@ -69,15 +69,6 @@ export const DailySession: React.FC = () => {
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [schoolSchedule, setSchoolSchedule] = useState<any>(null);
-  const [dateConflict, setDateConflict] = useState<{ hifz: boolean; revision: boolean }>({
-    hifz: false,
-    revision: false,
-  });
-  const [isCheckingConflict, setIsCheckingConflict] = useState<{ hifz: boolean; revision: boolean }>({
-    hifz: false,
-    revision: false,
-  });
   const todayStr = new Date().toISOString().split('T')[0];
   const [hifzDate, setHifzDate] = useState(todayStr);
   const [revisionDate, setRevisionDate] = useState(todayStr);
@@ -129,8 +120,18 @@ export const DailySession: React.FC = () => {
     s.number.toString().includes(endRevisionSurahSearch)
   );
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab: 'hifz' | 'revision' = searchParams.get('tab') === 'revision' ? 'revision' : 'hifz';
+  const setActiveTab = (tab: 'hifz' | 'revision') => {
+    setSearchParams(tab === 'hifz' ? {} : { tab }, { replace: true });
+  };
+
   const [rating, setRating] = useState(3);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingHifz, setIsSubmittingHifz] = useState(false);
+  const [isSubmittingRevision, setIsSubmittingRevision] = useState(false);
+  // Prevent duplicate saves of the same record; cleared when the inputs change
+  const [hifzSaved, setHifzSaved] = useState(false);
+  const [revisionSaved, setRevisionSaved] = useState(false);
 
   // Hifz states
   const [hifzStartAyah, setHifzStartAyah] = useState('1');
@@ -175,21 +176,15 @@ export const DailySession: React.FC = () => {
       
       setIsLoading(true);
       try {
-        const [studentRes, schoolRes] = await Promise.all([
-          fetch(`/api/users/students/${studentId}`),
-          fetch('/api/schools/me')
-        ]);
+        const studentRes = await fetch(`/api/users/students/${studentId}`);
 
         if (!studentRes.ok) throw new Error('Failed to fetch student details');
-        if (!schoolRes.ok) throw new Error('Failed to fetch school schedule');
 
         const studentData = await studentRes.json();
-        const schoolData = await schoolRes.json();
 
         if (!studentData.success) throw new Error(studentData.error || 'Failed to fetch student details');
         
         setStudent(studentData.data?.student ?? null);
-        setSchoolSchedule(schoolData);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -266,65 +261,13 @@ export const DailySession: React.FC = () => {
     }
   }, [revisionPage]);
 
-  const isDateValidForType = (type: 'memorization:default' | 'revision', date: string) => {
-    if (!schoolSchedule) return true;
-    const { schedule_mode, session_type_day_map, study_days } = schoolSchedule;
-    
-    let allowedDays = study_days || [];
-    if (schedule_mode === 'advanced' && session_type_day_map?.[type]) {
-      allowedDays = session_type_day_map[type];
-    }
-
-    const dayOfWeek = new Date(date).getUTCDay();
-    return allowedDays.includes(dayOfWeek);
-  };
-
   const isValidDateString = (date: string) => /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(new Date(`${date}T00:00:00.000Z`).getTime());
 
-  const checkDateConflicts = async (
-    date: string,
-    type: 'hifz' | 'revision'
-  ) => {
-    if (!studentId || !schoolSchedule || schoolSchedule.schedule_mode !== 'advanced' || !isValidDateString(date)) {
-      setDateConflict((prev) => ({ ...prev, [type]: false }));
-      return;
-    }
-
-    setIsCheckingConflict((prev) => ({ ...prev, [type]: true }));
-
-    try {
-      const response = await fetch(`/api/sessions/check-conflict?studentId=${studentId}&date=${date}`);
-      if (!response.ok) {
-        throw new Error('Failed to check date conflicts');
-      }
-
-      const data = await response.json();
-      setDateConflict((prev) => ({
-        ...prev,
-        [type]: type === 'hifz' ? Boolean(data.hasRevisionOnDate) : Boolean(data.hasMemorizationOnDate),
-      }));
-    } catch {
-      setDateConflict((prev) => ({ ...prev, [type]: false }));
-    } finally {
-      setIsCheckingConflict((prev) => ({ ...prev, [type]: false }));
-    }
-  };
-
+  useEffect(() => { setHifzSaved(false); }, [hifzDate, selectedSurah, hifzStartAyah, hifzEndAyah, isHifzCompleted, rating, instructorNotes]);
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      checkDateConflicts(hifzDate, 'hifz');
-    }, 250);
+    setRevisionSaved(false);
+  }, [revisionDate, revisionTab, selectedRevisionSurah, selectedEndRevisionSurah, revisionStart, revisionEnd, isRevisionCompleted, revisionRating, revisionNoteContent]);
 
-    return () => window.clearTimeout(timer);
-  }, [hifzDate, studentId, schoolSchedule]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      checkDateConflicts(revisionDate, 'revision');
-    }, 250);
-
-    return () => window.clearTimeout(timer);
-  }, [revisionDate, studentId, schoolSchedule]);
   const handleSaveHifz = async () => {
     if (!studentId) {
       showNotification('error', 'Action Required', 'Student ID is missing');
@@ -376,17 +319,7 @@ export const DailySession: React.FC = () => {
       return;
     }
 
-    if (!isDateValidForType('memorization:default', hifzDate)) {
-      showNotification('error', 'Invalid Date', 'The selected date is not available for Hifz sessions.');
-      return;
-    }
-
-    if (dateConflict.hifz) {
-      showNotification('error', 'Date Conflict', 'A Revision session already exists on this date. Hifz and Revision cannot share the same day in Advanced Scheduling mode.');
-      return;
-    }
-
-    setIsSubmitting(true);
+    setIsSubmittingHifz(true);
     try {
       const sessionData = {
         studentId: Number(studentId),
@@ -413,20 +346,15 @@ export const DailySession: React.FC = () => {
 
       const data = await response.json();
       if (!response.ok) {
-        if (data.code === 'MUTUAL_EXCLUSIVITY_VIOLATION') {
-          throw new Error('A Revision session already exists on this date. Choose a different Hifz date or update the school schedule.');
-        }
-        if (data.code === 'INVALID_SESSION_DAY' || data.code === 'DATE_OUTSIDE_SCHOOL_CALENDAR') {
-          throw new Error(data.error || 'The selected date is outside the school schedule.');
-        }
         throw new Error(data.error || 'Failed to save Hifz session');
       }
 
+      setHifzSaved(true);
       showNotification('success', 'Saved Successfully', `Hifz saved — ${selectedSurah?.name || ''} (${startAyah}-${endAyah})`);
     } catch (err: any) {
       showNotification('error', 'Error Saving Hifz', err.message);
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingHifz(false);
     }
   };
 
@@ -511,24 +439,14 @@ export const DailySession: React.FC = () => {
       return;
     }
 
-    if (!isDateValidForType('revision', revisionDate)) {
-      showNotification('error', 'Invalid Date', 'The selected date is not available for Revision sessions.');
-      return;
-    }
-
-    if (dateConflict.revision) {
-      showNotification('error', 'Date Conflict', 'A Hifz session already exists on this date. Revision and Hifz cannot share the same day in Advanced Scheduling mode.');
-      return;
-    }
-
-    setIsSubmitting(true);
+    setIsSubmittingRevision(true);
     try {
       const sessionData = {
         studentId: Number(studentId),
         sessionDate: revisionDate,
         recordingDate: revisionDate,
         attendance: { status: attendanceStatus },
-        notes: instructorNotes,
+        notes: '',
         hifzRecord: null,
         revisionRecord: {
           surahNumber: undefined,
@@ -539,9 +457,8 @@ export const DailySession: React.FC = () => {
           startPage: revisionTab === 'page' ? Number(revisionStart) : undefined,
           endPage: revisionTab === 'page' ? Number(revisionEnd) : undefined,
           isFullSurah: isRevisionCompleted,
-          notes: instructorNotes,
+          notes: revisionNoteContent.trim(),
         },
-        rating,
         revisionRating,
         revisionInstructorNotes: revisionNoteContent.trim() 
           ? [{ content: revisionNoteContent.trim() }] 
@@ -556,20 +473,15 @@ export const DailySession: React.FC = () => {
 
       const data = await response.json();
       if (!response.ok) {
-        if (data.code === 'MUTUAL_EXCLUSIVITY_VIOLATION') {
-          throw new Error('A Hifz session already exists on this date. Choose a different Revision date or update the school schedule.');
-        }
-        if (data.code === 'INVALID_SESSION_DAY' || data.code === 'DATE_OUTSIDE_SCHOOL_CALENDAR') {
-          throw new Error(data.error || 'The selected date is outside the school schedule.');
-        }
         throw new Error(data.error || 'Failed to save Revision session');
       }
 
+      setRevisionSaved(true);
       showNotification('success', 'Saved Successfully', 'Revision saved successfully');
     } catch (err: any) {
       showNotification('error', 'Error Saving Revision', err.message);
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingRevision(false);
     }
   };
 
@@ -645,10 +557,8 @@ export const DailySession: React.FC = () => {
       )}
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Left Column: Hifz & Grading */}
-        <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6">
+
           
           {/* Attendance Section */}
           <div className="bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6">
@@ -698,29 +608,38 @@ export const DailySession: React.FC = () => {
                 <p className="text-xs font-bold uppercase tracking-wider">Student is marked as absent. Lesson records are disabled.</p>
               </div>
             )}
-
-            {!isDateValidForType('memorization:default', hifzDate) && (
-              <div className="flex items-center gap-2 text-red-400 bg-red-400/10 border border-red-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
-                <AlertCircle size={16} />
-                <p className="text-xs font-bold uppercase tracking-wider">The selected date is not available for Hifz sessions.</p>
-              </div>
-            )}
-            {dateConflict.hifz && (
-              <div className="flex items-center gap-2 text-red-400 bg-red-400/10 border border-red-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
-                <AlertCircle size={16} />
-                <p className="text-xs font-bold uppercase tracking-wider">A Revision session already exists on this date. Hifz is blocked.</p>
-              </div>
-            )}
-            {isCheckingConflict.hifz && (
-              <div className="flex items-center gap-2 text-blue-300 bg-blue-500/10 border border-blue-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
-                <Loader2 size={16} className="animate-spin" />
-                <p className="text-xs font-bold uppercase tracking-wider">Checking Hifz date conflicts...</p>
-              </div>
-            )}
           </div>
 
+          {/* Hifz / Muraja'ah tabs */}
+          <div role="tablist" className="flex bg-surface-dark p-1 rounded-xl border border-border-green/30">
+            <button
+              role="tab"
+              aria-selected={activeTab === 'hifz'}
+              onClick={() => setActiveTab('hifz')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${
+                activeTab === 'hifz' ? 'bg-primary text-background-dark shadow-sm' : 'text-text-muted hover:text-white'
+              }`}
+            >
+              <BookOpen size={18} />
+              Hifz
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === 'revision'}
+              onClick={() => setActiveTab('revision')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${
+                activeTab === 'revision' ? 'bg-blue-500 text-white shadow-sm' : 'text-text-muted hover:text-white'
+              }`}
+            >
+              <RotateCcw size={18} />
+              Muraja'ah
+            </button>
+          </div>
+
+          {/* Hifz panel */}
+          <div className={activeTab === 'hifz' ? 'flex flex-col gap-6' : 'hidden'}>
           {/* New Lesson (Hifz) */}
-          <div className={`bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 transition-all duration-300 ${attendanceStatus === 'absent' || !isDateValidForType('memorization:default', hifzDate) ? 'opacity-40 grayscale' : ''}`}>
+          <div className={`bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 transition-all duration-300 ${attendanceStatus === 'absent' ? 'opacity-40 grayscale' : ''}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
@@ -950,7 +869,7 @@ export const DailySession: React.FC = () => {
           </div>
 
           {/* Grading & Notes */}
-          <div className={`bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 transition-all duration-300 ${attendanceStatus === 'absent' || !isDateValidForType('memorization:default', hifzDate) ? 'opacity-40 grayscale' : ''}`}>
+          <div className={`bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 transition-all duration-300 ${attendanceStatus === 'absent' ? 'opacity-40 grayscale' : ''}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
@@ -1000,17 +919,17 @@ export const DailySession: React.FC = () => {
 
           <button
             onClick={handleSaveHifz}
-            disabled={isSubmitting || !isDateValidForType('memorization:default', hifzDate) || dateConflict.hifz || isCheckingConflict.hifz}
+            disabled={isSubmittingHifz || hifzSaved}
             className="w-full py-4 bg-primary hover:bg-primary-hover text-background-dark rounded-2xl text-base font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/10 disabled:opacity-50"
           >
-            {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
-            Save Hifz Record
+            {isSubmittingHifz ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
+            {hifzSaved ? 'Hifz Saved' : 'Save Hifz Record'}
           </button>
 
-        </div>
+          </div>
 
-        {/* Right Column: Revision */}
-        <div className={`bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 h-full transition-all duration-300 ${attendanceStatus === 'absent' || !isDateValidForType('revision', revisionDate) ? 'opacity-40 grayscale' : ''}`}>
+        {/* Muraja'ah panel */}
+        <div className={`${activeTab === 'revision' ? '' : 'hidden '}bg-surface-dark border border-border-green/30 rounded-2xl p-8 flex flex-col gap-6 h-full transition-all duration-300 ${attendanceStatus === 'absent' ? 'opacity-40 grayscale' : ''}`}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400">
@@ -1449,32 +1368,13 @@ export const DailySession: React.FC = () => {
             </div>
           </div>
 
-          {!isDateValidForType('revision', revisionDate) && (
-            <div className="flex items-center gap-2 text-red-400 bg-red-400/10 border border-red-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
-              <AlertCircle size={16} />
-              <p className="text-xs font-bold uppercase tracking-wider">The selected date is not available for Revision sessions.</p>
-            </div>
-          )}
-          {dateConflict.revision && (
-            <div className="flex items-center gap-2 text-red-400 bg-red-400/10 border border-red-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
-              <AlertCircle size={16} />
-              <p className="text-xs font-bold uppercase tracking-wider">A Hifz session already exists on this date. Revision is blocked.</p>
-            </div>
-          )}
-          {isCheckingConflict.revision && (
-            <div className="flex items-center gap-2 text-blue-300 bg-blue-500/10 border border-blue-400/20 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
-              <Loader2 size={16} className="animate-spin" />
-              <p className="text-xs font-bold uppercase tracking-wider">Checking Revision date conflicts...</p>
-            </div>
-          )}
-
           <button
             onClick={handleSaveRevision}
-            disabled={isSubmitting || !isDateValidForType('revision', revisionDate) || dateConflict.revision || isCheckingConflict.revision}
+            disabled={isSubmittingRevision || revisionSaved}
             className="w-full py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl text-base font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/10 disabled:opacity-50"
           >
-            {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
-            Save Revision Record
+            {isSubmittingRevision ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
+            {revisionSaved ? 'Revision Saved' : 'Save Revision Record'}
           </button>
 
         </div>
@@ -1492,14 +1392,9 @@ export const DailySession: React.FC = () => {
           </button>
           <button 
             onClick={() => navigate('/students')}
-            disabled={isSubmitting}
-            className="px-8 py-3.5 bg-primary hover:bg-primary-hover text-background-dark rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+            className="px-8 py-3.5 bg-primary hover:bg-primary-hover text-background-dark rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20"
           >
-            {isSubmitting ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : (
-              <CheckCircle2 size={20} />
-            )}
+            <CheckCircle2 size={20} />
             Done
           </button>
         </div>

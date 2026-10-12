@@ -30,6 +30,7 @@ import { Reports } from "./pages/reports/Reports";
 import { Settings } from "./pages/settings/Settings";
 import { Profile } from "./pages/profile/Profile";
 import { Feedback } from "./pages/Feedback";
+import { Messages } from "./pages/messages/Messages";
 import BranchManagement from "./pages/BranchManagement";
 import BranchDetail from "./pages/BranchDetail";
 import SchoolSwitcher from "./pages/SchoolSwitcher";
@@ -60,6 +61,7 @@ function App() {
           <Route path="/instructors" element={<Instructors />} />
           <Route path="/sessions/daily/:studentId" element={<DailySession />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/messages" element={<Messages />} />
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/profile" element={<Profile />} />

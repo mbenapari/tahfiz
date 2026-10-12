@@ -41,6 +41,7 @@ export const getCurrentUser = async (req: Request, res: Response) => {
         active_school_context,
         schools,
         is_onboarded: Boolean(user.is_onboarded),
+        progress_onboarding_dismissed: Boolean(user.progress_onboarding_dismissed),
         school_name: user.tenant?.name,
         permissions
       }
@@ -122,6 +123,27 @@ export const completeOnboarding = async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error(`profileController: completeOnboarding - Error: ${error.message}`, { logId, userId });
     res.status(500).json(apiResponse.fail('SERVER_ERROR', 'Failed to complete onboarding'));
+  }
+};
+
+export const dismissProgressOnboarding = async (req: Request, res: Response) => {
+  const logId = req.correlationId || 'unknown';
+  const userId = req.user?.userId;
+
+  if (!userId) {
+    return res.status(401).json(apiResponse.fail('UNAUTHORIZED', 'Unauthorized'));
+  }
+
+  try {
+    logger.info(`profileController: dismissProgressOnboarding - userId: ${userId}`, { logId, userId });
+    const user = await userService.getUserById(userId);
+    user.progress_onboarding_dismissed = true;
+    await user.save();
+
+    res.json(apiResponse.success({ message: 'Progress onboarding dismissed' }));
+  } catch (error: any) {
+    logger.error(`profileController: dismissProgressOnboarding - Error: ${error.message}`, { logId, userId });
+    res.status(500).json(apiResponse.fail('SERVER_ERROR', 'Failed to dismiss progress onboarding'));
   }
 };
 

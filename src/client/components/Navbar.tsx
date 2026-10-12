@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router';
 import { 
-  Bell, 
   MessageSquare, 
   Menu
 } from 'lucide-react';
 import { SchoolSwitcherDropdown } from './SchoolSwitcherDropdown';
+import { NotificationBell } from './NotificationBell';
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -38,13 +38,14 @@ export const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
         <SchoolSwitcherDropdown />
         
         {/* Notifications */}
-        <button className="relative w-11 h-11 flex items-center justify-center rounded-xl hover:bg-surface-dark transition-colors group">
-          <Bell className="text-white group-hover:text-primary transition-colors" size={22} />
-          <span className="absolute top-3 right-3 w-2 h-2 bg-primary rounded-full ring-2 ring-background-dark"></span>
-        </button>
+        <NotificationBell />
 
         {/* Messages */}
-        <button className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-surface-dark transition-colors group">
+        <button
+          onClick={() => navigate('/messages')}
+          aria-label="Messages"
+          className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-surface-dark transition-colors group"
+        >
           <MessageSquare className="text-white group-hover:text-primary transition-colors" size={22} />
         </button>
 

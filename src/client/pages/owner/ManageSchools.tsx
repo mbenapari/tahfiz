@@ -6,7 +6,7 @@ const ManageSchools: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: '', slug: '', study_days: JSON.stringify([1,2,3]) });
+  const [form, setForm] = useState({ name: '', slug: '' });
 
   const fetchSchools = async () => {
     setLoading(true);
@@ -24,7 +24,7 @@ const ManageSchools: React.FC = () => {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = { name: form.name, slug: form.slug, study_days: JSON.parse(form.study_days) };
+      const payload = { name: form.name, slug: form.slug };
       const res = await apiFetch('/api/owner/manage/schools', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
       });
@@ -49,10 +49,9 @@ const ManageSchools: React.FC = () => {
 
       {showCreate && (
         <form onSubmit={create} className="mb-6 bg-surface-dark p-4 rounded">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Name" className="p-2 bg-background-dark rounded" required />
             <input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} placeholder="Slug" className="p-2 bg-background-dark rounded" required />
-            <input value={form.study_days} onChange={e=>setForm({...form,study_days:e.target.value})} placeholder='Study days JSON' className="p-2 bg-background-dark rounded" />
           </div>
           <div className="mt-3"><button className="px-4 py-2 bg-primary rounded">Create</button></div>
         </form>
