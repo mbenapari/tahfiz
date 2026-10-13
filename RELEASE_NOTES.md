@@ -5,6 +5,7 @@
 ### Highlights
 - **Notifications**: the navbar bell now shows real, unread notifications (refreshed every minute). School admins are notified of key events.
 - **Messages**: a new Messages page lets staff contact students' parents directly.
+- **Faster enrollment**: adding a student is now a single form — enter their details and they are created and enrolled in one step, with no separate search or "create" step.
 - **Onboarding**: dismissing the progress onboarding prompt is now remembered on your account across devices.
 - **Security**: passwords and internal email indexes are never included in API responses; recording a daily session now confirms the student belongs to your school.
 

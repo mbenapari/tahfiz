@@ -1,8 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { 
-  UserPlus, 
-  Search, 
-  X, 
   Calendar, 
   ChevronDown, 
   CheckCircle2,
@@ -14,13 +11,6 @@ import { Link, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../utils/api';
 
-interface UserSearchResult {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-}
-
 export const EnrollStudent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,10 +19,6 @@ export const EnrollStudent: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const isOnboarding = searchParams.get('mode') === 'onboarding';
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
-  const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [enrollmentData, setEnrollmentData] = useState({
     enrolledOn: new Date().toISOString().split('T')[0],
@@ -40,7 +26,6 @@ export const EnrollStudent: React.FC = () => {
     notes: ''
   });
 
-  const [showCreateForm, setShowCreateForm] = useState(isOnboarding);
   const [newUserData, setNewUserData] = useState({
     firstName: '',
     lastName: '',
@@ -49,68 +34,19 @@ export const EnrollStudent: React.FC = () => {
     studentIdentifier: ''
   });
 
-  const handleSearch = useCallback(async (query: string) => {
-    if (query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const response = await apiFetch(`/api/users/students/search?query=${encodeURIComponent(query)}`);
-      if (response.ok) {
-        const result = await response.json();
-        // The backend returns { students: [...] } for this endpoint
-        setSearchResults(result.data?.students || result.data?.users || result.students || result.users || []);
-      } else if (response.status === 403) {
-        console.error('Search error: Forbidden (403). Possible missing tenant ID.');
-        setSearchResults([]);
-      } else {
-        setSearchResults([]);
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery) {
-        handleSearch(searchQuery);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, handleSearch]);
+  const canSubmit = newUserData.firstName.trim() !== '' && newUserData.lastName.trim() !== '';
 
   const handleEnroll = async () => {
-    if (!selectedUser && !showCreateForm) {
-      alert('Please select a student or create a new one');
-      return;
-    }
+    if (!canSubmit) return;
 
     setIsSubmitting(true);
     try {
-      let body;
-      if (showCreateForm) {
-        body = {
-          ...newUserData,
-          enrolledOn: enrollmentData.enrolledOn,
-          notes: enrollmentData.notes
-        };
-      } else if (selectedUser) {
-        body = {
-          userId: selectedUser.id,
-          enrolledOn: enrollmentData.enrolledOn,
-          notes: enrollmentData.notes
-        };
-      } else {
-        alert('Please select a student or create a new one');
-        setIsSubmitting(false);
-        return;
-      }
+      // Creates the student account and enrolls it in the current school in one request
+      const body = {
+        ...newUserData,
+        enrolledOn: enrollmentData.enrolledOn,
+        notes: enrollmentData.notes
+      };
 
       const response = await apiFetch('/api/users/students', {
         method: 'POST',
@@ -165,123 +101,15 @@ export const EnrollStudent: React.FC = () => {
           
           {/* Section 1: Student Identity */}
           <div className="flex flex-col gap-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <Users size={20} />
-                </div>
-                <h2 className="text-lg font-bold text-white">Student Identity</h2>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <Users size={20} />
               </div>
+              <h2 className="text-lg font-bold text-white">Student Identity</h2>
+            </div>
 
-            {!showCreateForm ? (
+            <div className="bg-white/5 p-6 rounded-2xl border border-border-green/20">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Search Student */}
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => {
-                      setShowCreateForm(true);
-                      setSelectedUser(null);
-                    }}
-                    className="w-full mb-3 px-4 py-3 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-xl text-sm font-bold text-primary hover:text-primary-hover transition-all flex items-center justify-center gap-2"
-                  >
-                    <UserPlus size={18} />
-                    New Student? Create one →
-                  </button>
-                  <label className="text-sm font-medium text-text-muted">Search Student</label>
-                  <div className="relative">
-                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
-                    <input 
-                      type="text" 
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search by name or email..." 
-                      className="w-full bg-background-dark/50 border border-border-green/30 rounded-xl py-3 pl-11 pr-4 text-white placeholder:text-text-muted/50 focus:outline-none focus:border-primary/50 transition-colors"
-                    />
-                    {isSearching && (
-                      <Loader2 size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-primary animate-spin" />
-                    )}
-                  </div>
-                  
-                  {searchResults.length > 0 && (
-                    <div className="mt-2 bg-background-dark border border-border-green/30 rounded-xl overflow-hidden shadow-2xl max-h-48 overflow-y-auto">
-                      {searchResults.map((user) => (
-                        <div 
-                          key={user.id}
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setSearchResults([]);
-                            setSearchQuery('');
-                          }}
-                          className="p-3 hover:bg-white/5 cursor-pointer border-b border-border-green/10 last:border-0 transition-colors"
-                        >
-                          <p className="text-sm font-bold text-white">{user.first_name} {user.last_name}</p>
-                          <p className="text-xs text-text-muted">{user.email}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {searchQuery.length >= 2 && !isSearching && searchResults.length === 0 && (
-                    <div className="mt-2 bg-background-dark border border-border-green/30 rounded-xl p-4 text-center">
-                      <p className="text-sm text-text-muted mb-3">
-                        No students found matching &quot;<span className="text-white font-medium">{searchQuery}</span>&quot;
-                      </p>
-                      <button
-                        onClick={() => {
-                          setShowCreateForm(true);
-                          setSelectedUser(null);
-                        }}
-                        className="px-4 py-2 bg-primary hover:bg-primary-hover text-background-dark rounded-xl text-sm font-bold transition-all"
-                      >
-                        Create New Student →
-                      </button>
-                    </div>
-                  )}
-                  <p className="text-xs text-text-muted/60 mt-1">Search for an existing user account to enroll.</p>
-                </div>
-
-                {/* Selected User Display */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-text-muted">Selected User</label>
-                  {selectedUser ? (
-                    <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/30 rounded-xl group">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden border border-primary/20 bg-primary/10 flex items-center justify-center text-primary font-bold">
-                          {selectedUser.first_name[0]}{selectedUser.last_name[0]}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-white leading-tight">{selectedUser.first_name} {selectedUser.last_name}</p>
-                          <p className="text-xs text-text-muted">{selectedUser.email}</p>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => setSelectedUser(null)}
-                        className="p-1.5 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-all"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center p-4 bg-background-dark/30 border border-dashed border-border-green/30 rounded-xl text-text-muted text-sm text-center">
-                      <p className="italic">No user selected</p>
-                      <p className="text-xs mt-1">Search for an existing student or create a new one</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white/5 p-6 rounded-2xl border border-border-green/20">
-                <div className="flex items-center justify-between mb-6">
-                  <span className="text-sm font-medium text-text-muted">Create New Student User</span>
-                  <button
-                    onClick={() => {
-                      setShowCreateForm(false);
-                      setNewUserData({ firstName: '', lastName: '', email: '', phone: '', studentIdentifier: '' });
-                    }}
-                    className="text-sm font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-                  >
-                    ← Back to Search
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium text-text-muted">First Name</label>
                   <input 
@@ -333,8 +161,7 @@ export const EnrollStudent: React.FC = () => {
                   />
                 </div>
               </div>
-              </div>
-            )}
+            </div>
           </div>
 
           {/* Section 2: Enrollment Details */}
@@ -418,7 +245,7 @@ export const EnrollStudent: React.FC = () => {
           </button>
           <button 
             onClick={handleEnroll}
-            disabled={isSubmitting || (!selectedUser && !showCreateForm)}
+            disabled={isSubmitting || !canSubmit}
             className="px-6 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-background-dark rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20"
           >
             {isSubmitting ? (
@@ -428,8 +255,8 @@ export const EnrollStudent: React.FC = () => {
             )}
             {isSubmitting ? (
               'Processing...'
-            ) : !selectedUser && !showCreateForm ? (
-              'Select or create a student to continue'
+            ) : !canSubmit ? (
+              'Enter the student\'s name to continue'
             ) : (
               'Confirm Enrollment'
             )}
