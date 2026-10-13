@@ -11,6 +11,9 @@ lerna-debug.log*
 .trae
 docs
 
+brag**
+shots
+
 .env
 
 jotter.txt

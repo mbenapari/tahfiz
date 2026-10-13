@@ -18,8 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - **refactor: remove the advanced scheduling engine**: Remove `ScheduleService`, the `Session` calendar-alignment hooks, schedule draft/impact endpoints, the `checkDateConflict` endpoint, related error-code constants, and the advanced schedule UI in Settings, CreateSchool, BranchDetail and DailySession. Delete the associated schedule test suites and trim `sessionSaveValidation.test.ts`. Existing `schedule_mode` columns are left in place.
 
+### Changed
+- **feat: single-step student enrollment**: The Enroll Student page (`/students/enrollment`) is now one form that creates the student and enrolls them in the active school in a single submit. The existing-student search and "Create one" toggle were removed, since search only returned students already enrolled in the school. First and last name are required before submitting.
+
 ### Chore
 - Ignore `.claude`, `.trae` and `docs` in `.gitignore`.
+- Ignore `brag**` and `shots` in `.gitignore`.
 - Simplify `AnimatedActionButtons`, `BranchCard`, `BranchFormModal` and branch management hooks; minor controller/service cleanups for school-context handling.
 - Add `progressOnboarding.test.ts`.
 
