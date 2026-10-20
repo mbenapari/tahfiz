@@ -56,6 +56,8 @@ const OwnerLogin: React.FC = () => {
       // Backend returns { user, token }
       const user = result.data?.user || result.user;
       if (!user || !user.id) throw new Error('Invalid response from server');
+      // System owners have no school; drop any stale context from a previous session
+      localStorage.removeItem('active_school_id');
       setUser(user);
       navigate('/owner');
 

@@ -72,7 +72,9 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     req.user = decoded;
 
     // Validate School Context Header if present
-    const schoolContext = req.headers['x-school-context'];
+    // System owner tokens (roleId 0, tenantId 0) are not tied to any school, so skip the check
+    const isSystemOwner = decoded.roleId === 0 && decoded.tenantId === 0;
+    const schoolContext = isSystemOwner ? undefined : req.headers['x-school-context'];
     if (schoolContext) {
       const schoolId = parseInt(schoolContext as string, 10);
       if (isNaN(schoolId)) {

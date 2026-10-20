@@ -75,6 +75,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (userData) {
           // Ensure is_onboarded is a boolean (system owners are always onboarded)
           userData.is_onboarded = true;
+          localStorage.removeItem('active_school_id');
           setUser(userData);
           return;
         }
