@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as statsController from '../controller/statsController';
 import { authenticate } from '../middleware/authMiddleware';
+import { ownerOnly } from '../middleware/ownerAuthMiddleware';
 
 const router = Router();
 
@@ -13,6 +14,6 @@ router.get('/today-sessions', statsController.getTodaySessions);
 router.get('/pending-reviews', statsController.getPendingReviews);
 router.get('/student/:studentId', statsController.getStudentStats);
 router.get('/attendance-trends', statsController.getAttendanceTrends);
-router.get('/platform', statsController.getPlatformMetrics);
+router.get('/platform', ownerOnly, statsController.getPlatformMetrics);
 
 export default router;
