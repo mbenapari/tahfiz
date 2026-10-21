@@ -62,6 +62,9 @@ module.exports = {
       { type: Sequelize.QueryTypes.SELECT }
     );
 
+    // Fresh database: the default owner is created by the seeder after migrations run.
+    if (owners.length === 0) return;
+
     const target = owners.find(o => (decrypt(o.email, key) || '').toLowerCase().trim() === oldEmail);
     if (!target) {
       throw new Error(`No system owner found with email "${oldEmail}" (set OWNER_OLD_EMAIL)`);

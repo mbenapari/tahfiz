@@ -109,6 +109,7 @@ jobs:
             DEFAULT_SYSTEM_OWNER_PHONE_PASSWORD=${{ secrets.DEFAULT_SYSTEM_OWNER_PHONE_PASSWORD }}
             OWNER_NEW_EMAIL=${{ secrets.OWNER_NEW_EMAIL }}
             OWNER_NEW_PASSWORD=${{ secrets.OWNER_NEW_PASSWORD }}
+            OWNER_OLD_EMAIL=${{ secrets.OWNER_OLD_EMAIL }}
             EOF
 
             # Build and restart containers
