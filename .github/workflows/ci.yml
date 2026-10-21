@@ -49,6 +49,8 @@ jobs:
           JWT_SECRET: test-secret
           ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           CSRF_SECRET: test-csrf-secret
+          OWNER_NEW_EMAIL: owner@example.test
+          OWNER_NEW_PASSWORD: test-owner-password
         run: |
           npx sequelize-cli db:migrate --env test
           npx sequelize-cli db:seed:all --env test

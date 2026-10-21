@@ -49,6 +49,8 @@ jobs:
           JWT_SECRET: test-secret
           ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           CSRF_SECRET: test-csrf-secret
+          OWNER_NEW_EMAIL: owner@example.test
+          OWNER_NEW_PASSWORD: test-owner-password
         run: |
           npx sequelize-cli db:migrate --env test
           npx sequelize-cli db:seed:all --env test
@@ -105,6 +107,8 @@ jobs:
             CSRF_SECRET=${{ secrets.CSRF_SECRET }}
             DEFAULT_SYSTEM_OWNER_PHONE=${{ secrets.DEFAULT_SYSTEM_OWNER_PHONE }}
             DEFAULT_SYSTEM_OWNER_PHONE_PASSWORD=${{ secrets.DEFAULT_SYSTEM_OWNER_PHONE_PASSWORD }}
+            OWNER_NEW_EMAIL=${{ secrets.OWNER_NEW_EMAIL }}
+            OWNER_NEW_PASSWORD=${{ secrets.OWNER_NEW_PASSWORD }}
             EOF
 
             # Build and restart containers
